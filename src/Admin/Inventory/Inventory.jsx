@@ -1,12 +1,14 @@
 import React, { useState } from 'react';
 import '../../App.css';
-import './Inventory.css';
 import Sidebar from '../Sidebar/Sidebar';
 
 export default function Inventory() {
   const [focused, setFocused] = useState({});
   const [values, setValues] = useState({});
-  const [productType, setProductType] = useState('sparkles');
+  const [productType, setProductType] = useState('');
+  const [image, setImage] = useState(null);
+  const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
 
   const handleFocus = (inputId) => {
     setFocused((prev) => ({ ...prev, [inputId]: true }));
@@ -20,20 +22,65 @@ export default function Inventory() {
     setValues((prev) => ({ ...prev, [inputId]: event.target.value }));
   };
 
+  const handleImageChange = (event) => {
+    setImage(event.target.files[0]);
+  };
+
   const handleProductTypeChange = (event) => {
     setProductType(event.target.value);
     setValues({});
     setFocused({});
+    setImage(null);
+    setError('');
+    setSuccess('');
+  };
+
+  const handleSubmit = async (event) => {
+    event.preventDefault();
+    setError('');
+    setSuccess('');
+
+    const formData = new FormData();
+    formData.append('serial_number', values.serialNum || '');
+    formData.append('product_name', values.productName || '');
+    formData.append('price', values.price || '');
+    formData.append('discount', values.discount || '');
+    formData.append('product_type', productType);
+    if (productType === 'ground-chakras') {
+      formData.append('per', values.per || '');
+    }
+    if (image) {
+      formData.append('image', image);
+    }
+
+    try {
+      const response = await fetch('http://localhost:5000/api/products', {
+        method: 'POST',
+        body: formData,
+      });
+
+      const result = await response.json();
+      if (!response.ok) {
+        throw new Error(result.message || 'Failed to save product');
+      }
+
+      setSuccess('Product saved successfully!');
+      setValues({});
+      setImage(null);
+      event.target.reset();
+    } catch (err) {
+      setError(err.message);
+    }
   };
 
   const renderFormFields = () => {
     switch (productType) {
-      case 'sparkles':
+      case 'sparklers':
         return (
           <>
             <div className="sm:col-span-3">
               <label
-                htmlFor="serial-num-sparkles"
+                htmlFor="serial-num-sparklers"
                 className="block text-sm font-medium text-gray-900"
               >
                 Serial Number*
@@ -41,53 +88,225 @@ export default function Inventory() {
               <div className="mt-2">
                 <input
                   type="text"
-                  id="serial-num-sparkles"
+                  id="serial-num-sparklers"
                   required
-                  value={values.serialNumSparkles || ''}
-                  onChange={(e) => handleChange('serialNumSparkles', e)}
-                  onFocus={() => handleFocus('serialNumSparkles')}
-                  onBlur={() => handleBlur('serialNumSparkles')}
+                  value={values.serialNum || ''}
+                  onChange={(e) => handleChange('serialNum', e)}
+                  onFocus={() => handleFocus('serialNum')}
+                  onBlur={() => handleBlur('serialNum')}
                   className="block w-full rounded-md bg-white px-3 py-1.5 text-base text-gray-900 outline-1 -outline-offset-1 outline-gray-300 placeholder:text-gray-400 focus:outline-2 focus:-outline-offset-2 focus:outline-indigo-600 sm:text-sm"
                 />
               </div>
             </div>
             <div className="sm:col-span-3">
               <label
-                htmlFor="sparkle-color"
+                htmlFor="product-name"
                 className="block text-sm font-medium text-gray-900"
               >
-                Color
+                Product Name*
               </label>
               <div className="mt-2">
                 <input
                   type="text"
-                  id="sparkle-color"
+                  id="product-name"
                   required
-                  value={values.sparkleColor || ''}
-                  onChange={(e) => handleChange('sparkleColor', e)}
-                  onFocus={() => handleFocus('sparkleColor')}
-                  onBlur={() => handleBlur('sparkleColor')}
+                  value={values.productName || ''}
+                  onChange={(e) => handleChange('productName', e)}
+                  onFocus={() => handleFocus('productName')}
+                  onBlur={() => handleBlur('productName')}
                   className="block w-full rounded-md bg-white px-3 py-1.5 text-base text-gray-900 outline-1 -outline-offset-1 outline-gray-300 placeholder:text-gray-400 focus:outline-2 focus:-outline-offset-2 focus:outline-indigo-600 sm:text-sm"
                 />
               </div>
             </div>
             <div className="sm:col-span-3">
               <label
-                htmlFor="sparkle-duration"
+                htmlFor="price"
                 className="block text-sm font-medium text-gray-900"
               >
-                Duration (seconds)
+                Price (INR)*
               </label>
               <div className="mt-2">
                 <input
                   type="number"
-                  id="sparkle-duration"
+                  id="price"
                   required
-                  value={values.sparkleDuration || ''}
-                  onChange={(e) => handleChange('sparkleDuration', e)}
-                  onFocus={() => handleFocus('sparkleDuration')}
-                  onBlur={() => handleBlur('sparkleDuration')}
+                  min="0"
+                  step="0.01"
+                  value={values.price || ''}
+                  onChange={(e) => handleChange('price', e)}
+                  onFocus={() => handleFocus('price')}
+                  onBlur={() => handleBlur('price')}
                   className="block w-full rounded-md bg-white px-3 py-1.5 text-base text-gray-900 outline-1 -outline-offset-1 outline-gray-300 placeholder:text-gray-400 focus:outline-2 focus:-outline-offset-2 focus:outline-indigo-600 sm:text-sm"
+                />
+              </div>
+            </div>
+            <div className="sm:col-span-3">
+              <label
+                htmlFor="discount"
+                className="block text-sm font-medium text-gray-900"
+              >
+                Discount (%)*
+              </label>
+              <div className="mt-2">
+                <input
+                  type="number"
+                  id="discount"
+                  required
+                  min="0"
+                  max="100"
+                  step="0.01"
+                  value={values.discount || ''}
+                  onChange={(e) => handleChange('discount', e)}
+                  onFocus={() => handleFocus('discount')}
+                  onBlur={() => handleBlur('discount')}
+                  className="block w-full rounded-md bg-white px-3 py-1.5 text-base text-gray-900 outline-1 -outline-offset-1 outline-gray-300 placeholder:text-gray-400 focus:outline-2 focus:-outline-offset-2 focus:outline-indigo-600 sm:text-sm"
+                />
+              </div>
+            </div>
+            <div className="sm:col-span-3">
+              <label
+                htmlFor="image"
+                className="block text-sm font-medium text-gray-900"
+              >
+                Image Upload*
+              </label>
+              <div className="mt-2">
+                <input
+                  type="file"
+                  id="image"
+                  accept="image/jpeg,image/png"
+                  onChange={handleImageChange}
+                  className="block w-full text-sm text-gray-900 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-600 hover:file:bg-indigo-100"
+                />
+              </div>
+            </div>
+          </>
+        );
+      case 'ground-chakras':
+        return (
+          <>
+            <div className="sm:col-span-3">
+              <label
+                htmlFor="serial-num-chakras"
+                className="block text-sm font-medium text-gray-900"
+              >
+                Serial Number*
+              </label>
+              <div className="mt-2">
+                <input
+                  type="text"
+                  id="serial-num-chakras"
+                  required
+                  value={values.serialNum || ''}
+                  onChange={(e) => handleChange('serialNum', e)}
+                  onFocus={() => handleFocus('serialNum')}
+                  onBlur={() => handleBlur('serialNum')}
+                  className="block w-full rounded-md bg-white px-3 py-1.5 text-base text-gray-900 outline-1 -outline-offset-1 outline-gray-300 placeholder:text-gray-400 focus:outline-2 focus:-outline-offset-2 focus:outline-indigo-600 sm:text-sm"
+                />
+              </div>
+            </div>
+            <div className="sm:col-span-3">
+              <label
+                htmlFor="product-name"
+                className="block text-sm font-medium text-gray-900"
+              >
+                Product Name*
+              </label>
+              <div className="mt-2">
+                <input
+                  type="text"
+                  id="product-name"
+                  required
+                  value={values.productName || ''}
+                  onChange={(e) => handleChange('productName', e)}
+                  onFocus={() => handleFocus('productName')}
+                  onBlur={() => handleBlur('productName')}
+                  className="block w-full rounded-md bg-white px-3 py-1.5 text-base text-gray-900 outline-1 -outline-offset-1 outline-gray-300 placeholder:text-gray-400 focus:outline-2 focus:-outline-offset-2 focus:outline-indigo-600 sm:text-sm"
+                />
+              </div>
+            </div>
+            <div className="sm:col-span-3">
+              <label
+                htmlFor="price"
+                className="block text-sm font-medium text-gray-900"
+              >
+                Price (INR)*
+              </label>
+              <div className="mt-2">
+                <input
+                  type="number"
+                  id="price"
+                  required
+                  min="0"
+                  step="0.01"
+                  value={values.price || ''}
+                  onChange={(e) => handleChange('price', e)}
+                  onFocus={() => handleFocus('price')}
+                  onBlur={() => handleBlur('price')}
+                  className="block w-full rounded-md bg-white px-3 py-1.5 text-base text-gray-900 outline-1 -outline-offset-1 outline-gray-300 placeholder:text-gray-400 focus:outline-2 focus:-outline-offset-2 focus:outline-indigo-600 sm:text-sm"
+                />
+              </div>
+            </div>
+            <div className="sm:col-span-3">
+              <label
+                htmlFor="per"
+                className="block text-sm font-medium text-gray-900"
+              >
+                Per*
+              </label>
+              <div className="mt-2">
+                <select
+                  id="per"
+                  required
+                  value={values.per || ''}
+                  onChange={(e) => handleChange('per', e)}
+                  onFocus={() => handleFocus('per')}
+                  onBlur={() => handleBlur('per')}
+                  className="block w-full rounded-md bg-white px-3 py-1.5 text-base text-gray-900 outline-1 -outline-offset-1 outline-gray-300 focus:outline-2 focus:-outline-offset-2 focus:outline-indigo-600 sm:text-sm"
+                >
+                  <option value="">Select</option>
+                  <option value="pieces">Pieces</option>
+                  <option value="box">Box</option>
+                </select>
+              </div>
+            </div>
+            <div className="sm:col-span-3">
+              <label
+                htmlFor="discount"
+                className="block text-sm font-medium text-gray-900"
+              >
+                Discount (%)*
+              </label>
+              <div className="mt-2">
+                <input
+                  type="number"
+                  id="discount"
+                  required
+                  min="0"
+                  max="100"
+                  step="0.01"
+                  value={values.discount || ''}
+                  onChange={(e) => handleChange('discount', e)}
+                  onFocus={() => handleFocus('discount')}
+                  onBlur={() => handleBlur('discount')}
+                  className="block w-full rounded-md bg-white px-3 py-1.5 text-base text-gray-900 outline-1 -outline-offset-1 outline-gray-300 placeholder:text-gray-400 focus:outline-2 focus:-outline-offset-2 focus:outline-indigo-600 sm:text-sm"
+                />
+              </div>
+            </div>
+            <div className="sm:col-span-3">
+              <label
+                htmlFor="image"
+                className="block text-sm font-medium text-gray-900"
+              >
+                Image Upload
+              </label>
+              <div className="mt-2">
+                <input
+                  type="file"
+                  id="image"
+                  accept="image/jpeg,image/png"
+                  onChange={handleImageChange}
+                  className="block w-full text-sm text-gray-900 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-600 hover:file:bg-indigo-100"
                 />
               </div>
             </div>
@@ -132,51 +351,6 @@ export default function Inventory() {
                   onChange={(e) => handleChange('rocketHeight', e)}
                   onFocus={() => handleFocus('rocketHeight')}
                   onBlur={() => handleBlur('rocketHeight')}
-                  className="block w-full rounded-md bg-white px-3 py-1.5 text-base text-gray-900 outline-1 -outline-offset-1 outline-gray-300 placeholder:text-gray-400 focus:outline-2 focus:-outline-offset-2 focus:outline-indigo-600 sm:text-sm"
-                />
-              </div>
-            </div>
-          </>
-        );
-      case 'ground-chakras':
-        return (
-          <>
-            <div className="sm:col-span-3">
-              <label
-                htmlFor="serial-num-chakras"
-                className="block text-sm font-medium text-gray-900"
-              >
-                Serial Number*
-              </label>
-              <div className="mt-2">
-                <input
-                  type="text"
-                  id="serial-num-chakras"
-                  required
-                  value={values.serialNumChakras || ''}
-                  onChange={(e) => handleChange('serialNumChakras', e)}
-                  onFocus={() => handleFocus('serialNumChakras')}
-                  onBlur={() => handleBlur('serialNumChakras')}
-                  className="block w-full rounded-md bg-white px-3 py-1.5 text-base text-gray-900 outline-1 -outline-offset-1 outline-gray-300 placeholder:text-gray-400 focus:outline-2 focus:-outline-offset-2 focus:outline-indigo-600 sm:text-sm"
-                />
-              </div>
-            </div>
-            <div className="sm:col-span-3">
-              <label
-                htmlFor="chakra-pattern"
-                className="block text-sm font-medium text-gray-900"
-              >
-                Pattern
-              </label>
-              <div className="mt-2">
-                <input
-                  type="text"
-                  id="chakra-pattern"
-                  required
-                  value={values.chakraPattern || ''}
-                  onChange={(e) => handleChange('chakraPattern', e)}
-                  onFocus={() => handleFocus('chakraPattern')}
-                  onBlur={() => handleBlur('chakraPattern')}
                   className="block w-full rounded-md bg-white px-3 py-1.5 text-base text-gray-900 outline-1 -outline-offset-1 outline-gray-300 placeholder:text-gray-400 focus:outline-2 focus:-outline-offset-2 focus:outline-indigo-600 sm:text-sm"
                 />
               </div>
@@ -279,12 +453,18 @@ export default function Inventory() {
   };
 
   return (
-    <div className="flex min-h-screen bg-gray-100 xs:bg-red-500 2xl:bg-green-300">
+    <div className="flex min-h-screen">
       <Sidebar />
       <div className="flex-1 md:ml-64 p-6">
-        <div className="max-w-4xl mx-auto justify-center">
+        <div className="max-w-4xl mx-auto">
           <h2 className="text-2xl text-center font-bold text-gray-900 mb-6">Add Items</h2>
-          <form className="space-y-8">
+          {error && (
+            <div className="mb-4 text-red-600 text-sm text-center">{error}</div>
+          )}
+          {success && (
+            <div className="mb-4 text-green-600 text-sm text-center">{success}</div>
+          )}
+          <form className="space-y-8" onSubmit={handleSubmit} encType="multipart/form-data">
             <div className="border-b border-gray-900/10 pb-8">
               <div className="mt-6 grid grid-cols-1 gap-x-6 gap-y-8 sm:grid-cols-6">
                 <div className="sm:col-span-4">
@@ -299,50 +479,53 @@ export default function Inventory() {
                       id="product-type"
                       value={productType}
                       onChange={handleProductTypeChange}
-                      className="col-start-1 row-start-1 w-full appearance-none rounded-md bg-white py-1.5 pr-8 pl-3 text-base text-gray-900 outline-1 -outline-offset-1 outline-gray-300 focus:outline-2 focus:-outline-offset-2 focus:outline-indigo-600 sm:text-sm"
+                      className="block w-full rounded-md bg-white px-3 py-1.5 text-base text-gray-900 outline-1 -outline-offset-1 outline-gray-300 focus:outline-2 focus:-outline-offset-2 focus:outline-indigo-600 sm:text-sm"
                     >
                       <option value="">Select</option>
-                      <option value="sparkles">Sparkles</option>
-                      <option value="rockets">Rockets</option>
+                      <option value="sparklers">Sparklers</option>
                       <option value="ground-chakras">Ground Chakras</option>
+                      <option value="rockets">Rockets</option>
                       <option value="flower-pots">Flower Pots</option>
                       <option value="shots">Shots</option>
                     </select>
-                    <svg
-                      className="pointer-events-none col-start-1 row-start-1 mr-2 size-5 self-center justify-self-end text-gray-500 sm:size-4"
-                      viewBox="0 0 16 16"
-                      fill="currentColor"
-                      aria-hidden="true"
-                    >
-                      <path
-                        fillRule="evenodd"
-                        d="M4.22 6.22a.75.75 0 0 1 1.06 0L8 8.94l2.72-2.72a.75.75 0 1 1 1.06 1.06l-3.25 3.25a.75.75 0 0 1-1.06 0L4.22 7.28a.75.75 0 0 1 0-1.06Z"
-                        clipRule="evenodd"
-                      />
-                    </svg>
                   </div>
                 </div>
               </div>
             </div>
-            <div className="border-b border-gray-900/10 pb-8">
-              <div className="mt-6 grid grid-cols-1 gap-x-6 gap-y-8 sm:grid-cols-6">
-                {renderFormFields()}
+            {productType ? (
+              <>
+                <div className="border-b border-gray-900/10 pb-8">
+                  <div className="mt-6 grid grid-cols-1 gap-x-6 gap-y-8 sm:grid-cols-6">
+                    {renderFormFields()}
+                  </div>
+                </div>
+                <div className="flex justify-end gap-x-6">
+                  <button
+                    type="button"
+                    className="text-sm font-semibold text-gray-900"
+                    onClick={() => {
+                      setValues({});
+                      setImage(null);
+                      setProductType('');
+                    }}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    className="rounded-md bg-black/50 px-3 py-2 text-sm font-semibold text-white shadow-xs hover:bg-gray-900 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-black/50"
+                  >
+                    Save
+                  </button>
+                </div>
+              </>
+            ) : (
+              <div className="flex justify-center items-center">
+                <p className="text-lg text-center font-medium text-gray-900">
+                  Please select product type to add items
+                </p>
               </div>
-            </div>
-            <div className="flex justify-end gap-x-6">
-              <button
-                type="button"
-                className="text-sm font-semibold text-gray-900"
-              >
-                Cancel
-              </button>
-              <button
-                type="submit"
-                className="rounded-md bg-indigo-600 px-3 py-2 text-sm font-semibold text-white shadow-xs hover:bg-indigo-500 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600"
-              >
-                Save
-              </button>
-            </div>
+            )}
           </form>
         </div>
       </div>

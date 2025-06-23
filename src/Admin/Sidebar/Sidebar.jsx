@@ -29,7 +29,7 @@ export default function Sidebar() {
       )}
 
       <div
-        className={`fixed top-0 left-0 h-screen bg-gray-800 text-white flex flex-col transition-transform duration-300 ease-in-out ${
+        className={`fixed top-0 left-0 h-screen bg-black/50 text-white flex flex-col transition-transform duration-300 ease-in-out ${
           isOpen ? 'translate-x-0' : '-translate-x-full'
         } md:translate-x-0 md:w-64 w-64 z-40`}
       >
@@ -46,8 +46,8 @@ export default function Sidebar() {
                 <NavLink
                   to={item.path}
                   className={({ isActive }) =>
-                    `flex items-center py-3 px-6 text-sm font-medium hover:bg-gray-700 transition-colors ${
-                      isActive ? 'bg-gray-900 text-blue-400' : ''
+                    `flex items-center py-3 px-6 text-sm font-medium hover:bg-black/50 transition-colors ${
+                      isActive ? 'bg-gray-900 text-white' : ''
                     }`
                   }
                   onClick={() => setIsOpen(false)}
