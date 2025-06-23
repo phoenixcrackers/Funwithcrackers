@@ -3,7 +3,7 @@
 @theme {
   --breakpoint-hundred: 1550px;
   --breakpoint-onefifty: 1024px;
-  --breakpoint-mobile: 768px;
+  --breakpoint-mobile: 420px;
 }
 
  @plugin "daisyui" {

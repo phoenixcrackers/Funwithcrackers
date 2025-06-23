@@ -167,16 +167,11 @@ export default function List() {
                 <h2 className="text-xl font-bold text-gray-900 mb-4">
                   Product Details
                 </h2>
-                <div className="space-y-4">
-                  <div>
-                    <span className="font-medium text-gray-700">Serial Number:</span>
-                    <span className="ml-2 text-gray-900">{selectedProduct.serial_number}</span>
+                <div className='flex justify-center'>
+                    <span className="font-medium text-gray-700">Product Type:</span>
+                    <span className="ml-2 text-gray-900">{capitalize(selectedProduct.product_type)}</span>
                   </div>
-                  <div>
-                    <span className="font-medium text-gray-700">Product Name:</span>
-                    <span className="ml-2 text-gray-900">{selectedProduct.product_name}</span>
-                  </div>
-                  <div>
+                <div>
                     <span className="font-medium text-gray-700">Image:</span>
                     <div className="mt-2">
                       {selectedProduct.image_path ? (
@@ -189,6 +184,15 @@ export default function List() {
                         <span className="text-gray-500">No Image</span>
                       )}
                     </div>
+                  </div>
+                <div className="space-y-4 grid grid-cols-2">
+                  <div>
+                    <span className="font-medium text-gray-700">Serial Number:</span>
+                    <span className="ml-2 text-gray-900">{selectedProduct.serial_number}</span>
+                  </div>
+                  <div>
+                    <span className="font-medium text-gray-700">Product Name:</span>
+                    <span className="ml-2 text-gray-900">{selectedProduct.product_name}</span>
                   </div>
                   <div>
                     <span className="font-medium text-gray-700">Price:</span>
@@ -203,10 +207,6 @@ export default function List() {
                   <div>
                     <span className="font-medium text-gray-700">Discount:</span>
                     <span className="ml-2 text-gray-900">{selectedProduct.discount}%</span>
-                  </div>
-                  <div>
-                    <span className="font-medium text-gray-700">Product Type:</span>
-                    <span className="ml-2 text-gray-900">{capitalize(selectedProduct.product_type)}</span>
                   </div>
                 </div>
                 <div className="mt-6 flex justify-end">
