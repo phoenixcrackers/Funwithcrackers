@@ -6,6 +6,6 @@
   --breakpoint-mobile: 420px;
 }
 
- @plugin "daisyui" {
-   themes: light;
- }
+@plugin "daisyui" {
+  themes: light;
+}

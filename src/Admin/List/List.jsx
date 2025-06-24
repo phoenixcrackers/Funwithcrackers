@@ -1,45 +1,95 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import Modal from 'react-modal';
 import Sidebar from '../Sidebar/Sidebar';
 import '../../App.css';
+import { API_BASE_URL } from '../../../Config';
+import { FaEye, FaEdit, FaTrash } from 'react-icons/fa';
 
-// Bind modal to app element for accessibility
 Modal.setAppElement('#root');
 
 export default function List() {
   const [products, setProducts] = useState([]);
   const [filteredProducts, setFilteredProducts] = useState([]);
   const [filterType, setFilterType] = useState('all');
+  const [productTypes, setProductTypes] = useState([]);
   const [modalIsOpen, setModalIsOpen] = useState(false);
+  const [editModalIsOpen, setEditModalIsOpen] = useState(false);
+  const [viewModalIsOpen, setViewModalIsOpen] = useState(null);
   const [selectedProduct, setSelectedProduct] = useState(null);
   const [error, setError] = useState('');
+  const [toggleStates, setToggleStates] = useState({});
+  const [currentPage, setCurrentPage] = useState(1);
+  const [editFormData, setEditFormData] = useState({
+    productname: '',
+    serial_number: '',
+    price: '',
+    discount: '',
+    per: '',
+    image: null,
+  });
+  const productsPerPage = 20;
+  const menuRef = useRef({});
 
-  // Fetch products on component mount
-  useEffect(() => {
-    const fetchProducts = async () => {
-      try {
-        const response = await fetch('http://localhost:5000/api/products');
-        const data = await response.json();
-        if (!response.ok) {
-          throw new Error(data.message || 'Failed to fetch products');
-        }
-        setProducts(data);
-        setFilteredProducts(data);
-      } catch (err) {
-        setError(err.message);
+  const fetchProductTypes = async () => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/product-types`);
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.message || 'Failed to fetch product types');
       }
-    };
+      setProductTypes(data.map(item => item.product_type));
+    } catch (err) {
+      setError(err.message);
+    }
+  };
+
+  const fetchProducts = async () => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/products`);
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.message || 'Failed to fetch products');
+      }
+      setProducts(data);
+      setFilteredProducts(data);
+      const initialToggles = data.reduce((acc, product) => ({
+        ...acc,
+        [`${product.product_type}-${product.id}`]: product.status === 'on',
+      }), {});
+      setToggleStates(initialToggles);
+    } catch (err) {
+      setError(err.message);
+    }
+  };
+
+  useEffect(() => {
+    fetchProductTypes();
     fetchProducts();
+    const intervalId = setInterval(() => {
+      fetchProductTypes();
+      fetchProducts();
+    }, 10000);
+    return () => clearInterval(intervalId);
   }, []);
 
-  // Filter products based on selected product type
   useEffect(() => {
     if (filterType === 'all') {
       setFilteredProducts(products);
     } else {
       setFilteredProducts(products.filter(product => product.product_type === filterType));
     }
+    setCurrentPage(1); // Reset to page 1 when filter changes
   }, [filterType, products]);
+
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (viewModalIsOpen && menuRef.current[viewModalIsOpen] && !menuRef.current[viewModalIsOpen].contains(event.target)) {
+        setViewModalIsOpen(null);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [viewModalIsOpen]);
 
   const handleFilterChange = (event) => {
     setFilterType(event.target.value);
@@ -48,25 +98,133 @@ export default function List() {
   const openModal = (product) => {
     setSelectedProduct(product);
     setModalIsOpen(true);
+    setViewModalIsOpen(null);
+  };
+
+  const openEditModal = (product) => {
+    setSelectedProduct(product);
+    setEditFormData({
+      productname: product.productname,
+      serial_number: product.serial_number,
+      price: product.price,
+      discount: product.discount,
+      per: product.per,
+      image: null,
+    });
+    setEditModalIsOpen(true);
+    setViewModalIsOpen(null);
   };
 
   const closeModal = () => {
     setModalIsOpen(false);
+    setEditModalIsOpen(false);
+    setViewModalIsOpen(null);
     setSelectedProduct(null);
   };
 
-  // Capitalize product type for display
+  const handleDelete = async (product) => {
+    try {
+      const tableName = product.product_type.toLowerCase().replace(/\s+/g, '_');
+      await fetch(`${API_BASE_URL}/api/products/${tableName}/${product.id}`, {
+        method: 'DELETE',
+      });
+      fetchProducts();
+      setViewModalIsOpen(null);
+    } catch (err) {
+      setError('Failed to delete product');
+    }
+  };
+
+  const handleEditSubmit = async (e) => {
+    e.preventDefault();
+    try {
+      const formData = new FormData();
+      formData.append('productname', editFormData.productname);
+      formData.append('serial_number', editFormData.serial_number);
+      formData.append('price', editFormData.price);
+      formData.append('discount', editFormData.discount);
+      formData.append('per', editFormData.per);
+      if (editFormData.image) {
+        formData.append('image', editFormData.image);
+      }
+
+      const tableName = selectedProduct.product_type.toLowerCase().replace(/\s+/g, '_');
+      const response = await fetch(`${API_BASE_URL}/api/products/${tableName}/${selectedProduct.id}`, {
+        method: 'PUT',
+        body: formData,
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to update product');
+      }
+
+      fetchProducts();
+      closeModal();
+    } catch (err) {
+      setError(err.message);
+    }
+  };
+
+  const handleInputChange = (e) => {
+    const { name, value } = e.target;
+    setEditFormData(prev => ({ ...prev, [name]: value }));
+  };
+
+  const handleImageChange = (e) => {
+    setEditFormData(prev => ({ ...prev, image: e.target.files[0] }));
+  };
+
+  const handleToggleChange = async (product) => {
+    const productKey = `${product.product_type}-${product.id}`;
+    const tableName = product.product_type.toLowerCase().replace(/\s+/g, '_');
+
+    try {
+      setToggleStates(prev => ({
+        ...prev,
+        [productKey]: !prev[productKey],
+      }));
+
+      const response = await fetch(`${API_BASE_URL}/api/products/${tableName}/${product.id}/toggle-status`, {
+        method: 'PATCH',
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to toggle status');
+      }
+
+      await fetchProducts();
+    } catch (err) {
+      setToggleStates(prev => ({
+        ...prev,
+        [productKey]: prev[productKey],
+      }));
+      setError(err.message);
+    }
+  };
+
   const capitalize = (str) => {
+    if (!str) return '';
     return str
-      .split('-')
+      .split('_')
       .map(word => word.charAt(0).toUpperCase() + word.slice(1))
       .join(' ');
   };
 
+  // Pagination logic
+  const indexOfLastProduct = currentPage * productsPerPage;
+  const indexOfFirstProduct = indexOfLastProduct - productsPerPage;
+  const currentProducts = filteredProducts.slice(indexOfFirstProduct, indexOfLastProduct);
+  const totalPages = Math.ceil(filteredProducts.length / productsPerPage);
+
+  const handlePageChange = (pageNumber) => {
+    setCurrentPage(pageNumber);
+    window.scrollTo(0, 0); // Scroll to top on page change
+  };
+
   return (
-    <div className="flex min-h-screen">
+    <div className="flex min-h-screen overflow-hidden">
       <Sidebar />
-      <div className="flex-1 md:ml-64 p-6">
+      <div className="flex-1 md:ml-64 p-6 overflow-hidden">
         <div className="max-w-5xl mx-auto">
           <h2 className="text-2xl text-center font-bold text-gray-900 mb-6">List Products</h2>
           {error && (
@@ -80,145 +238,355 @@ export default function List() {
               id="product-type-filter"
               value={filterType}
               onChange={handleFilterChange}
-              className="mt-2 block w-48 rounded-md bg-white px-3 py-1.5 text-base text-gray-900 outline-1 -outline-offset-1 outline-gray-300 focus:outline-2 focus:-outline-offset-2 focus:outline-indigo-600 sm:text-sm"
+              className="mt-2 block w-48 rounded-md bg-white px-3 py-1.5 text-base text-gray-900 outline-1 -outline-offset-1 outline-gray-300 focus:outline-2 focus:outline-offset-1 focus:outline-indigo-600 sm:text-sm"
             >
               <option value="all">All</option>
-              <option value="sparklers">Sparklers</option>
-              <option value="ground-chakras">Ground Chakras</option>
+              {productTypes.map(type => (
+                <option key={type} value={type}>
+                  {capitalize(type)}
+                </option>
+              ))}
             </select>
           </div>
-          {filteredProducts.length === 0 ? (
-            <p className="text-lg text-center font-medium text-gray-900">
+          {currentProducts.length === 0 ? (
+            <p className="text-lg text-center text-gray-600 sm:text-xl font-medium">
               No products found
             </p>
           ) : (
             <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-gray-200">
-                <thead className="bg-gray-50">
+              <table className="min-w-full divide-y divide-gray-200 rounded-lg shadow-sm">
+                <thead className="bg-gray-100 sticky top-0">
                   <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Serial Number
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Product Name
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Price (INR)
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Image
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-4 py-3 sm:px-4 text-left text-xs font-medium text-gray-500 uppercase">
                       Product Type
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      View Details
+                    <th className="px-4 py-3 sm:px-6 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Serial Number
+                    </th>
+                    <th className="px-4 py-3 sm:px-6 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Product Name
+                    </th>
+                    <th className="px-4 py-3 sm:px-3 text-right text-xs font-medium text-gray-500 uppercase">
+                      Price (INR)
+                    </th>
+                    <th className="px-4 py-3 sm:px-4 text-left text-xs font-medium text-gray-500 uppercase">
+                      Per
+                    </th>
+                    <th className="px-4 py-3 sm:px-3 text-right text-xs font-medium text-gray-500 uppercase">
+                      Discount (%)
+                    </th>
+                    <th className="px-4 py-3 sm:px-6 text-center text-xs font-medium text-gray-500 uppercase">
+                      Image
+                    </th>
+                    <th className="px-4 py-3 sm:px-6 text-center text-xs font-medium text-gray-500 uppercase">
+                      Status
+                    </th>
+                    <th className="px-4 py-3 sm:px-6 text-center text-xs font-medium text-gray-500 uppercase">
+                      Actions
                     </th>
                   </tr>
                 </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
-                  {filteredProducts.map((product) => (
-                    <tr key={product.id}>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        {product.serial_number}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        {product.product_name}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        ₹{parseFloat(product.price).toFixed(2)}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        {product.image_path ? (
-                          <img
-                            src={`http://localhost:5000${product.image_path}`}
-                            alt={product.product_name}
-                            className="h-16 w-16 object-cover rounded"
-                          />
-                        ) : (
-                          <span className="text-sm text-gray-500">No Image</span>
-                        )}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        {capitalize(product.product_type)}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <button
-                          onClick={() => openModal(product)}
-                          className="text-sm font-semibold text-indigo-600 hover:text-indigo-800"
-                        >
-                          View Details
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
+                <tbody className="bg-white divide-y divide-gray-200 border-b border-gray-200">
+                  {currentProducts.map((product) => {
+                    const productKey = `${product.product_type}-${product.id}`;
+                    return (
+                      <tr key={productKey} className="hover:bg-gray-50">
+                        <td className="px-4 py-3 sm:px-4 whitespace-nowrap text-xs sm:text-sm text-gray-900">
+                          {capitalize(product.product_type)}
+                        </td>
+                        <td className="px-4 py-3 sm:px-6 whitespace-nowrap text-xs sm:text-sm text-gray-900">
+                          {product.serial_number}
+                        </td>
+                        <td className="px-2 py-3 sm:px-4 whitespace-normal text-xs sm:text-sm text-gray-900 max-w-xs truncate">
+                          {product.productname}
+                        </td>
+                        <td className="px-4 py-3 sm:px-3 whitespace-nowrap text-right text-xs sm:text-sm text-gray-900">
+                          ₹{parseFloat(product.price).toFixed(2)}
+                        </td>
+                        <td className="px-4 py-3 sm:px-4 whitespace-nowrap text-xs sm:text-sm text-gray-900">
+                          {product.per}
+                        </td>
+                        <td className="px-4 py-3 sm:px-3 whitespace-nowrap text-right text-xs sm:text-sm text-gray-900">
+                          {parseFloat(product.discount).toFixed(2)}%
+                        </td>
+                        <td className="px-4 py-3 sm:px-6 whitespace-nowrap text-center">
+                          {product.image ? (
+                            <img
+                              src={`${API_BASE_URL}${product.image}`}
+                              alt={product.productname}
+                              className="h-12 w-12 sm:h-16 sm:w-16 object-cover rounded-md mx-auto"
+                            />
+                          ) : (
+                            <span className="text-xs sm:text-sm text-gray-500">No image</span>
+                          )}
+                        </td>
+                        <td className="px-4 py-3 sm:px-6 whitespace-nowrap text-center">
+                          <label className="inline-flex items-center">
+                            <input
+                              type="checkbox"
+                              className="sr-only peer"
+                              checked={toggleStates[productKey]}
+                              onChange={() => handleToggleChange(product)}
+                            />
+                            <div
+                              className={`relative w-11 h-6 rounded-full transition-colors duration-200 ease-in-out ${toggleStates[productKey] ? 'bg-green-600' : 'bg-red-600'}`}
+                            >
+                              <div
+                                className={`absolute top-0.5 w-5 h-5 bg-white rounded-full transition-transform duration-200 ease-in-out ${toggleStates[productKey] ? 'translate-x-5' : 'translate-x-0.5'}`}
+                              ></div>
+                            </div>
+                          </label>
+                        </td>
+                        <td className="px-4 py-3 sm:px-6 whitespace-nowrap text-center relative">
+                          <button
+                            onClick={() => setViewModalIsOpen(viewModalIsOpen === productKey ? null : productKey)}
+                            className="text-gray-500 hover:text-gray-700 cursor-pointer"
+                          >
+                            <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                              <path d="M10 6a2 2 0 110-4 2 2 0 010 4zm0 8a2 2 0 110-4 2 2 0 010 4zm0 8a2 2 0 110-4 2 2 0 010 4z" />
+                            </svg>
+                          </button>
+                          {viewModalIsOpen === productKey && (
+                            <div
+                              ref={(el) => (menuRef.current[productKey] = el)}
+                              className="absolute z-10 w-28 bg-white rounded-md shadow-lg border border-gray-200 right-0"
+                            >
+                              <div className="py-1 flex flex-col">
+                                <button
+                                  onClick={() => openModal(product)}
+                                  className="flex cursor-pointer items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-300 text-left"
+                                >
+                                  <FaEye className="mr-2 h-4 w-4" />
+                                  View
+                                </button>
+                                <button
+                                  onClick={() => openEditModal(product)}
+                                  className="flex cursor-pointer items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-300 text-left"
+                                >
+                                  <FaEdit className="mr-2 h-4 w-4" />
+                                  Edit
+                                </button>
+                                <button
+                                  onClick={() => handleDelete(product)}
+                                  className="flex cursor-pointer items-center px-4 py-2 text-sm text-red-600 hover:bg-gray-300 text-left"
+                                >
+                                  <FaTrash className="mr-2 h-4 w-4" />
+                                  Delete
+                                </button>
+                              </div>
+                            </div>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
+            </div>
+          )}
+          {/* Pagination Controls */}
+          {totalPages > 1 && (
+            <div className="mt-6 flex justify-center items-center space-x-2">
+              <button
+                onClick={() => handlePageChange(currentPage - 1)}
+                disabled={currentPage === 1}
+                className={`px-3 py-1 rounded-md text-sm font-medium ${
+                  currentPage === 1
+                    ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                    : 'bg-indigo-600 text-white hover:bg-indigo-700'
+                }`}
+              >
+                Previous
+              </button>
+              {[...Array(totalPages).keys()].map((page) => (
+                <button
+                  key={page + 1}
+                  onClick={() => handlePageChange(page + 1)}
+                  className={`px-3 py-1 rounded-md text-sm font-medium ${
+                    currentPage === page + 1
+                      ? 'bg-indigo-600 text-white'
+                      : 'bg-white text-gray-700 hover:bg-gray-100 border border-gray-300'
+                  }`}
+                >
+                  {page + 1}
+                </button>
+              ))}
+              <button
+                onClick={() => handlePageChange(currentPage + 1)}
+                disabled={currentPage === totalPages}
+                className={`px-3 py-1 rounded-md text-sm font-medium ${
+                  currentPage === totalPages
+                    ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                    : 'bg-indigo-600 text-white hover:bg-indigo-700'
+                }`}
+              >
+                Next
+              </button>
             </div>
           )}
           <Modal
             isOpen={modalIsOpen}
             onRequestClose={closeModal}
             className="fixed inset-0 flex items-center justify-center p-4"
-            overlayClassName="fixed inset-0 bg-black/50 bg-opacity-50"
+            overlayClassName="fixed inset-0 bg-black/50"
           >
             {selectedProduct && (
-              <div className="bg-white rounded-lg p-6 max-w-lg w-full">
-                <h2 className="text-xl font-bold text-gray-900 mb-4">
+              <div className="bg-white rounded-lg p-6 max-w-md w-full sm:max-w-lg">
+                <h2 className="text-lg sm:text-xl font-bold text-gray-900 mb-4 text-center">
                   Product Details
                 </h2>
-                <div className='flex justify-center'>
-                    <span className="font-medium text-gray-700">Product Type:</span>
-                    <span className="ml-2 text-gray-900">{capitalize(selectedProduct.product_type)}</span>
+                <div className="space-y-4">
+                  <div className="flex justify-center">
+                    {selectedProduct.image ? (
+                      <img
+                        src={`${API_BASE_URL}${selectedProduct.image}`}
+                        alt={selectedProduct.productname}
+                        className="h-24 w-24 sm:h-32 sm:w-32 object-cover rounded-md"
+                      />
+                    ) : (
+                      <span className="text-gray-500 text-sm sm:text-base">No Image</span>
+                    )}
                   </div>
-                <div>
-                    <span className="font-medium text-gray-700">Image:</span>
-                    <div className="mt-2">
-                      {selectedProduct.image_path ? (
-                        <img
-                          src={`http://localhost:5000${selectedProduct.image_path}`}
-                          alt={selectedProduct.product_name}
-                          className="h-32 w-32 object-cover rounded"
-                        />
-                      ) : (
-                        <span className="text-gray-500">No Image</span>
-                      )}
-                    </div>
-                  </div>
-                <div className="space-y-4 grid grid-cols-2">
-                  <div>
-                    <span className="font-medium text-gray-700">Serial Number:</span>
-                    <span className="ml-2 text-gray-900">{selectedProduct.serial_number}</span>
-                  </div>
-                  <div>
-                    <span className="font-medium text-gray-700">Product Name:</span>
-                    <span className="ml-2 text-gray-900">{selectedProduct.product_name}</span>
-                  </div>
-                  <div>
-                    <span className="font-medium text-gray-700">Price:</span>
-                    <span className="ml-2 text-gray-900">₹{parseFloat(selectedProduct.price).toFixed(2)}</span>
-                  </div>
-                  {selectedProduct.product_type === 'ground-chakras' && (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
-                      <span className="font-medium text-gray-700">Per:</span>
-                      <span className="ml-2 text-gray-900">{selectedProduct.per}</span>
+                      <span className="font-medium text-gray-700 text-xs sm:text-sm">Product Type:</span>
+                      <span className="ml-2 text-gray-900 text-xs sm:text-sm">{capitalize(selectedProduct.product_type)}</span>
                     </div>
-                  )}
-                  <div>
-                    <span className="font-medium text-gray-700">Discount:</span>
-                    <span className="ml-2 text-gray-900">{selectedProduct.discount}%</span>
+                    <div>
+                      <span className="font-medium text-gray-700 text-xs sm:text-sm">Serial Number:</span>
+                      <span className="ml-2 text-gray-900 text-xs sm:text-sm">{selectedProduct.serial_number}</span>
+                    </div>
+                    <div>
+                      <span className="font-medium text-gray-700 text-xs sm:text-sm">Product Name:</span>
+                      <span className="ml-2 text-gray-900 text-xs sm:text-sm">{selectedProduct.productname}</span>
+                    </div>
+                    <div>
+                      <span className="font-medium text-gray-700 text-xs sm:text-sm">Price:</span>
+                      <span className="ml-2 text-gray-900 text-xs sm:text-sm">₹{parseFloat(selectedProduct.price).toFixed(2)}</span>
+                    </div>
+                    <div>
+                      <span className="font-medium text-gray-700 text-xs sm:text-sm">Per:</span>
+                      <span className="ml-2 text-gray-900 text-xs sm:text-sm">{selectedProduct.per}</span>
+                    </div>
+                    <div>
+                      <span className="font-medium text-gray-700 text-xs sm:text-sm">Discount:</span>
+                      <span className="ml-2 text-gray-900 text-xs sm:text-sm">{parseFloat(selectedProduct.discount).toFixed(2)}%</span>
+                    </div>
+                    <div>
+                      <span className="font-medium text-gray-700 text-xs sm:text-sm">Status:</span>
+                      <span className="ml-2 text-gray-900 text-xs sm:text-sm">{capitalize(selectedProduct.status)}</span>
+                    </div>
                   </div>
                 </div>
                 <div className="mt-6 flex justify-end">
                   <button
                     onClick={closeModal}
-                    className="rounded-md bg-black/50 px-3 py-2 text-sm font-semibold text-white shadow-xs hover:bg-gray-900"
+                    className="rounded-md bg-gray-600 px-3 py-2 text-xs sm:text-sm font-semibold text-white shadow-sm hover:bg-gray-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gray-600"
                   >
                     Close
                   </button>
                 </div>
               </div>
             )}
+          </Modal>
+          <Modal
+            isOpen={editModalIsOpen}
+            onRequestClose={closeModal}
+            className="fixed inset-0 flex items-center justify-center p-4"
+            overlayClassName="fixed inset-0 bg-black/50"
+          >
+            <div className="bg-white rounded-lg p-6 max-w-md w-full sm:max-w-lg">
+              <h2 className="text-lg sm:text-xl font-semibold text-gray-900 mb-4 text-center">
+                Edit Product
+              </h2>
+              <form onSubmit={handleEditSubmit} className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Product Name</label>
+                  <input
+                    type="text"
+                    name="productname"
+                    value={editFormData.productname}
+                    onChange={handleInputChange}
+                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-600 focus:ring-indigo-600 sm:text-sm"
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Serial Number</label>
+                  <input
+                    type="text"
+                    name="serial_number"
+                    value={editFormData.serial_number}
+                    onChange={handleInputChange}
+                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-600 focus:ring-indigo-600 sm:text-sm"
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Price</label>
+                  <input
+                    type="number"
+                    name="price"
+                    value={editFormData.price}
+                    onChange={handleInputChange}
+                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-600 focus:ring-indigo-600 sm:text-sm"
+                    required
+                    step="0.01"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Discount (%)</label>
+                  <input
+                    type="number"
+                    name="discount"
+                    value={editFormData.discount}
+                    onChange={handleInputChange}
+                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-600 focus:ring-indigo-600 sm:text-sm"
+                    required
+                    step="0.01"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Per</label>
+                  <select
+                    name="per"
+                    value={editFormData.per}
+                    onChange={handleInputChange}
+                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-600 focus:ring-indigo-600 sm:text-sm"
+                    required
+                  >
+                    <option value="pieces">Pieces</option>
+                    <option value="box">Box</option>
+                    <option value="pkt">Packet</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Image</label>
+                  <input
+                    type="file"
+                    name="image"
+                    onChange={handleImageChange}
+                    accept="image/jpeg,image/png"
+                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-600 focus:ring-indigo-600 sm:text-sm"
+                  />
+                </div>
+                <div className="mt-6 flex justify-end space-x-2">
+                  <button
+                    type="button"
+                    onClick={closeModal}
+                    className="rounded-md bg-gray-600 px-3 py-2 text-xs sm:text-sm font-semibold text-white shadow-sm hover:bg-gray-700"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    className="rounded-md bg-indigo-600 px-3 py-2 text-xs sm:text-sm font-semibold text-white shadow-sm hover:bg-indigo-700"
+                  >
+                    Save
+                  </button>
+                </div>
+              </form>
+            </div>
           </Modal>
         </div>
       </div>
