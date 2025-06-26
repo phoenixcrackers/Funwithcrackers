@@ -7,6 +7,9 @@ import List from './Admin/List/List';
 import Localcustomer from './Admin/Local Customer/Localcustomer';
 import Report from './Admin/Report/Report';
 import ProtectedRoute from './ProtectedRoute';
+import Location from './Admin/Location/Location';
+import Direct from './Admin/Direct/Direct';
+import Dispatch from './Admin/Dispatch/Dispatch';
 
 const AllRoutes = () =>{
     return(
@@ -19,6 +22,9 @@ const AllRoutes = () =>{
                 <Route exact path='/report' element={<Report/>}/>
                 <Route exact path='/tracking' element={<Tracking/>}/>
                 <Route exact path='/direct-customer' element={<Localcustomer/>}/>
+                <Route exact path='/location' element={<Location/>}/>
+                <Route exact path='/direct-enquiry' element={<Direct/>}/>
+                <Route exact path='/dispatch-customers' element={<Dispatch/>}/>
             </Route>
         </Routes> 
     )
