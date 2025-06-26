@@ -10,6 +10,14 @@ export default function Dispatch() {
   const [bookings, setBookings] = useState([]);
   const [filterStatus, setFilterStatus] = useState('');
   const [error, setError] = useState('');
+  const [successMessage, setSuccessMessage] = useState('');
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [selectedBookingId, setSelectedBookingId] = useState(null);
+  const [transportDetails, setTransportDetails] = useState({
+    transportName: '',
+    lrNumber: '',
+    transportContact: ''
+  });
 
   const fetchBookings = async () => {
     try {
@@ -33,18 +41,60 @@ export default function Dispatch() {
     return () => clearInterval(interval);
   }, [filterStatus]);
 
-  const updateStatus = async (id, newStatus) => {
+  const handleStatusChange = (id, newStatus) => {
+    if (newStatus === 'dispatched') {
+      setSelectedBookingId(id);
+      setIsModalOpen(true);
+    } else {
+      updateStatus(id, newStatus);
+    }
+  };
+
+  const updateStatus = async (id, newStatus, transportInfo = null) => {
     try {
-      await axios.put(`${API_BASE_URL}/api/tracking/fbookings/${id}/status`, { status: newStatus });
+      const payload = { status: newStatus };
+      if (transportInfo) {
+        payload.transportDetails = transportInfo;
+      }
+      await axios.put(`${API_BASE_URL}/api/tracking/fbookings/${id}/status`, payload);
       setBookings(prevBookings =>
         prevBookings.map(booking =>
-          booking.id === id ? { ...booking, status: newStatus } : booking
+          booking.id === id ? { ...booking, status: newStatus, ...transportInfo } : booking
         )
       );
+      if (newStatus === 'dispatched' && transportInfo) {
+        setSuccessMessage('Transport details added successfully');
+        setTimeout(() => setSuccessMessage(''), 3000); // Clear message after 3 seconds
+      }
       setError('');
     } catch (err) {
       setError('Failed to update status');
     }
+  };
+
+  const handleModalSubmit = async (e) => {
+    e.preventDefault();
+    if (!transportDetails.transportName || !transportDetails.lrNumber) {
+      setError('Transport Name and LR Number are required');
+      return;
+    }
+    
+    await updateStatus(selectedBookingId, 'dispatched', transportDetails);
+    setIsModalOpen(false);
+    setTransportDetails({
+      transportName: '',
+      lrNumber: '',
+      transportContact: ''
+    });
+  };
+
+  const handleModalClose = () => {
+    setIsModalOpen(false);
+    setTransportDetails({
+      transportName: '',
+      lrNumber: '',
+      transportContact: ''
+    });
   };
 
   const generatePDF = (booking) => {
@@ -59,7 +109,10 @@ export default function Dispatch() {
       `Customer Name: ${booking.customer_name || 'N/A'}`,
       `District: ${booking.district || 'N/A'}`,
       `State: ${booking.state || 'N/A'}`,
-      `Address: ${booking.address || 'N/A'}`
+      `Address: ${booking.address || 'N/A'}`,
+      `Transport Name: ${booking.transport_name || 'N/A'}`,
+      `LR Number: ${booking.lr_number || 'N/A'}`,
+      `Transport Contact: ${booking.transport_contact || 'N/A'}`
     ];
     let yOffset = 40;
     lines.forEach(line => {
@@ -85,11 +138,9 @@ export default function Dispatch() {
     const finalY = doc.lastAutoTable.finalY + 10;
     doc.text(`Total: Rs.${booking.total || '0.00'}`, 150, finalY, { align: 'right' });
 
-    // Sanitize filename
     const sanitizedCustomerName = (booking.customer_name || 'order').replace(/[^a-zA-Z0-9]/g, '_');
-    // Download or view
-    doc.output('dataurlnewwindow'); // Opens in new window for viewing
-    doc.save(`${sanitizedCustomerName}_crackers_order.pdf`); // Downloads the PDF with sanitized customer_name
+    doc.output('dataurlnewwindow');
+    doc.save(`${sanitizedCustomerName}_crackers_order.pdf`);
   };
 
   return (
@@ -102,6 +153,12 @@ export default function Dispatch() {
           {error && (
             <div className="bg-red-100 border border-red-400 text-red-700 px-6 py-3 rounded-lg mb-6 text-center shadow-md">
               {error}
+            </div>
+          )}
+
+          {successMessage && (
+            <div className="bg-green-100 border border-green-400 text-green-700 px-6 py-3 rounded-lg mb-6 text-center shadow-md">
+              {successMessage}
             </div>
           )}
 
@@ -123,31 +180,31 @@ export default function Dispatch() {
             <table className="w-full border-collapse">
               <thead>
                 <tr className="bg-gray-200">
-                  <th className="p-4 text-center text-gray-700 font-semibold">Sl. No</th>
-                  <th className="p-4 text-center text-gray-700 font-semibold">Order ID</th>
-                  <th className="p-4 text-center text-gray-700 font-semibold">Customer Name</th>
-                  <th className="p-4 text-center text-gray-700 font-semibold">District</th>
-                  <th className="p-4 text-center text-gray-700 font-semibold">State</th>
-                  <th className="p-4 text-center text-gray-700 font-semibold">Status</th>
-                  <th className="p-4 text-center text-gray-700 font-semibold">Action</th>
-                  <th className="p-4 text-center text-gray-700 font-semibold">View</th>
+                  <th className="text-center text-gray-700 font-semibold">Sl. No</th>
+                  <th className="text-center text-gray-700 font-semibold">Order ID</th>
+                  <th className="text-center text-gray-700 font-semibold">Customer Name</th>
+                  <th className="text-center text-gray-700 font-semibold">District</th>
+                  <th className="text-center text-gray-700 font-semibold">State</th>
+                  <th className="text-center text-gray-700 font-semibold">Status</th>
+                  <th className="text-center text-gray-700 font-semibold">Action</th>
+                  <th className="text-center text-gray-700 font-semibold">View</th>
                 </tr>
               </thead>
               <tbody>
                 {bookings.length > 0 ? (
                   bookings.map((booking, index) => (
                     <tr key={booking.id} className="border-b border-gray-300 hover:bg-gray-50">
-                      <td className="p-4 text-center text-gray-800">{index + 1}</td>
-                      <td className="p-4 text-center text-gray-800">{booking.order_id}</td>
-                      <td className="p-4 text-center text-gray-800">{booking.customer_name}</td>
-                      <td className="p-4 text-center text-gray-800">{booking.district}</td>
-                      <td className="p-4 text-center text-gray-800">{booking.state}</td>
-                      <td className="p-4 text-center text-gray-800">{booking.status}</td>
-                      <td className="p-4 text-center">
+                      <td className="text-center text-gray-800">{index + 1}</td>
+                      <td className="p-2text-center text-gray-800">{booking.order_id}</td>
+                      <td className="p-2 text-center text-gray-800">{booking.customer_name}</td>
+                      <td className="p-2 text-center text-gray-800">{booking.district}</td>
+                      <td className="p-2 text-center text-gray-800">{booking.state}</td>
+                      <td className="p-2 text-center text-gray-800">{booking.status}</td>
+                      <td className="p-2 text-center">
                         <select
                           value={booking.status}
-                          onChange={e => updateStatus(booking.id, e.target.value)}
-                          className="p-2 border-2 border-gray-300 rounded-lg bg-white shadow-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          onChange={e => handleStatusChange(booking.id, e.target.value)}
+                          className="p-2 border-2 cursor-pointer border-gray-300 rounded-lg bg-white shadow-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                         >
                           <option value="paid">Paid</option>
                           <option value="packed">Packed</option>
@@ -157,11 +214,11 @@ export default function Dispatch() {
                       </td>
                       <td className="px-4 py-3 sm:px-6 whitespace-nowrap text-center relative">
                         <button
-                            onClick={() => generatePDF(booking)}
-                            className="flex cursor-pointer items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-300 text-left"
+                          onClick={() => generatePDF(booking)}
+                          className="flex cursor-pointer items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-300 text-left"
                         >
-                            <FaDownload className="mr-2" />
-                            Download
+                          <FaDownload className="mr-2" />
+                          Download
                         </button>
                       </td>
                     </tr>
@@ -176,6 +233,66 @@ export default function Dispatch() {
               </tbody>
             </table>
           </div>
+
+          {isModalOpen && (
+            <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+              <div className="bg-white p-6 rounded-xl shadow-2xl w-full max-w-md">
+                <h2 className="text-2xl font-bold mb-6 text-gray-800">Transport Details</h2>
+                <form onSubmit={handleModalSubmit} className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Transport Name *
+                    </label>
+                    <input
+                      type="text"
+                      value={transportDetails.transportName}
+                      onChange={(e) => setTransportDetails({...transportDetails, transportName: e.target.value})}
+                      className="w-full p-3 border-2 border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all"
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      LR Number *
+                    </label>
+                    <input
+                      type="text"
+                      value={transportDetails.lrNumber}
+                      onChange={(e) => setTransportDetails({...transportDetails, lrNumber: e.target.value})}
+                      className="w-full p-3 border-2 border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all"
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Transport Contact (Optional)
+                    </label>
+                    <input
+                      type="text"
+                      value={transportDetails.transportContact}
+                      onChange={(e) => setTransportDetails({...transportDetails, transportContact: e.target.value})}
+                      className="w-full p-3 border-2 border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all"
+                    />
+                  </div>
+                  <div className="flex justify-end space-x-3">
+                    <button
+                      type="button"
+                      onClick={handleModalClose}
+                      className="px-4 py-2 cursor-pointer bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300 transition-all"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="submit"
+                      className="px-4 py-2 cursor-pointer bg-black/50 text-white rounded-lg hover:bg-gray-800 transition-all"
+                    >
+                      Submit
+                    </button>
+                  </div>
+                </form>
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </div>
