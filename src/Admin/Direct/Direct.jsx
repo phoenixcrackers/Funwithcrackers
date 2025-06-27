@@ -241,7 +241,7 @@ export default function Direct() {
           <div className="mb-8 flex justify-center">
             <div className="w-full max-w-4xl">
               <h2 className="text-2xl font-bold mb-6 text-center text-gray-800">Cart</h2>
-              <div className="overflow-x-auto mobile:w-[92%]">
+              <div className="overflow-x-auto mobile:w-[100%]">
                 <table className="w-full border-collapse">
                   <thead>
                     <tr className="bg-gray-200">
