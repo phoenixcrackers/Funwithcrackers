@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { NavLink } from 'react-router-dom';
-import { FaBox, FaList, FaChartBar, FaUsers, FaMapMarkerAlt, FaBars, FaTimes, FaLocationArrow, FaShoppingCart, FaTruck } from 'react-icons/fa';
+import { FaBox, FaList, FaChartBar, FaUsers, FaMapMarkerAlt, FaBars, FaTimes, FaLocationArrow, FaShoppingCart, FaTruck, FaImage } from 'react-icons/fa';
 
 export default function Sidebar() {
   const [isOpen, setIsOpen] = useState(false);
@@ -8,11 +8,12 @@ export default function Sidebar() {
   const navItems = [
     { name: 'Inventory', path: '/inventory', icon: <FaBox className="mr-2" /> },
     { name: 'Listing', path: '/listing', icon: <FaList className="mr-2" /> },
+    { name: 'Banner', path: '/banner', icon: <FaImage className="mr-2" /> },
     { name: 'Direct Customer', path: '/direct-customer', icon: <FaUsers className="mr-2" /> },
+    { name: 'Direct Enquiry', path: '/direct-enquiry', icon: <FaShoppingCart className="mr-2" /> },
     { name: 'Location', path: '/location', icon: <FaLocationArrow className="mr-2" /> },
     { name: 'Report', path: '/report', icon: <FaChartBar className="mr-2" /> },
     { name: 'Tracking', path: '/tracking', icon: <FaMapMarkerAlt className="mr-2" /> },
-    { name: 'Direct Enquiry', path: '/direct-enquiry', icon: <FaShoppingCart className="mr-2" /> },
     { name: 'Dispatch Customers', path: '/dispatch-customers', icon: <FaTruck className="mr-2" /> },
   ];
 

@@ -10,6 +10,7 @@ import ProtectedRoute from './ProtectedRoute';
 import Location from './Admin/Location/Location';
 import Direct from './Admin/Direct/Direct';
 import Dispatch from './Admin/Dispatch/Dispatch';
+import Banner from './Admin/Banner/Banner';
 
 const AllRoutes = () =>{
     return(
@@ -25,6 +26,7 @@ const AllRoutes = () =>{
                 <Route exact path='/location' element={<Location/>}/>
                 <Route exact path='/direct-enquiry' element={<Direct/>}/>
                 <Route exact path='/dispatch-customers' element={<Dispatch/>}/>
+                <Route exact path='/banner' element={<Banner/>}/>
             </Route>
         </Routes> 
     )

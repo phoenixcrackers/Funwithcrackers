@@ -110,9 +110,6 @@ export default function Dispatch() {
       `District: ${booking.district || 'N/A'}`,
       `State: ${booking.state || 'N/A'}`,
       `Address: ${booking.address || 'N/A'}`,
-      `Transport Name: ${booking.transport_name || 'N/A'}`,
-      `LR Number: ${booking.lr_number || 'N/A'}`,
-      `Transport Contact: ${booking.transport_contact || 'N/A'}`
     ];
     let yOffset = 40;
     lines.forEach(line => {
