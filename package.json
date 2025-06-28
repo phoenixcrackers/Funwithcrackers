@@ -17,6 +17,7 @@
     "@mui/styled-engine-sc": "^7.1.1",
     "@tailwindcss/vite": "^4.1.10",
     "axios": "^1.10.0",
+    "favicons": "^7.2.0",
     "framer-motion": "^12.19.1",
     "gsap": "^3.13.0",
     "jspdf": "^3.0.1",
