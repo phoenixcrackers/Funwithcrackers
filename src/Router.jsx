@@ -1,4 +1,4 @@
-import {Routes,Route} from 'react-router-dom';
+import { Routes, Route } from 'react-router-dom';
 import Home from "./Home/Home";
 import Login from './Admin/Login/Login';
 import Inventory from './Admin/Inventory/Inventory';
@@ -15,29 +15,32 @@ import Safety from './Home/Safety';
 import About from './Home/About';
 import Contact from './Home/Contact';
 import Booking from './Home/Booking';
+import Pricelist from './Home/Pricelist';
 
-const AllRoutes = () =>{
-    return(
-        <Routes>
-            <Route exact path="/" element={<Home/>}/>
-            <Route exact path='/admin' element={<Login/>}/>
-            <Route exact path='/safety-tips' element={<Safety/>}/>
-            <Route exact path='/booking' element={<Booking/>}/>
-            <Route exact path='/about-us' element={<About/>}/>
-            <Route exact path='/contact-us' element={<Contact/>}/>
-            <Route element={<ProtectedRoute />}>
-                <Route exact path='/inventory' element={<Inventory/>}/>
-                <Route exact path='/listing' element={<List/>}/>
-                <Route exact path='/report' element={<Report/>}/>
-                <Route exact path='/tracking' element={<Tracking/>}/>
-                <Route exact path='/direct-customer' element={<Localcustomer/>}/>
-                <Route exact path='/location' element={<Location/>}/>
-                <Route exact path='/direct-enquiry' element={<Direct/>}/>
-                <Route exact path='/dispatch-customers' element={<Dispatch/>}/>
-                <Route exact path='/banner' element={<Banner/>}/>
-            </Route>
-        </Routes> 
-    )
-}
+const AllRoutes = () => {
+  return (
+    <Routes>
+      <Route path="/" element={<Home />} />
+      <Route path="/admin" element={<Login />} />
+      <Route path="/safety-tips" element={<Safety />} />
+      <Route path="/booking" element={<Booking />} />
+      <Route path="/about-us" element={<About />} />
+      <Route path="/contact-us" element={<Contact />} />
+      <Route path="/price-list" element={<Pricelist />} />
+      
+      <Route element={<ProtectedRoute />}>
+        <Route path="/inventory" element={<Inventory />} />
+        <Route path="/listing" element={<List />} />
+        <Route path="/report" element={<Report />} />
+        <Route path="/tracking" element={<Tracking />} />
+        <Route path="/direct-customer" element={<Localcustomer />} />
+        <Route path="/location" element={<Location />} />
+        <Route path="/direct-enquiry" element={<Direct />} />
+        <Route path="/dispatch-customers" element={<Dispatch />} />
+        <Route path="/banner" element={<Banner />} />
+      </Route>
+    </Routes>
+  );
+};
 
 export default AllRoutes;

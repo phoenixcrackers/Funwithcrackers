@@ -4,8 +4,8 @@ import { motion, useScroll, useTransform } from "framer-motion"
 import { useInView } from "react-intersection-observer"
 import Navbar from '../Component/Navbar'
 import "../App.css"
+import { API_BASE_URL } from "../../Config"
 
-// Categories
 const categories = [
   { name: "Sparklers", icon: Sparkles },
   { name: "Rockets", icon: Rocket },
@@ -40,6 +40,16 @@ function StatCard({ icon: Icon, value, label, delay }) {
       }, stepTime)
     }
   }, [inView, value])
+// ★ Fetch fast-running products
+useEffect(() => {
+  fetch(`${API_BASE_URL}/api/products`)
+    .then((res) => res.json())
+    .then((data) => {
+      const fastProducts = data.filter((p) => p.fast_running === true)
+      setFastRunningProducts(fastProducts)
+    })
+    .catch((err) => console.error("Error loading fast running products:", err))
+}, [])
 
   return (
     <motion.div
@@ -91,6 +101,8 @@ function StatCard({ icon: Icon, value, label, delay }) {
 export default function Home() {
   const [banners, setBanners] = useState([])
   const [currentSlide, setCurrentSlide] = useState(0)
+  const [fastRunningProducts, setFastRunningProducts] = useState([]) // ★ new
+
   const containerRef = useRef(null)
 
   const { scrollYProgress } = useScroll({
@@ -103,7 +115,7 @@ export default function Home() {
   const aboutY = useTransform(scrollYProgress, [0, 1], ["0%", "-20%"])
 
   useEffect(() => {
-    fetch("http://localhost:5000/api/banners")
+    fetch(`${API_BASE_URL}/api/banners`)
       .then((res) => res.json())
       .then((data) => {
         const active = data.filter((b) => b.is_active)
@@ -111,6 +123,16 @@ export default function Home() {
       })
       .catch((err) => console.error("Error loading banners:", err))
   }, [])
+// ★ Fetch fast-running products
+useEffect(() => {
+  fetch(`${API_BASE_URL}/api/products`)
+    .then((res) => res.json())
+    .then((data) => {
+      const fastProducts = data.filter((p) => p.fast_running === true)
+      setFastRunningProducts(fastProducts)
+    })
+    .catch((err) => console.error("Error loading fast running products:", err))
+}, [])
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -130,7 +152,6 @@ export default function Home() {
     >
       <Navbar />
 
-      {/* Hero Carousel with Parallax */}
       <motion.div
         style={{ y: heroY, opacity: heroOpacity }}
         className="relative max-w-8xl mt-[100px] h-[350px] hundred:h-[500px] onefifty:h-[350px] overflow-hidden rounded-3xl mx-4 md:mx-8"
@@ -147,14 +168,13 @@ export default function Home() {
             }}
           >
             <img
-              src={`http://localhost:5000${banner.image_url}`}
+              src={`${API_BASE_URL}${banner.image_url}`}
               alt={`Banner ${banner.id}`}
               className="w-full h-full object-cover rounded-3xl"
             />
           </motion.div>
         ))}
 
-        {/* Carousel Indicators */}
         <div className="absolute bottom-8 left-1/2 -translate-x-1/2 z-30 flex space-x-3">
           {banners.map((_, i) => (
             <button
@@ -175,8 +195,75 @@ export default function Home() {
           ))}
         </div>
       </motion.div>
+{/* ★ Fast Running Products Section */}
+{/* 🔥 Fast Running Products - Modern Slider Style */}
+<section className="py-24 px-4 sm:px-6 max-w-7xl mx-auto">
+  <h2 className="text-3xl font-bold text-center text-slate-800 mb-10">
+    <span className="text-lime-600">Fast Running Products</span>
+  </h2>
 
-      {/* About Section with Parallax */}
+  <div className="flex overflow-x-auto gap-4 scrollbar-hide">
+    {fastRunningProducts.map((product) => (
+      <div
+        key={`${product.product_type}-${product.id}`}
+        className="min-w-[200px] max-w-[220px] bg-white border border-slate-100 rounded-2xl shadow-md hover:shadow-lg transform hover:-translate-y-1 transition-all duration-300 relative text-sm"
+      >
+        {/* Discount Badge */}
+        <div className="absolute top-2 left-2 bg-red-600 text-white text-[10px] px-1.5 py-0.5 rounded font-bold shadow z-10">
+          75% off
+        </div>
+
+        {/* Product Image */}
+        <img
+          src={`http://localhost:5000${product.image}`}
+          alt={product.productname}
+          className="w-full h-36 object-cover rounded-t-2xl"
+        />
+
+        {/* Product Info */}
+        <div className="p-3 space-y-1.5">
+          <h3 className="text-base font-medium text-slate-800 truncate">
+            {product.productname}
+          </h3>
+          <div className="flex items-center gap-2 text-sm">
+            <span className="text-red-500 font-semibold text-sm">
+              ₹ {(product.price * (1 - product.discount / 100)).toFixed(2)}
+            </span>
+            <span className="line-through text-slate-400 text-xs">
+              ₹ {product.price}
+            </span>
+          </div>
+          <p className="text-xs text-slate-500">Per: {product.per}</p>
+
+          {/* Enquire Button */}
+          <button
+            className="mt-2 w-full text-white font-semibold py-1.5 text-sm rounded-lg transition-all duration-300"
+            style={{
+              background:
+                "linear-gradient(135deg, rgba(132,204,22,1) 0%, rgba(101,163,13,1) 100%)",
+              boxShadow: "0 6px 20px rgba(132,204,22,0.3)",
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.background =
+                "linear-gradient(135deg, rgba(101,163,13,1), rgba(77,124,15,1))";
+              e.currentTarget.style.boxShadow = "0 8px 24px rgba(101,163,13,0.4)";
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.background =
+                "linear-gradient(135deg, rgba(132,204,22,1) 0%, rgba(101,163,13,1) 100%)";
+              e.currentTarget.style.boxShadow = "0 6px 20px rgba(132,204,22,0.3)";
+            }}
+          >
+            Enquire Now
+          </button>
+        </div>
+      </div>
+    ))}
+  </div>
+</section>
+
+
+
       <motion.section style={{ y: aboutY }} className="py-32 px-4 md:px-6 relative">
         <div className="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-2 gap-16 items-center relative z-10">
           <motion.div
@@ -221,7 +308,7 @@ export default function Home() {
               <motion.h2
                 className="text-5xl md:text-6xl font-bold text-slate-800 mb-6 leading-tight drop-shadow-sm"
                 initial={{ opacity: 0, y: 20 }}
-                whileInView={{ opacity: 1, y: 0 }}
+                whileInView={{ opacity: 1, y: 0 }}S
                 transition={{ duration: 0.8, delay: 0.2 }}
                 viewport={{ once: true }}
               >
@@ -293,7 +380,6 @@ export default function Home() {
         </div>
       </motion.section>
 
-      {/* Categories Section - Enhanced with Glossy Effect */}
       <section className="py-32 mobile:-translate-y-40 px-4 sm:px-6 max-w-7xl mx-auto relative">
         <div className="relative z-10 mobile:-tanslate-y-20">
           <motion.div
@@ -339,7 +425,6 @@ export default function Home() {
                     "0 25px 45px rgba(56,189,248,0.1), inset 0 1px 0 rgba(255,255,255,0.4), inset 0 -1px 0 rgba(56,189,248,0.1)",
                 }}
               >
-                {/* Glossy overlay */}
                 <div
                   className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-700"
                   style={{
@@ -348,7 +433,6 @@ export default function Home() {
                   }}
                 />
 
-                {/* Shine effect */}
                 <div
                   className="absolute -inset-1 opacity-0 group-hover:opacity-100 transition-all duration-1000"
                   style={{
@@ -358,7 +442,6 @@ export default function Home() {
                   }}
                 />
 
-                {/* Hover gradient background */}
                 <div
                   className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500"
                   style={{
@@ -419,7 +502,6 @@ export default function Home() {
                   </div>
                 </div>
 
-                {/* Bottom highlight */}
                 <div
                   className="absolute bottom-0 left-0 right-0 h-px opacity-60"
                   style={{
@@ -432,7 +514,6 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Why Choose Us with Parallax Image */}
       <section className="py-32 mobile:-translate-y-80 px-4 sm:px-6 relative overflow-hidden">
         <div className="max-w-7xl mx-auto flex flex-col lg:flex-row items-center gap-16 relative z-10">
           <motion.div
@@ -555,7 +636,6 @@ export default function Home() {
         </div>
       </section>
 
-      {/* CTA Banner with Parallax */}
       <section className="relative py-32 mobile:-translate-y-70 px-4 sm:px-6 text-white overflow-hidden">
         <div
           className="absolute inset-0 rounded-3xl mx-4"
@@ -704,7 +784,7 @@ export default function Home() {
             boxShadow: "0 25px 45px rgba(15,23,42,0.3)",
           }}
         />
-        <div className="max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-3 gap-12 relative z-10 text-white">
+        <div className="max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-3 gap-12 relative z-10 text-white hundred:ml-[23%] onefifty:ml-[15%]">
           {/* Our Profile */}
           <motion.div
             initial={{ opacity: 0, y: 30 }}

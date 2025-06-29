@@ -52,15 +52,42 @@ export default function List() {
       }
       setProducts(data);
       setFilteredProducts(data);
-      const initialToggles = data.reduce((acc, product) => ({
-        ...acc,
-        [`${product.product_type}-${product.id}`]: product.status === 'on',
-      }), {});
+const initialToggles = data.reduce((acc, product) => ({
+  ...acc,
+  [`${product.product_type}-${product.id}`]: product.status === 'on',
+  [`fast-${product.product_type}-${product.id}`]: product.fast_running === true,
+}), {});
+
       setToggleStates(initialToggles);
     } catch (err) {
       setError(err.message);
     }
   };
+const handleFastToggleChange = async (product) => {
+  const productKey = `fast-${product.product_type}-${product.id}`;
+  const tableName = product.product_type.toLowerCase().replace(/\s+/g, '_');
+
+  try {
+    setToggleStates(prev => ({
+      ...prev,
+      [productKey]: !prev[productKey],
+    }));
+
+    const response = await fetch(`${API_BASE_URL}/api/products/${tableName}/${product.id}/toggle-fast-running`, {
+      method: 'PATCH',
+    });
+
+    if (!response.ok) throw new Error('Failed to toggle fast running');
+
+    await fetchProducts();
+  } catch (err) {
+    setError(err.message);
+    setToggleStates(prev => ({
+      ...prev,
+      [productKey]: prev[productKey],
+    }));
+  }
+};
 
   useEffect(() => {
     fetchProductTypes();
@@ -282,6 +309,10 @@ export default function List() {
                       Status
                     </th>
                     <th className="px-4 py-3 sm:px-6 text-center text-xs font-medium text-gray-500 uppercase">
+  Fast Running
+</th>
+
+                    <th className="px-4 py-3 sm:px-6 text-center text-xs font-medium text-gray-500 uppercase">
                       Actions
                     </th>
                   </tr>
@@ -337,6 +368,28 @@ export default function List() {
                             </div>
                           </label>
                         </td>
+                        <td className="px-4 py-3 sm:px-6 whitespace-nowrap text-center">
+  <label className="inline-flex items-center">
+    <input
+      type="checkbox"
+      className="sr-only peer"
+checked={!!toggleStates[productKey]}
+      onChange={() => handleFastToggleChange(product)}
+    />
+    <div
+      className={`relative w-11 h-6 rounded-full transition-colors duration-200 ease-in-out ${
+        toggleStates[`fast-${productKey}`] ? 'bg-blue-600' : 'bg-gray-400'
+      }`}
+    >
+      <div
+        className={`absolute top-0.5 w-5 h-5 bg-white rounded-full transition-transform duration-200 ease-in-out ${
+          toggleStates[`fast-${productKey}`] ? 'translate-x-5' : 'translate-x-0.5'
+        }`}
+      ></div>
+    </div>
+  </label>
+</td>
+
                         <td className="px-4 py-3 sm:px-6 whitespace-nowrap text-center relative">
                           <button
                             onClick={() => setViewModalIsOpen(viewModalIsOpen === productKey ? null : productKey)}

@@ -478,6 +478,55 @@ export default function Safety() {
             </motion.div>
           </div>
         </section>
+        <footer className="bg-slate-900 text-white py-16 mt-20 px-6 rounded-3xl inset-0 mx-4 mb-10"
+        style={{
+              background: "linear-gradient(135deg, rgba(15,23,42,0.9) 0%, rgba(30,41,59,0.9) 100%)",
+              backdropFilter: "blur(20px)",
+              border: "1px solid rgba(125,211,252,0.2)",
+              boxShadow: "0 25px 45px rgba(15,23,42,0.3)",
+            }}
+      >
+        <div className="max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-3 gap-12 hundred:ml-[15%] mobile:text-center">
+          <div>
+            <h2 className="text-2xl font-bold mb-4">Our Profile</h2>
+            <p className="text-sky-200 font-semibold">Fun With Crackers</p>
+            <p className="text-sky-100 mt-2">
+              Spark joy, spread light—fireworks crafted for your celebration.
+            </p>
+          </div>
+
+          <div>
+            <h2 className="text-2xl font-bold mb-4">Contact Us</h2>
+            <p className="text-sky-100">Phoenix Crackers</p>
+            <p className="text-sky-100 mt-2">
+              Anil Kumar Eye Hospital Opp.,<br />Sattur Road, Sivakasi
+            </p>
+            <a href="tel:+916383659214" className="text-sky-100 hover:underline block mt-2">+91 63836 59214</a>
+            <a href="tel:+919655456167" className="text-sky-100 hover:underline block mt-1">+91 96554 56167</a>
+            <p className="text-sky-100 mt-2">nivasramasamy27@gmail.com</p>
+          </div>
+
+          <div>
+            <h2 className="text-2xl font-bold mb-4">Quick Links</h2>
+            <ul className="space-y-2">
+              {['Home', 'About Us', 'Price List', 'Safety Tips', 'Contact Us'].map((link) => (
+                <li key={link}>
+                  <a
+                    href={link === 'Home' ? '/' : `/${link.toLowerCase().replace(/ /g, '-')}`}
+                    className="text-sky-200 hover:text-white transition"
+                  >
+                    {link}
+                  </a>
+                </li>
+              ))}
+            </ul>
+          </div>
+        </div>
+        <div className="mt-12 border-t border-sky-700 pt-6 text-center text-sm text-sky-300">
+          © 2023 <span className="text-white font-semibold">Fun With Crackers</span>. Developed by{' '}
+          <span className="text-white font-semibold">SPD</span>.
+        </div>
+      </footer>
       </div>
     </div>
   )

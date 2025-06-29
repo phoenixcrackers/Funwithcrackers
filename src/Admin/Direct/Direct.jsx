@@ -22,47 +22,25 @@ export default function Direct() {
       setLoading(true);
       try {
         const customersResponse = await axios.get(`${API_BASE_URL}/api/direct/customers`);
-        if (Array.isArray(customersResponse.data)) {
-          setCustomers(customersResponse.data);
-        } else {
-          setError('Invalid customers data received');
-          setCustomers([]);
-        }
-
+        setCustomers(Array.isArray(customersResponse.data) ? customersResponse.data : []);
         const productTypesResponse = await axios.get(`${API_BASE_URL}/api/direct/products/types`);
-        if (Array.isArray(productTypesResponse.data)) {
-          setProductTypes(productTypesResponse.data);
-        } else {
-          setError('Invalid product types data received');
-          setProductTypes([]);
-        }
-      } catch (err) {
+        setProductTypes(Array.isArray(productTypesResponse.data) ? productTypesResponse.data : []);
+      } catch {
         setError('Failed to fetch data');
       } finally {
         setLoading(false);
       }
     };
-
     fetchData();
   }, []);
 
   useEffect(() => {
     if (selectedProductType) {
       setLoading(true);
-      setSelectedProduct('');
       axios
         .get(`${API_BASE_URL}/api/direct/products?type=${selectedProductType}`)
-        .then(response => {
-          if (Array.isArray(response.data)) {
-            setProducts(response.data);
-          } else {
-            setError('Invalid products data received');
-            setProducts([]);
-          }
-        })
-        .catch(err => {
-          setError('Failed to fetch products');
-        })
+        .then((res) => setProducts(Array.isArray(res.data) ? res.data : []))
+        .catch(() => setError('Failed to fetch products'))
         .finally(() => setLoading(false));
     } else {
       setProducts([]);
@@ -71,46 +49,44 @@ export default function Direct() {
   }, [selectedProductType]);
 
   const addToCart = () => {
-    if (!selectedProduct) {
-      setError('Please select a product');
-      return;
-    }
-    const product = products.find(p => `${p.id}-${p.product_type}` === selectedProduct);
-    if (product) {
-      const existingItem = cart.find(item => item.id === product.id && item.product_type === product.product_type);
-      if (existingItem) {
-        setCart(cart.map(item =>
-          item.id === product.id && item.product_type === product.product_type
-            ? { ...item, quantity: item.quantity + 1 }
+    if (!selectedProduct) return setError('Please select a product');
+    const [id, type] = selectedProduct.split('-');
+    const product = products.find(p => p.id.toString() === id && p.product_type === type);
+    if (!product) return;
+    const exists = cart.find(item => item.id === product.id && item.product_type === product.product_type);
+    setCart(
+      exists
+        ? cart.map(item =>
+            item.id === product.id && item.product_type === product.product_type
+              ? { ...item, quantity: item.quantity + 1 }
+              : item
+          )
+        : [...cart, { ...product, quantity: 1 }]
+    );
+    setError('');
+  };
+
+  const updateQuantity = (id, type, delta) => {
+    setCart(prev =>
+      prev
+        .map(item =>
+          item.id === id && item.product_type === type
+            ? { ...item, quantity: item.quantity + delta }
             : item
-        ));
-      } else {
-        setCart([...cart, { ...product, quantity: 1 }]);
-      }
-      setError('');
-    }
+        )
+        .filter(item => item.quantity > 0)
+    );
   };
 
-  const updateQuantity = (productId, productType, delta) => {
-    setCart(cart.map(item =>
-      item.id === productId && item.product_type === productType
-        ? { ...item, quantity: item.quantity + delta }
-        : item
-    ).filter(item => item.quantity > 0));
+  const removeFromCart = (id, type) => {
+    setCart(cart.filter(item => !(item.id === id && item.product_type === type)));
   };
 
-  const removeFromCart = (productId, productType) => {
-    setCart(cart.filter(item => !(item.id === productId && item.product_type === productType)));
-  };
-
-  const calculateTotal = () => {
-    return cart
-      .reduce((total, item) => {
-        const discountedPrice = item.price * (1 - item.discount / 100);
-        return total + discountedPrice * item.quantity;
-      }, 0)
-      .toFixed(2);
-  };
+  const calculateTotal = () =>
+    cart.reduce((total, item) => {
+      const discount = (item.price * item.discount) / 100;
+      return total + (item.price - discount) * item.quantity;
+    }, 0).toFixed(2);
 
   const handleBooking = async () => {
     if (!selectedCustomer) {
@@ -121,14 +97,15 @@ export default function Direct() {
       setError('Cart is empty');
       return;
     }
-
+    const customer = customers.find(c => c.id.toString() === selectedCustomer);
+    const customerType = customer?.customer_type || 'User';
     try {
-      const orderId = `ORD-${Date.now()}`;
       await axios.post(`${API_BASE_URL}/api/direct/bookings`, {
-        customer_id: selectedCustomer,
-        order_id: orderId,
+        customer_id: Number(selectedCustomer),
+        order_id: `ORD-${Date.now()}`,
         products: cart,
         total: calculateTotal(),
+        customer_type: customerType
       });
       setCart([]);
       setSelectedCustomer('');
@@ -140,174 +117,136 @@ export default function Direct() {
         setShowSuccess(false);
         setSuccessMessage('');
       }, 3000);
-    } catch (err) {
+    } catch {
       setError('Failed to create booking');
     }
   };
 
-
   return (
     <div className="flex min-h-screen bg-gray-100">
       <Sidebar />
-      <div className="flex-1 flex items-top justify-center mobile:flex mobile:overflow-hidden onefifty:ml-[20%]">
-        <div className="w-full max-w-5xl p-6 mobile:overflow-hidden">
+      <div className="flex-1 flex justify-center items-start">
+        <div className="w-full max-w-5xl p-6">
           <h1 className="text-4xl font-bold mb-8 text-center text-gray-800">Direct Booking</h1>
-
           {error && (
             <div className="bg-red-100 border border-red-400 text-red-700 px-6 py-3 rounded-lg mb-6 text-center shadow-md">
               {error}
             </div>
           )}
-
           {showSuccess && (
             <div className="bg-green-100 border border-green-400 text-green-700 px-6 py-3 rounded-lg mb-6 text-center shadow-md">
               {successMessage}
             </div>
           )}
-
-          <div className="flex flex-col md:flex-row items-center justify-center gap-6 mb-8">
+          <div className="flex flex-wrap gap-6 justify-center mb-8">
             <div className="flex flex-col items-center">
-              <label className="block text-lg font-semibold text-gray-700 mb-2">Select Customer</label>
+              <label className="text-lg font-semibold text-gray-700 mb-2">Select Customer</label>
               <select
                 value={selectedCustomer}
-                onChange={e => setSelectedCustomer(e.target.value)}
-                className="w-64 p-3 border-2 border-gray-300 rounded-lg bg-white shadow-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                onChange={(e) => setSelectedCustomer(e.target.value)}
+                className="w-64 p-3 border rounded-lg shadow focus:outline-none focus:ring-2 focus:ring-blue-500"
               >
                 <option value="">Select a customer</option>
-                {customers.length > 0 ? (
-                  customers.map(customer => (
-                    <option key={customer.id} value={customer.id}>
-                      {customer.name} ({customer.customer_type})
-                    </option>
-                  ))
-                ) : (
-                  <option disabled>No customers available</option>
-                )}
+                {customers.map(c => (
+                  <option key={c.id} value={c.id}>
+                    {c.name} ({c.customer_type || 'User'})
+                  </option>
+                ))}
               </select>
             </div>
-
             <div className="flex flex-col items-center">
-              <label className="block text-lg font-semibold text-gray-700 mb-2">Select Product Type</label>
+              <label className="text-lg font-semibold text-gray-700 mb-2">Product Type</label>
               <select
                 value={selectedProductType}
-                onChange={e => setSelectedProductType(e.target.value)}
-                className="w-64 p-3 border-2 border-gray-300 rounded-lg bg-white shadow-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                onChange={(e) => setSelectedProductType(e.target.value)}
+                className="w-64 p-3 border rounded-lg shadow focus:outline-none focus:ring-2 focus:ring-blue-500"
               >
-                <option value="">Select a product type</option>
-                {productTypes.length > 0 ? (
-                  productTypes.map(type => (
-                    <option key={type.product_type} value={type.product_type}>
-                      {type.product_type}
-                    </option>
-                  ))
-                ) : (
-                  <option disabled>No product types available</option>
-                )}
+                <option value="">Select a type</option>
+                {productTypes.map(type => (
+                  <option key={type.product_type} value={type.product_type}>
+                    {type.product_type}
+                  </option>
+                ))}
               </select>
             </div>
-
             <div className="flex flex-col items-center">
-              <label className="block text-lg font-semibold text-gray-700 mb-2">Select Product</label>
+              <label className="text-lg font-semibold text-gray-700 mb-2">Product</label>
               <select
                 value={selectedProduct}
-                onChange={e => setSelectedProduct(e.target.value)}
-                className="w-64 p-3 border-2 border-gray-300 rounded-lg bg-white shadow-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                disabled={!selectedProductType || products.length === 0}
+                onChange={(e) => setSelectedProduct(e.target.value)}
+                disabled={!selectedProductType}
+                className="w-64 p-3 border rounded-lg shadow focus:outline-none focus:ring-2 focus:ring-blue-500"
               >
                 <option value="">Select a product</option>
-                {products.length > 0 ? (
-                  products.map(product => (
-                    <option key={`${product.id}-${product.product_type}`} value={`${product.id}-${product.product_type}`}>
-                      {product.serial_number} - {product.productname}
-                    </option>
-                  ))
-                ) : (
-                  <option disabled>No products available</option>
-                )}
+                {products.map(p => (
+                  <option key={`${p.id}-${p.product_type}`} value={`${p.id}-${p.product_type}`}>
+                    {p.serial_number} - {p.productname}
+                  </option>
+                ))}
               </select>
             </div>
-
             <div>
               <button
                 onClick={addToCart}
-                className="mt-8 bg-blue-600 text-white px-6 py-3 rounded-lg font-bold shadow-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-400 disabled:cursor-not-allowed"
                 disabled={!selectedProduct}
+                className="mt-8 bg-blue-600 text-white px-6 py-3 rounded-lg font-bold shadow hover:bg-blue-700"
               >
                 Add to Cart
               </button>
             </div>
           </div>
-
-          <div className="mb-8 flex justify-center">
-            <div className="w-full max-w-4xl">
-              <h2 className="text-2xl font-bold mb-6 text-center text-gray-800">Cart</h2>
-              <div className="overflow-x-auto mobile:w-[100%]">
-                <table className="w-full border-collapse">
-                  <thead>
-                    <tr className="bg-gray-200">
-                      <th className="p-4 text-center text-gray-700 font-semibold">Product</th>
-                      <th className="p-4 text-center text-gray-700 font-semibold">Type</th>
-                      <th className="p-4 text-center text-gray-700 font-semibold">Price</th>
-                      <th className="p-4 text-center text-gray-700 font-semibold">Discount</th>
-                      <th className="p-4 text-center text-gray-700 font-semibold">Quantity</th>
-                      <th className="p-4 text-center text-gray-700 font-semibold">Total</th>
-                      <th className="p-4 text-center text-gray-700 font-semibold">Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {cart.length > 0 ? (
-                      cart.map(item => (
-                        <tr key={`${item.id}-${item.product_type}`} className="border-b border-gray-300 hover:bg-gray-50">
-                          <td className="p-4 text-center text-gray-800">{item.productname}</td>
-                          <td className="p-4 text-center text-gray-800">{item.product_type}</td>
-                          <td className="p-4 text-center text-gray-800">₹{item.price}</td>
-                          <td className="p-4 text-center text-gray-800">{item.discount}%</td>
-                          <td className="p-4 text-center">
-                            <div className="flex items-center justify-center gap-2">
-                              <button
-                                onClick={() => updateQuantity(item.id, item.product_type, -1)}
-                                className="w-10 h-10 bg-gray-200 rounded-full font-bold text-gray-800 hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                              >
-                                -
-                              </button>
-                              <span className="text-lg text-gray-800">{item.quantity}</span>
-                              <button
-                                onClick={() => updateQuantity(item.id, item.product_type, 1)}
-                                className="w-10 h-10 bg-gray-200 rounded-full font-bold text-gray-800 hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                              >
-                                +
-                              </button>
-                            </div>
-                          </td>
-                          <td className="p-4 text-center text-gray-800">₹{(item.price * (1 - item.discount / 100) * item.quantity).toFixed(2)}</td>
-                          <td className="p-4 text-center">
-                            <button
-                              onClick={() => removeFromCart(item.id, item.product_type)}
-                              className="text-red-600 hover:text-red-800 font-bold focus:outline-none focus:ring-2 focus:ring-red-500"
-                            >
-                              Remove
-                            </button>
-                          </td>
-                        </tr>
-                      ))
-                    ) : (
-                      <tr>
-                        <td colSpan="7" className="p-4 text-center text-gray-600">
-                          Cart is empty
-                        </td>
-                      </tr>
-                    )}
-                  </tbody>
-                </table>
-              </div>
-              <div className="mt-6 text-2xl font-bold text-center text-gray-800">Total: ₹{calculateTotal()}</div>
-            </div>
+          <div className="overflow-x-auto">
+            <table className="w-full border-collapse bg-white shadow rounded-lg">
+              <thead className="bg-gray-200">
+                <tr>
+                  <th className="p-3 text-center">Product</th>
+                  <th className="p-3 text-center">Type</th>
+                  <th className="p-3 text-center">Price</th>
+                  <th className="p-3 text-center">Discount</th>
+                  <th className="p-3 text-center">Qty</th>
+                  <th className="p-3 text-center">Total</th>
+                  <th className="p-3 text-center">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {cart.length ? cart.map(item => (
+                  <tr key={`${item.id}-${item.product_type}`} className="border-t">
+                    <td className="p-3 text-center">{item.productname}</td>
+                    <td className="p-3 text-center">{item.product_type}</td>
+                    <td className="p-3 text-center">₹{item.price}</td>
+                    <td className="p-3 text-center">{item.discount}%</td>
+                    <td className="p-3 text-center">
+                      <div className="flex justify-center gap-2">
+                        <button onClick={() => updateQuantity(item.id, item.product_type, -1)}>-</button>
+                        <span>{item.quantity}</span>
+                        <button onClick={() => updateQuantity(item.id, item.product_type, 1)}>+</button>
+                      </div>
+                    </td>
+                    <td className="p-3 text-center">
+                      ₹{((item.price * (1 - item.discount / 100)) * item.quantity).toFixed(2)}
+                    </td>
+                    <td className="p-3 text-center">
+                      <button
+                        onClick={() => removeFromCart(item.id, item.product_type)}
+                        className="text-red-600 hover:text-red-800 font-bold"
+                      >
+                        Remove
+                      </button>
+                    </td>
+                  </tr>
+                )) : (
+                  <tr>
+                    <td colSpan="7" className="p-4 text-center text-gray-500">Cart is empty</td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+            <div className="text-xl text-right mt-4 font-bold">Total: ₹{calculateTotal()}</div>
           </div>
-
-          <div className="flex justify-center">
+          <div className="flex justify-center mt-8">
             <button
               onClick={handleBooking}
-              className="bg-green-600 text-white px-8 py-4 rounded-lg font-bold shadow-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500"
+              className="bg-green-600 text-white px-8 py-4 rounded-lg font-bold shadow hover:bg-green-700"
             >
               Create Booking
             </button>
