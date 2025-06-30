@@ -107,6 +107,7 @@ export default function Dispatch() {
     const lines = [
       `Order ID: ${booking.order_id || 'N/A'}`,
       `Customer Name: ${booking.customer_name || 'N/A'}`,
+      `Contact Number: ${booking.mobile_number || 'N/A'}`,
       `District: ${booking.district || 'N/A'}`,
       `State: ${booking.state || 'N/A'}`,
       `Address: ${booking.address || 'N/A'}`,

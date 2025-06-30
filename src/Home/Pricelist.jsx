@@ -1,4 +1,3 @@
-"use client"
 import { useState, useEffect, useMemo, useCallback } from "react"
 import { motion, AnimatePresence } from "framer-motion"
 import { FaPlus, FaMinus } from "react-icons/fa"
@@ -77,6 +76,8 @@ const Pricelist = () => {
   const [showModal, setShowModal] = useState(false)
   const [showSuccess, setShowSuccess] = useState(false)
   const [customerDetails, setCustomerDetails] = useState({ customer_name: "", address: "", district: "", state: "", mobile_number: "", email: "", customer_type: "User" })
+  const [selectedType, setSelectedType] = useState("All")
+  const [searchTerm, setSearchTerm] = useState("")
 
   const screenWidth = typeof window !== "undefined" ? window.innerWidth : 1920
   const screenHeight = typeof window !== "undefined" ? window.innerHeight : 1080
@@ -127,7 +128,7 @@ const Pricelist = () => {
       const response = await fetch(`${API_BASE_URL}/api/direct/bookings`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ order_id, products: selectedProducts, total: Number.parseFloat(totals.net), customer_type: "User", ...customerDetails })
+        body: JSON.stringify({ order_id, products: selectedProducts, total: Number.parseFloat(totals.total), customer_type: "User", ...customerDetails })
       })
       const data = await response.json()
       if (response.ok) {
@@ -156,27 +157,41 @@ const Pricelist = () => {
   }
 
   const totals = useMemo(() => {
-    let net = 0, save = 0
+    let net = 0, save = 0, total = 0
     for (const serial in cart) {
       const qty = cart[serial]
       const product = products.find((p) => p.serial_number === serial)
       if (!product) continue
-      const discount = (product.price * product.discount) / 100
-      const priceAfterDiscount = product.price - discount
-      net += priceAfterDiscount * qty
+      const originalPrice = Number.parseFloat(product.price)
+      const discount = originalPrice * (product.discount / 100)
+      const priceAfterDiscount = originalPrice - discount
+      net += originalPrice * qty
       save += discount * qty
+      total += priceAfterDiscount * qty
     }
-    return { net: net.toFixed(2), save: save.toFixed(2), total: (net + save).toFixed(2) }
+    return { net: net.toFixed(2), save: save.toFixed(2), total: total.toFixed(2) }
   }, [cart, products])
 
+  const productTypes = useMemo(() => {
+    const types = [...new Set(products.map((p) => p.product_type || "Others"))]
+    return ["All", ...types.sort()]
+  }, [products])
+
   const grouped = useMemo(() => {
-    return products.reduce((acc, product) => {
+    const filteredProducts = products.filter((product) => {
+      const matchesType = selectedType === "All" || product.product_type === selectedType
+      const matchesSearch = !searchTerm || 
+        product.productname.toLowerCase().includes(searchTerm.toLowerCase()) || 
+        product.serial_number.toLowerCase().includes(searchTerm.toLowerCase())
+      return matchesType && matchesSearch
+    })
+    return filteredProducts.reduce((acc, product) => {
       const key = product.product_type || "Others"
       acc[key] = acc[key] || []
       acc[key].push(product)
       return acc
     }, {})
-  }, [products])
+  }, [products, selectedType, searchTerm])
 
   return (
     <>
@@ -214,10 +229,30 @@ const Pricelist = () => {
           <div>You Save: ₹{totals.save}</div>
           <div className="font-bold">Total: ₹{totals.total}</div>
         </section>
+        <div className="flex justify-center gap-4 mb-8 mt-8">
+          <select
+            value={selectedType}
+            onChange={(e) => setSelectedType(e.target.value)}
+            className="px-4 py-3 rounded-xl text-sm text-slate-800 font-medium focus:ring-2 focus:ring-sky-400 focus:border-transparent transition-all duration-300 mobile:text-sm"
+            style={{ background: "linear-gradient(135deg, rgba(255,255,255,0.8) 0%, rgba(240,249,255,0.6) 100%)", backdropFilter: "blur(10px)", border: "1px solid rgba(2,132,199,0.3)" }}
+          >
+            {productTypes.map((type) => (
+              <option key={type} value={type}>{type}</option>
+            ))}
+          </select>
+          <input
+            type="text"
+            placeholder="Search by name or serial number"
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="px-4 py-3 rounded-xl text-sm text-slate-800 font-medium focus:ring-2 focus:ring-sky-400 focus:border-transparent transition-all duration-300 mobile:text-sm w-64"
+            style={{ background: "linear-gradient(135deg, rgba(255,255,255,0.8) 0%, rgba(240,249,255,0.6) 100%)", backdropFilter: "blur(10px)", border: "1px solid rgba(2,132,199,0.3)" }}
+          />
+        </div>
         {Object.entries(grouped).map(([type, items]) => (
           <div key={type} className="mt-12 mb-10">
             <h2 className="text-3xl text-sky-800 mb-5 font-semibold capitalize border-b-4 border-sky-500 pb-2">
-              {type.replace(/_/g, " ")} <span className="text-sky-600 text-lg">({items[0].discount}% OFF)</span>
+              {type.replace(/_/g, " ")}
             </h2>
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-6">
               {items.map((product) => {
@@ -234,6 +269,7 @@ const Pricelist = () => {
                     className="group relative rounded-3xl p-6 overflow-hidden cursor-pointer transition-all duration-500"
                     style={{ background: "linear-gradient(135deg, rgba(255,255,255,0.4) 0%, rgba(224,242,254,0.3) 50%, rgba(186,230,253,0.2) 100%)", backdropFilter: "blur(20px)", border: "1px solid rgba(2,132,199,0.3)", boxShadow: "0 25px 45px rgba(2,132,199,0.1), inset 0 1px 0 rgba(255,255,255,0.4), inset 0 -1px 0 rgba(2,132,199,0.1)" }}
                   >
+                    <div className="absolute left-2 top-2 bg-red-500 text-white text-md font-bold px-2 py-1 rounded-br-lg rounded-tl-lg mobile:text-[10px] mobile:px-1.5 mobile:py-0.5">{product.discount}%</div>
                     <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-700" style={{ background: "linear-gradient(135deg, rgba(2,132,199,0.3) 0%, transparent 50%, rgba(14,165,233,0.2) 100%)" }} />
                     <div className="relative z-10">
                       <h3 className="text-lg font-bold text-slate-800 group-hover:text-slate-900 transition-colors duration-500 drop-shadow-sm line-clamp-2 mb-2">{product.productname}</h3>

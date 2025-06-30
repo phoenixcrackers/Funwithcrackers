@@ -1,17 +1,16 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
+import Select from 'react-select';
 import '../../App.css';
-import { API_BASE_URL } from "../../../Config";
-import Sidebar from "../Sidebar/Sidebar";
+import { API_BASE_URL } from '../../../Config';
+import Sidebar from '../Sidebar/Sidebar';
 
 export default function Direct() {
   const [customers, setCustomers] = useState([]);
   const [products, setProducts] = useState([]);
   const [selectedCustomer, setSelectedCustomer] = useState('');
   const [cart, setCart] = useState([]);
-  const [productTypes, setProductTypes] = useState([]);
-  const [selectedProductType, setSelectedProductType] = useState('');
-  const [selectedProduct, setSelectedProduct] = useState('');
+  const [selectedProduct, setSelectedProduct] = useState(null);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
   const [successMessage, setSuccessMessage] = useState('');
@@ -23,8 +22,8 @@ export default function Direct() {
       try {
         const customersResponse = await axios.get(`${API_BASE_URL}/api/direct/customers`);
         setCustomers(Array.isArray(customersResponse.data) ? customersResponse.data : []);
-        const productTypesResponse = await axios.get(`${API_BASE_URL}/api/direct/products/types`);
-        setProductTypes(Array.isArray(productTypesResponse.data) ? productTypesResponse.data : []);
+        const productsResponse = await axios.get(`${API_BASE_URL}/api/direct/products`);
+        setProducts(Array.isArray(productsResponse.data) ? productsResponse.data : []);
       } catch {
         setError('Failed to fetch data');
       } finally {
@@ -34,24 +33,9 @@ export default function Direct() {
     fetchData();
   }, []);
 
-  useEffect(() => {
-    if (selectedProductType) {
-      setLoading(true);
-      axios
-        .get(`${API_BASE_URL}/api/direct/products?type=${selectedProductType}`)
-        .then((res) => setProducts(Array.isArray(res.data) ? res.data : []))
-        .catch(() => setError('Failed to fetch products'))
-        .finally(() => setLoading(false));
-    } else {
-      setProducts([]);
-      setSelectedProduct('');
-    }
-  }, [selectedProductType]);
-
   const addToCart = () => {
     if (!selectedProduct) return setError('Please select a product');
-    const [id, type] = selectedProduct.split('-');
-    const product = products.find(p => p.id.toString() === id && p.product_type === type);
+    const product = products.find(p => p.id.toString() === selectedProduct.value.split('-')[0] && p.product_type === selectedProduct.value.split('-')[1]);
     if (!product) return;
     const exists = cart.find(item => item.id === product.id && item.product_type === product.product_type);
     setCart(
@@ -63,6 +47,7 @@ export default function Direct() {
           )
         : [...cart, { ...product, quantity: 1 }]
     );
+    setSelectedProduct(null);
     setError('');
   };
 
@@ -109,7 +94,7 @@ export default function Direct() {
       });
       setCart([]);
       setSelectedCustomer('');
-      setSelectedProduct('');
+      setSelectedProduct(null);
       setError('');
       setSuccessMessage('Booking created successfully!');
       setShowSuccess(true);
@@ -122,29 +107,34 @@ export default function Direct() {
     }
   };
 
+  const productOptions = products.map(p => ({
+    value: `${p.id}-${p.product_type}`,
+    label: `${p.serial_number} - ${p.productname} (${p.product_type})`
+  }));
+
   return (
-    <div className="flex min-h-screen bg-gray-100">
+    <div className="flex min-h-screen bg-gray-100 mobile:flex-col">
       <Sidebar />
-      <div className="flex-1 flex justify-center items-start">
-        <div className="w-full max-w-5xl p-6">
-          <h1 className="text-4xl font-bold mb-8 text-center text-gray-800">Direct Booking</h1>
+      <div className="flex-1 flex justify-center items-start mobile:p-2">
+        <div className="w-full max-w-5xl p-6 mobile:p-4">
+          <h1 className="text-4xl font-bold mb-8 text-center text-gray-800 mobile:text-2xl">Direct Booking</h1>
           {error && (
-            <div className="bg-red-100 border border-red-400 text-red-700 px-6 py-3 rounded-lg mb-6 text-center shadow-md">
+            <div className="bg-red-100 border border-red-400 text-red-700 px-6 py-3 rounded-lg mb-6 text-center shadow-md mobile:text-sm mobile:px-4">
               {error}
             </div>
           )}
           {showSuccess && (
-            <div className="bg-green-100 border border-green-400 text-green-700 px-6 py-3 rounded-lg mb-6 text-center shadow-md">
+            <div className="bg-green-100 border border-green-400 text-green-700 px-6 py-3 rounded-lg mb-6 text-center shadow-md mobile:text-sm mobile:px-4">
               {successMessage}
             </div>
           )}
-          <div className="flex flex-wrap gap-6 justify-center mb-8">
-            <div className="flex flex-col items-center">
-              <label className="text-lg font-semibold text-gray-700 mb-2">Select Customer</label>
+          <div className="flex flex-wrap gap-6 justify-center mb-8 mobile:flex-col mobile:gap-4">
+            <div className="flex flex-col items-center mobile:w-full">
+              <label className="text-lg font-semibold text-gray-700 mb-2 mobile:text-base">Select Customer</label>
               <select
                 value={selectedCustomer}
                 onChange={(e) => setSelectedCustomer(e.target.value)}
-                className="w-64 p-3 border rounded-lg shadow focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-64 p-3 border rounded-lg shadow focus:outline-none focus:ring-2 focus:ring-blue-500 mobile:w-full mobile:p-2 mobile:text-sm"
               >
                 <option value="">Select a customer</option>
                 {customers.map(c => (
@@ -154,81 +144,85 @@ export default function Direct() {
                 ))}
               </select>
             </div>
-            <div className="flex flex-col items-center">
-              <label className="text-lg font-semibold text-gray-700 mb-2">Product Type</label>
-              <select
-                value={selectedProductType}
-                onChange={(e) => setSelectedProductType(e.target.value)}
-                className="w-64 p-3 border rounded-lg shadow focus:outline-none focus:ring-2 focus:ring-blue-500"
-              >
-                <option value="">Select a type</option>
-                {productTypes.map(type => (
-                  <option key={type.product_type} value={type.product_type}>
-                    {type.product_type}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div className="flex flex-col items-center">
-              <label className="text-lg font-semibold text-gray-700 mb-2">Product</label>
-              <select
+            <div className="flex flex-col items-center mobile:w-full">
+              <label className="text-lg font-semibold text-gray-700 mb-2 mobile:text-base">Product</label>
+              <Select
                 value={selectedProduct}
-                onChange={(e) => setSelectedProduct(e.target.value)}
-                disabled={!selectedProductType}
-                className="w-64 p-3 border rounded-lg shadow focus:outline-none focus:ring-2 focus:ring-blue-500"
-              >
-                <option value="">Select a product</option>
-                {products.map(p => (
-                  <option key={`${p.id}-${p.product_type}`} value={`${p.id}-${p.product_type}`}>
-                    {p.serial_number} - {p.productname}
-                  </option>
-                ))}
-              </select>
+                onChange={setSelectedProduct}
+                options={productOptions}
+                placeholder="Search for a product..."
+                isClearable
+                className="w-64 mobile:w-full"
+                classNamePrefix="react-select"
+                styles={{
+                  control: (base) => ({
+                    ...base,
+                    padding: '0.25rem',
+                    fontSize: '1rem',
+                    borderRadius: '0.5rem',
+                    boxShadow: '0 1px 2px rgba(0, 0, 0, 0.1)',
+                    borderColor: '#d1d5db',
+                    '&:hover': { borderColor: '#3b82f6' },
+                    '@media (max-width: 640px)': {
+                      padding: '0.5rem',
+                      fontSize: '0.875rem',
+                    }
+                  }),
+                  menu: (base) => ({
+                    ...base,
+                    zIndex: 20,
+                    fontSize: '1rem',
+                    '@media (max-width: 640px)': {
+                      fontSize: '0.875rem',
+                    }
+                  })
+                }}
+              />
             </div>
-            <div>
+            <div className="mobile:w-full mobile:text-center">
               <button
                 onClick={addToCart}
                 disabled={!selectedProduct}
-                className="mt-8 bg-blue-600 text-white px-6 py-3 rounded-lg font-bold shadow hover:bg-blue-700"
+                className="mt-8 bg-blue-600 text-white px-6 py-3 rounded-lg font-bold shadow hover:bg-blue-700 mobile:mt-4 mobile:w-full mobile:py-2 mobile:text-sm"
               >
                 Add to Cart
               </button>
             </div>
           </div>
           <div className="overflow-x-auto">
-            <table className="w-full border-collapse bg-white shadow rounded-lg">
+            <table className="w-full border-collapse bg-white shadow rounded-lg mobile:text-sm">
               <thead className="bg-gray-200">
                 <tr>
-                  <th className="p-3 text-center">Product</th>
-                  <th className="p-3 text-center">Type</th>
-                  <th className="p-3 text-center">Price</th>
-                  <th className="p-3 text-center">Discount</th>
-                  <th className="p-3 text-center">Qty</th>
-                  <th className="p-3 text-center">Total</th>
-                  <th className="p-3 text-center">Actions</th>
+                  <th className="p-3 text-center mobile:p-2">Product</th>
+                  <th className="p-3 text-center mobile:p-2">Type</th>
+                  <th className="p-3 text-center mobile:p-2">Price</th>
+                  <th className="p-3 text-center mobile:p-2">Discount</th>
+                  <th className="p-3 text-center mobile:p-2">Qty</th>
+                  <th className="p-3 text-center mobile:p-2">Total</th>
+                  <th className="p-3 text-center mobile:p-2">Actions</th>
                 </tr>
               </thead>
               <tbody>
                 {cart.length ? cart.map(item => (
                   <tr key={`${item.id}-${item.product_type}`} className="border-t">
-                    <td className="p-3 text-center">{item.productname}</td>
-                    <td className="p-3 text-center">{item.product_type}</td>
-                    <td className="p-3 text-center">₹{item.price}</td>
-                    <td className="p-3 text-center">{item.discount}%</td>
-                    <td className="p-3 text-center">
-                      <div className="flex justify-center gap-2">
-                        <button onClick={() => updateQuantity(item.id, item.product_type, -1)}>-</button>
+                    <td className="p-3 text-center mobile:p-2">{item.productname}</td>
+                    <td className="p-3 text-center mobile:p-2">{item.product_type}</td>
+                    <td className="p-3 text-center mobile:p-2">₹{item.price}</td>
+                    <td className="p-3 text-center mobile:p-2">{item.discount}%</td>
+                    <td className="p-3 text-center mobile:p-2">
+                      <div className="flex justify-center gap-2 mobile:gap-1">
+                        <button onClick={() => updateQuantity(item.id, item.product_type, -1)} className="mobile:text-sm">-</button>
                         <span>{item.quantity}</span>
-                        <button onClick={() => updateQuantity(item.id, item.product_type, 1)}>+</button>
+                        <button onClick={() => updateQuantity(item.id, item.product_type, 1)} className="mobile:text-sm">+</button>
                       </div>
                     </td>
-                    <td className="p-3 text-center">
+                    <td className="p-3 text-center mobile:p-2">
                       ₹{((item.price * (1 - item.discount / 100)) * item.quantity).toFixed(2)}
                     </td>
-                    <td className="p-3 text-center">
+                    <td className="p-3 text-center mobile:p-2">
                       <button
                         onClick={() => removeFromCart(item.id, item.product_type)}
-                        className="text-red-600 hover:text-red-800 font-bold"
+                        className="text-red-600 hover:text-red-800 font-bold mobile:text-sm"
                       >
                         Remove
                       </button>
@@ -236,17 +230,17 @@ export default function Direct() {
                   </tr>
                 )) : (
                   <tr>
-                    <td colSpan="7" className="p-4 text-center text-gray-500">Cart is empty</td>
+                    <td colSpan="7" className="p-4 text-center text-gray-500 mobile:p-2 mobile:text-sm">Cart is empty</td>
                   </tr>
                 )}
               </tbody>
             </table>
-            <div className="text-xl text-right mt-4 font-bold">Total: ₹{calculateTotal()}</div>
+            <div className="text-xl text-right mt-4 font-bold mobile:text-base mobile:mt-2">Total: ₹{calculateTotal()}</div>
           </div>
-          <div className="flex justify-center mt-8">
+          <div className="flex justify-center mt-8 mobile:mt-4">
             <button
               onClick={handleBooking}
-              className="bg-green-600 text-white px-8 py-4 rounded-lg font-bold shadow hover:bg-green-700"
+              className="bg-green-600 text-white px-8 py-4 rounded-lg font-bold shadow hover:bg-green-700 mobile:w-full mobile:py-2 mobile:text-sm"
             >
               Create Booking
             </button>
