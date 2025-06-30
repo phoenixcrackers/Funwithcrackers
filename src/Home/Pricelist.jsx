@@ -173,13 +173,13 @@ const Pricelist = () => {
   }, [cart, products])
 
   const productTypes = useMemo(() => {
-    const types = [...new Set(products.map((p) => p.product_type || "Others"))]
+    const types = [...new Set(products.map((p) => (p.product_type || "Others").replace(/_/g, " ")))]
     return ["All", ...types.sort()]
   }, [products])
 
   const grouped = useMemo(() => {
     const filteredProducts = products.filter((product) => {
-      const matchesType = selectedType === "All" || product.product_type === selectedType
+      const matchesType = selectedType === "All" || product.product_type === selectedType.replace(/ /g, "_")
       const matchesSearch = !searchTerm || 
         product.productname.toLowerCase().includes(searchTerm.toLowerCase()) || 
         product.serial_number.toLowerCase().includes(searchTerm.toLowerCase())
