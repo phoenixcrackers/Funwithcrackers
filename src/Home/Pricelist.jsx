@@ -60,7 +60,7 @@ const BigFireworkAnimation = ({ delay = 0, startPosition, endPosition, burstPosi
         })}
         <motion.div
           className="absolute w-32 h-32 rounded-full"
-          style={{ background: `radial-gradient(circle, ${color.primary}aa 0%, ${color.secondary}66 30%, transparent 70%)`, transform: "translate(-50%, -50%)" }}
+          style={{ background: `radial-gradient(circle, ${color.primary}aa 0%, ${color.secondary}66  {6,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0, Athena: 30%, transparent 70%)`, transform: "translate(-50%, -50%)" }}
           animate={{ scale: [0, 3, 1.5, 0], opacity: [0, 1, 0.3, 0] }}
           transition={{ duration: 2, delay: delay + 2.5, ease: "easeOut" }}
         />
@@ -75,9 +75,13 @@ const Pricelist = () => {
   const [isCartOpen, setIsCartOpen] = useState(false)
   const [showModal, setShowModal] = useState(false)
   const [showSuccess, setShowSuccess] = useState(false)
+  const [showMinOrderModal, setShowMinOrderModal] = useState(false)
+  const [minOrderMessage, setMinOrderMessage] = useState("")
   const [customerDetails, setCustomerDetails] = useState({ customer_name: "", address: "", district: "", state: "", mobile_number: "", email: "", customer_type: "User" })
   const [selectedType, setSelectedType] = useState("All")
   const [searchTerm, setSearchTerm] = useState("")
+  const [promocode, setPromocode] = useState("")
+  const [appliedPromo, setAppliedPromo] = useState(null)
 
   const screenWidth = typeof window !== "undefined" ? window.innerWidth : 1920
   const screenHeight = typeof window !== "undefined" ? window.innerHeight : 1080
@@ -121,14 +125,61 @@ const Pricelist = () => {
     const order_id = `ORD-${Date.now()}`
     const selectedProducts = Object.entries(cart).map(([serial, qty]) => {
       const product = products.find((p) => p.serial_number === serial)
-      return { id: product.id, product_type: product.product_type, quantity: qty, per: product.per, image: product.image, price: product.price, discount: product.discount, serial_number: product.serial_number, productname: product.productname, status: product.status }
+      return {
+        id: product.id,
+        product_type: product.product_type,
+        quantity: qty,
+        per: product.per,
+        image: product.image,
+        price: product.price,
+        discount: product.discount,
+        serial_number: product.serial_number,
+        productname: product.productname,
+        status: product.status,
+      }
     })
-    if (selectedProducts.length === 0) return alert("Your cart is empty.")
+
+    if (selectedProducts.length === 0) {
+      setMinOrderMessage("Your cart is empty.")
+      setShowMinOrderModal(true)
+      setTimeout(() => setShowMinOrderModal(false), 5000)
+      return
+    }
+
+    const stateMinOrder = {
+      "Tamil Nadu": 2500,
+      Pondicherry: 3000,
+      "Andhra Pradesh": 4000,
+    }
+
+    const selectedState = customerDetails.state?.trim()
+    const requiredMin = stateMinOrder[selectedState]
+
+    if (!selectedState) {
+      setMinOrderMessage("Please select a state.")
+      setShowMinOrderModal(true)
+      setTimeout(() => setShowMinOrderModal(false), 5000)
+      return
+    }
+
+    if (requiredMin && parseFloat(totals.total) < requiredMin) {
+      setMinOrderMessage(`Minimum order for ${selectedState} is ₹${requiredMin}. Your total is ₹${totals.total}.`)
+      setShowMinOrderModal(true)
+      setTimeout(() => setShowMinOrderModal(false), 5000)
+      return
+    }
+
     try {
       const response = await fetch(`${API_BASE_URL}/api/direct/bookings`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ order_id, products: selectedProducts, total: Number.parseFloat(totals.total), customer_type: "User", ...customerDetails })
+        body: JSON.stringify({
+          order_id,
+          products: selectedProducts,
+          total: Number.parseFloat(totals.total),
+          customer_type: "User",
+          ...customerDetails,
+        }),
       })
       const data = await response.json()
       if (response.ok) {
@@ -137,18 +188,35 @@ const Pricelist = () => {
         setCart({})
         setIsCartOpen(false)
         setShowModal(false)
-        setCustomerDetails({ customer_name: "", address: "", district: "", state: "", mobile_number: "", email: "", customer_type: "User" })
+        setCustomerDetails({
+          customer_name: "",
+          address: "",
+          district: "",
+          state: "",
+          mobile_number: "",
+          email: "",
+          customer_type: "User",
+        })
       } else {
-        alert(data.message || "Booking failed.")
+        setMinOrderMessage(data.message || "Booking failed.")
+        setShowMinOrderModal(true)
+        setTimeout(() => setShowMinOrderModal(false), 5000)
       }
     } catch (err) {
       console.error("Checkout error:", err)
-      alert("Something went wrong during checkout.")
+      setMinOrderMessage("Something went wrong during checkout.")
+      setShowMinOrderModal(true)
+      setTimeout(() => setShowMinOrderModal(false), 5000)
     }
   }
 
   const handleCheckoutClick = () => {
-    if (Object.keys(cart).length === 0) return alert("Your cart is empty.")
+    if (Object.keys(cart).length === 0) {
+      setMinOrderMessage("Your cart is empty.")
+      setShowMinOrderModal(true)
+      setTimeout(() => setShowMinOrderModal(false), 5000)
+      return
+    }
     setShowModal(true)
   }
 
@@ -169,8 +237,46 @@ const Pricelist = () => {
       save += discount * qty
       total += priceAfterDiscount * qty
     }
-    return { net: net.toFixed(2), save: save.toFixed(2), total: total.toFixed(2) }
-  }, [cart, products])
+
+    if (appliedPromo) {
+      const promoDiscount = (total * appliedPromo.discount) / 100
+      total -= promoDiscount
+      save += promoDiscount
+    }
+
+    return {
+      net: net.toFixed(2),
+      save: save.toFixed(2),
+      total: total.toFixed(2),
+    }
+  }, [cart, products, appliedPromo])
+
+  const handleApplyPromo = async () => {
+    if (!promocode) {
+      setMinOrderMessage("Enter a promocode.")
+      setShowMinOrderModal(true)
+      setTimeout(() => setShowMinOrderModal(false), 5000)
+      return
+    }
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/promocodes`)
+      const promos = await res.json()
+      const found = promos.find(p => p.code.toLowerCase() === promocode.toLowerCase())
+      if (!found) {
+        setMinOrderMessage("Invalid promocode.")
+        setShowMinOrderModal(true)
+        setTimeout(() => setShowMinOrderModal(false), 5000)
+        setAppliedPromo(null)
+      } else {
+        setAppliedPromo(found)
+      }
+    } catch (err) {
+      console.error("Promo apply error:", err)
+      setMinOrderMessage("Could not validate promocode.")
+      setShowMinOrderModal(true)
+      setTimeout(() => setShowMinOrderModal(false), 5000)
+    }
+  }
 
   const productTypes = useMemo(() => {
     const types = [...new Set(products.map((p) => (p.product_type || "Others").replace(/_/g, " ")))]
@@ -223,6 +329,21 @@ const Pricelist = () => {
           </motion.div>
         </>
       )}
+      {showMinOrderModal && (
+        <motion.div
+          className="fixed inset-0 flex items-center justify-center z-60 pointer-events-none"
+          initial={{ opacity: 0, scale: 0.8 }}
+          animate={{ opacity: 1, scale: 1 }}
+          exit={{ opacity: 0, scale: 0.8 }}
+          transition={{ duration: 0.5 }}
+        >
+          <div
+            className="bg-red-200 text-red-400 border-2 text-lg font-semibold rounded-xl p-6 max-w-md mx-4 text-center shadow-lg"
+          >
+            {minOrderMessage}
+          </div>
+        </motion.div>
+      )}
       <main className={`relative pt-28 px-4 sm:px-8 max-w-7xl mx-auto transition-all duration-300 ${isCartOpen ? "mr-80" : ""}`}>
         <section className="rounded-xl px-4 py-3 shadow-inner flex justify-between flex-wrap gap-4 text-sm sm:text-base border border-sky-300 bg-gradient-to-br from-sky-400/80 to-sky-600/90 text-white font-semibold">
           <div>Net Total: ₹{totals.net}</div>
@@ -233,7 +354,7 @@ const Pricelist = () => {
           <select
             value={selectedType}
             onChange={(e) => setSelectedType(e.target.value)}
-            className="px-4 py-3 rounded-xl text-sm text-slate-800 font-medium focus:ring-2 focus:ring-sky-400 focus:border-transparent transition-all duration-300 mobile:text-sm"
+            className="px-4 py-3 mobile:w-32 rounded-xl text-sm text-slate-800 font-medium focus:ring-2 focus:ring-sky-400 focus:border-transparent transition-all duration-300 mobile:text-sm"
             style={{ background: "linear-gradient(135deg, rgba(255,255,255,0.8) 0%, rgba(240,249,255,0.6) 100%)", backdropFilter: "blur(10px)", border: "1px solid rgba(2,132,199,0.3)" }}
           >
             {productTypes.map((type) => (
@@ -245,7 +366,7 @@ const Pricelist = () => {
             placeholder="Search by name or serial number"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="px-4 py-3 rounded-xl text-sm text-slate-800 font-medium focus:ring-2 focus:ring-sky-400 focus:border-transparent transition-all duration-300 mobile:text-sm w-64"
+            className="rounded-xl px-2 w-1/2 text-sm text-slate-800 font-medium focus:ring-2 focus:ring-sky-400 focus:border-transparent transition-all duration-300 mobile:text-sm"
             style={{ background: "linear-gradient(135deg, rgba(255,255,255,0.8) 0%, rgba(240,249,255,0.6) 100%)", backdropFilter: "blur(10px)", border: "1px solid rgba(2,132,199,0.3)" }}
           />
         </div>
@@ -357,12 +478,27 @@ const Pricelist = () => {
             initial={{ scale: 0.9, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
             className="relative rounded-3xl shadow-lg max-w-md w-full mx-4 overflow-hidden"
-            style={{ background: "linear-gradient(135deg, rgba(255,255,255,0.95) 0%, rgba(240,249,255,0.9) 100%)", backdropFilter: "blur(20px)", border: "1px solid rgba(2,132,199,0.3)", boxShadow: "0 25px 45px rgba(2,132,199,0.2)" }}
+            style={{
+              background: "linear-gradient(135deg, rgba(255,255,255,0.95) 0%, rgba(240,249,255,0.9) 100%)",
+              backdropFilter: "blur(20px)",
+              border: "1px solid rgba(2,132,199,0.3)",
+              boxShadow: "0 25px 45px rgba(2,132,199,0.2)",
+            }}
           >
             <div className="p-6">
-              <h2 className="text-2xl font-bold mb-6 text-sky-700 drop-shadow-sm">Enter Customer Details</h2>
+              <h2 className="text-2xl font-bold mb-6 text-sky-700 drop-shadow-sm">
+                Enter Customer Details
+              </h2>
+              <div className="mb-4 bg-blue-50 border border-blue-200 rounded-xl p-4 text-sm text-sky-800 font-medium shadow-sm">
+                <p className="mb-2 font-semibold">🚚 Minimum Order Amount by Location:</p>
+                <ul className="list-disc pl-6 space-y-1">
+                  <li>Tamil Nadu: ₹2500</li>
+                  <li>Pondicherry: ₹3000</li>
+                  <li>Andhra Pradesh: ₹4000</li>
+                </ul>
+              </div>
               <div className="space-y-4">
-                {["customer_name", "address", "district", "state", "mobile_number", "email"].map((field) => (
+                {["customer_name", "address", "mobile_number", "email"].map((field) => (
                   <input
                     key={field}
                     name={field}
@@ -371,23 +507,71 @@ const Pricelist = () => {
                     value={customerDetails[field]}
                     onChange={handleInputChange}
                     className="w-full border border-sky-200 px-4 py-3 rounded-xl text-sm focus:ring-2 focus:ring-sky-400 focus:border-transparent transition-all duration-300"
-                    style={{ background: "linear-gradient(135deg, rgba(255,255,255,0.8) 0%, rgba(240,249,255,0.6) 100%)", backdropFilter: "blur(10px)" }}
+                    style={{
+                      background: "linear-gradient(135deg, rgba(255,255,255,0.8) 0%, rgba(240,249,255,0.6) 100%)",
+                      backdropFilter: "blur(10px)",
+                    }}
                     required
                   />
                 ))}
+                <select
+                  name="state"
+                  value={customerDetails.state}
+                  onChange={(e) => {
+                    const selectedState = e.target.value
+                    setCustomerDetails((prev) => ({
+                      ...prev,
+                      state: selectedState,
+                      district: "",
+                    }))
+                  }}
+                  className="w-full border border-sky-200 px-4 py-3 rounded-xl text-sm focus:ring-2 focus:ring-sky-400 focus:border-transparent transition-all duration-300"
+                  required
+                >
+                  <option value="">Select State</option>
+                  <option value="Tamil Nadu">Tamil Nadu</option>
+                  <option value="Pondicherry">Pondicherry</option>
+                  <option value="Andhra Pradesh">Andhra Pradesh</option>
+                </select>
+                {customerDetails.state && (
+                  <select
+                    name="district"
+                    value={customerDetails.district}
+                    onChange={handleInputChange}
+                    className="w-full border border-sky-200 px-4 py-3 rounded-xl text-sm focus:ring-2 focus:ring-sky-400 focus:border-transparent transition-all duration-300"
+                    required
+                  >
+                    <option value="">Select District</option>
+                    {{
+                      "Tamil Nadu": ["Chennai", "Coimbatore", "Madurai", "Salem", "Tiruchirappalli"],
+                      Pondicherry: ["Puducherry", "Karaikal", "Mahe", "Yanam"],
+                      "Andhra Pradesh": ["Vijayawada", "Visakhapatnam", "Guntur", "Nellore", "Kurnool"],
+                    }[customerDetails.state].map((district) => (
+                      <option key={district} value={district}>
+                        {district}
+                      </option>
+                    ))}
+                  </select>
+                )}
               </div>
               <div className="mt-6 flex justify-end gap-3">
                 <button
                   onClick={() => setShowModal(false)}
                   className="px-6 py-3 text-sm font-semibold rounded-xl transition-all duration-300 cursor-pointer"
-                  style={{ background: "linear-gradient(135deg, rgba(156,163,175,0.8) 0%, rgba(107,114,128,0.9) 100%)", color: "white" }}
+                  style={{
+                    background: "linear-gradient(135deg, rgba(156,163,175,0.8) 0%, rgba(107,114,128,0.9) 100%)",
+                    color: "white",
+                  }}
                 >
                   Cancel
                 </button>
                 <button
                   onClick={handleFinalCheckout}
                   className="px-6 py-3 text-sm font-semibold rounded-xl text-white transition-all duration-300 cursor-pointer"
-                  style={{ background: "linear-gradient(135deg, rgba(2,132,199,0.9) 0%, rgba(14,165,233,0.9) 100%)", boxShadow: "0 10px 25px rgba(2,132,199,0.3)" }}
+                  style={{
+                    background: "linear-gradient(135deg, rgba(2,132,199,0.9) 0%, rgba(14,165,233,0.9) 100%)",
+                    boxShadow: "0 10px 25px rgba(2,132,199,0.3)",
+                  }}
                 >
                   Confirm Booking
                 </button>
@@ -419,13 +603,22 @@ const Pricelist = () => {
         animate={{ x: isCartOpen ? 0 : 320 }}
         transition={{ duration: 0.4, ease: "easeInOut" }}
         className="fixed top-0 right-0 w-80 h-full shadow-xl border-l z-50"
-        style={{ background: "linear-gradient(135deg, rgba(255,255,255,0.95) 0%, rgba(240,249,255,0.9) 100%)", backdropFilter: "blur(20px)", border: "1px solid rgba(2,132,199,0.3)" }}
+        style={{
+          background: "linear-gradient(135deg, rgba(255,255,255,0.95) 0%, rgba(240,249,255,0.9) 100%)",
+          backdropFilter: "blur(20px)",
+          border: "1px solid rgba(2,132,199,0.3)",
+        }}
       >
         <div className="flex justify-between items-center p-4 border-b border-sky-200">
           <h3 className="text-lg font-bold text-sky-800">Your Cart</h3>
-          <button onClick={() => setIsCartOpen(false)} className="text-gray-600 hover:text-red-500 text-xl cursor-pointer">×</button>
+          <button
+            onClick={() => setIsCartOpen(false)}
+            className="text-gray-600 hover:text-red-500 text-xl cursor-pointer"
+          >
+            ×
+          </button>
         </div>
-        <div className="p-4 overflow-y-auto h-[calc(100%-130px)] space-y-4">
+        <div className="p-4 overflow-y-auto h-[calc(100%-200px)] space-y-4">
           {Object.keys(cart).length === 0 ? (
             <p className="text-gray-500 text-sm">Your cart is empty.</p>
           ) : (
@@ -442,19 +635,44 @@ const Pricelist = () => {
                   className="flex items-center gap-3 border-b pb-3 border-sky-100"
                 >
                   {product.image && (
-                    <div className="w-16 h-16 rounded-xl overflow-hidden" style={{ background: "linear-gradient(135deg, rgba(255,255,255,0.6) 0%, rgba(240,249,255,0.4) 100%)", backdropFilter: "blur(10px)", border: "1px solid rgba(2,132,199,0.2)" }}>
-                      <img src={`${API_BASE_URL}${product.image}`} alt={product.productname} className="w-full h-full object-contain p-1" />
+                    <div
+                      className="w-16 h-16 rounded-xl overflow-hidden"
+                      style={{
+                        background: "linear-gradient(135deg, rgba(255,255,255,0.6) 0%, rgba(240,249,255,0.4) 100%)",
+                        backdropFilter: "blur(10px)",
+                        border: "1px solid rgba(2,132,199,0.2)",
+                      }}
+                    >
+                      <img
+                        src={`${API_BASE_URL}${product.image}`}
+                        alt={product.productname}
+                        className="w-full h-full object-contain p-1"
+                      />
                     </div>
                   )}
                   <div className="flex-1">
                     <p className="text-sm font-semibold text-slate-800">{product.productname}</p>
-                    <p className="text-sm text-sky-700 font-bold">₹{priceAfterDiscount.toFixed(2)} x {qty}</p>
+                    <p className="text-sm text-sky-700 font-bold">
+                      ₹{priceAfterDiscount.toFixed(2)} x {qty}
+                    </p>
                     <div className="flex items-center gap-2 mt-2">
-                      <button onClick={() => removeFromCart(product)} className="w-7 h-7 text-sm text-white cursor-pointer rounded-full flex items-center justify-center transition-all duration-300" style={{ background: "linear-gradient(135deg, rgba(2,132,199,0.8) 0%, rgba(14,165,233,0.9) 100%)" }}>
+                      <button
+                        onClick={() => removeFromCart(product)}
+                        className="w-7 h-7 text-sm text-white cursor-pointer rounded-full flex items-center justify-center transition-all duration-300"
+                        style={{
+                          background: "linear-gradient(135deg, rgba(2,132,199,0.8) 0%, rgba(14,165,233,0.9) 100%)",
+                        }}
+                      >
                         <FaMinus />
                       </button>
                       <span className="text-sm font-medium px-2">{qty}</span>
-                      <button onClick={() => addToCart(product)} className="w-7 h-7 text-sm text-white cursor-pointer rounded-full flex items-center justify-center transition-all duration-300" style={{ background: "linear-gradient(135deg, rgba(2,132,199,0.8) 0%, rgba(14,165,233,0.9) 100%)" }}>
+                      <button
+                        onClick={() => addToCart(product)}
+                        className="w-7 h-7 text-sm text-white cursor-pointer rounded-full flex items-center justify-center transition-all duration-300"
+                        style={{
+                          background: "linear-gradient(135deg, rgba(2,132,199,0.8) 0%, rgba(14,165,233,0.9) 100%)",
+                        }}
+                      >
                         <FaPlus />
                       </button>
                     </div>
@@ -464,21 +682,66 @@ const Pricelist = () => {
             })
           )}
         </div>
-        <div className="p-4 border-t border-sky-200 sticky bottom-0" style={{ background: "linear-gradient(135deg, rgba(255,255,255,0.95) 0%, rgba(240,249,255,0.9) 100%)", backdropFilter: "blur(20px)" }}>
-          <div className="space-y-3">
-            <div className="text-sm text-slate-700 space-y-1">
-              <p>Net: ₹{totals.net}</p>
-              <p>You Save: ₹{totals.save}</p>
-              <p className="font-bold text-sky-800 text-lg">Total: ₹{totals.total}</p>
-            </div>
+        <div
+          className="p-4 border-t border-sky-200 sticky bottom-0 space-y-4"
+          style={{
+            background: "linear-gradient(135deg, rgba(255,255,255,0.95) 0%, rgba(240,249,255,0.9) 100%)",
+            backdropFilter: "blur(20px)",
+          }}
+        >
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-1">Promocode</label>
             <div className="flex gap-2">
-              <button onClick={() => setCart({})} className="flex-1 text-white text-sm font-semibold py-3 rounded-xl transition-all duration-300 cursor-pointer" style={{ background: "linear-gradient(135deg, rgba(239,68,68,0.9) 0%, rgba(220,38,38,0.9) 100%)", boxShadow: "0 5px 15px rgba(239,68,68,0.3)" }}>
-                Clear Cart
-              </button>
-              <button onClick={handleCheckoutClick} className="flex-1 text-white text-sm font-semibold py-3 rounded-xl transition-all duration-300 cursor-pointer" style={{ background: "linear-gradient(135deg, rgba(2,132,199,0.9) 0%, rgba(14,165,233,0.9) 100%)", boxShadow: "0 5px 15px rgba(2,132,199,0.3)" }}>
-                Checkout
+              <input
+                type="text"
+                value={promocode}
+                onChange={(e) => setPromocode(e.target.value)}
+                placeholder="Enter code"
+                className="flex-1 px-3 py-2 rounded-xl border border-sky-300 text-sm focus:ring-2 focus:ring-sky-400"
+              />
+              <button
+                onClick={handleApplyPromo}
+                className="px-4 py-2 rounded-xl text-sm font-semibold text-white cursor-pointer"
+                style={{
+                  background: "linear-gradient(135deg, rgba(34,197,94,0.9), rgba(22,163,74,0.9))",
+                  boxShadow: "0 4px 10px rgba(34,197,94,0.3)",
+                }}
+              >
+                Apply
               </button>
             </div>
+            {appliedPromo && (
+              <p className="text-green-600 text-xs mt-1">
+                Applied: {appliedPromo.code} ({appliedPromo.discount}% OFF)
+              </p>
+            )}
+          </div>
+          <div className="text-sm text-slate-700 space-y-1">
+            <p>Net: ₹{totals.net}</p>
+            <p>You Save: ₹{totals.save}</p>
+            <p className="font-bold text-sky-800 text-lg">Total: ₹{totals.total}</p>
+          </div>
+          <div className="flex gap-2">
+            <button
+              onClick={() => setCart({})}
+              className="flex-1 text-white text-sm font-semibold py-3 rounded-xl transition-all duration-300 cursor-pointer"
+              style={{
+                background: "linear-gradient(135deg, rgba(239,68,68,0.9) 0%, rgba(220,38,38,0.9) 100%)",
+                boxShadow: "0 5px 15px rgba(239,68,68,0.3)",
+              }}
+            >
+              Clear Cart
+            </button>
+            <button
+              onClick={handleCheckoutClick}
+              className="flex-1 text-white text-sm font-semibold py-3 rounded-xl transition-all duration-300 cursor-pointer"
+              style={{
+                background: "linear-gradient(135deg, rgba(2,132,199,0.9) 0%, rgba(14,165,233,0.9) 100%)",
+                boxShadow: "0 5px 15px rgba(2,132,199,0.3)",
+              }}
+            >
+              Checkout
+            </button>
           </div>
         </div>
       </motion.aside>
