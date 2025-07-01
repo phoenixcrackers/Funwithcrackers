@@ -66,11 +66,11 @@ export default function Banner() {
   return (
     <div className="flex min-h-screen bg-gray-50">
       <Sidebar />
-      <div className="ml-64 p-6 w-full">
-        <h2 className="text-3xl font-bold mb-6">Manage Banners</h2>
+      <div className="p-6 w-full justify-center">
+        <h2 className="text-3xl text-center font-bold mb-6">Manage Banners</h2>
 
         {/* Upload Section */}
-        <div className="mb-10 bg-white p-6 rounded-lg shadow">
+        <div className="mb-10 bg-white p-6 rounded-lg shadow mx-auto max-w-2xl onefifty:ml-[25%]">
           <label className="block text-sm font-medium mb-2">Upload Banner Images</label>
           <input
             type="file"
@@ -80,7 +80,7 @@ export default function Banner() {
             className="mb-4"
           />
           {previewURLs.length > 0 && (
-            <div className="flex flex-wrap gap-4 mb-4">
+            <div className="flex flex-wrap gap-4 mb-4 justify-center">
               {previewURLs.map((src, index) => (
                 <img
                   key={index}
@@ -103,7 +103,7 @@ export default function Banner() {
         </div>
 
         {/* Banner List */}
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6 mobile:grid-cols-1 justify-items-center mx-auto max-w-7xl onefifty:ml-[25%]">
           {banners.map((banner) => (
             <div key={banner.id} className="bg-white border rounded-lg shadow p-3">
               <img

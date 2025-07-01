@@ -7,6 +7,8 @@ export default function Tracking() {
   const [bookings, setBookings] = useState([]);
   const [filterStatus, setFilterStatus] = useState('');
   const [error, setError] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
+  const ordersPerPage = 10;
 
   const fetchBookings = async () => {
     try {
@@ -15,21 +17,20 @@ export default function Tracking() {
       });
       setBookings(response.data);
       setError('');
+      setCurrentPage(1);
     } catch (err) {
       setError('Failed to fetch bookings');
     }
   };
 
-  // Effect for interval-based API refresh
   useEffect(() => {
-    fetchBookings(); // Initial fetch
-    const interval = setInterval(fetchBookings, 10000); // Fetch every 10 seconds
-    return () => clearInterval(interval); // Cleanup on unmount
-  }, []); // Empty dependency array to run only once
+    fetchBookings();
+    const interval = setInterval(fetchBookings, 10000);
+    return () => clearInterval(interval);
+  }, []);
 
-  // Effect for fetching when filterStatus changes
   useEffect(() => {
-    fetchBookings(); // Fetch immediately when filterStatus changes
+    fetchBookings();
   }, [filterStatus]);
 
   const updateStatus = async (id, newStatus) => {
@@ -46,12 +47,19 @@ export default function Tracking() {
     }
   };
 
+  const indexOfLastOrder = currentPage * ordersPerPage;
+  const indexOfFirstOrder = indexOfLastOrder - ordersPerPage;
+  const currentOrders = bookings.slice(indexOfFirstOrder, indexOfLastOrder);
+  const totalPages = Math.ceil(bookings.length / ordersPerPage);
+
+  const paginate = (pageNumber) => setCurrentPage(pageNumber);
+
   return (
     <div className="flex min-h-screen bg-gray-100">
       <Sidebar />
       <div className="flex-1 flex items-top justify-center mobile:flex mobile:overflow-hidden onefifty:ml-[20%] hundred:ml-[15%]">
         <div className="w-full max-w-5xl p-6 mobile:overflow-hidden">
-          <h1 className="text-4xl font-bold mb-8 text-center text-gray-800">Tracking</h1>
+          <h1 className="text-4xl font-bold mb-8 text-center text-gray-800 mobile:text-2xl">Tracking</h1>
 
           {error && (
             <div className="bg-red-100 border border-red-400 text-red-700 px-6 py-3 rounded-lg mb-6 text-center shadow-md">
@@ -88,10 +96,10 @@ export default function Tracking() {
                 </tr>
               </thead>
               <tbody>
-                {bookings.length > 0 ? (
-                  bookings.map((booking, index) => (
+                {currentOrders.length > 0 ? (
+                  currentOrders.map((booking, index) => (
                     <tr key={booking.id} className="border-b border-gray-300 hover:bg-gray-50">
-                      <td className="p-4 text-center text-gray-800">{index + 1}</td>
+                      <td className="p-4 text-center text-gray-800">{indexOfFirstOrder + index + 1}</td>
                       <td className="p-4 text-center text-gray-800">{booking.order_id}</td>
                       <td className="p-4 text-center text-gray-800">{booking.customer_name}</td>
                       <td className="p-4 text-center text-gray-800">{booking.district}</td>
@@ -122,6 +130,36 @@ export default function Tracking() {
               </tbody>
             </table>
           </div>
+
+          {totalPages > 1 && (
+            <div className="mt-6 flex justify-center space-x-2">
+              <button
+                onClick={() => paginate(currentPage - 1)}
+                disabled={currentPage === 1}
+                className="px-4 cursor-pointer py-2 bg-blue-500 text-white rounded-lg disabled:bg-gray-300 hover:bg-blue-600"
+              >
+                Previous
+              </button>
+              {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
+                <button
+                  key={page}
+                  onClick={() => paginate(page)}
+                  className={`px-4 py-2 rounded-lg cursor-pointer ${
+                    currentPage === page ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                  }`}
+                >
+                  {page}
+                </button>
+              ))}
+              <button
+                onClick={() => paginate(currentPage + 1)}
+                disabled={currentPage === totalPages}
+                className="px-4 py-2 cursor-pointer bg-blue-500 text-white rounded-lg disabled:bg-gray-300 hover:bg-blue-600"
+              >
+                Next
+              </button>
+            </div>
+          )}
         </div>
       </div>
     </div>

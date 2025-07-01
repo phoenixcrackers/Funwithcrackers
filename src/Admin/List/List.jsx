@@ -27,7 +27,7 @@ export default function List() {
     per: '',
     image: null,
   });
-  const productsPerPage = 20;
+  const productsPerPage = 10;
   const menuRef = useRef({});
 
   const fetchProductTypes = async () => {
@@ -52,42 +52,38 @@ export default function List() {
       }
       setProducts(data);
       setFilteredProducts(data);
-const initialToggles = data.reduce((acc, product) => ({
-  ...acc,
-  [`${product.product_type}-${product.id}`]: product.status === 'on',
-  [`fast-${product.product_type}-${product.id}`]: product.fast_running === true,
-}), {});
-
+      const initialToggles = data.reduce((acc, product) => ({
+        ...acc,
+        [`${product.product_type}-${product.id}`]: product.status === 'on',
+        [`fast-${product.product_type}-${product.id}`]: product.fast_running === true,
+      }), {});
       setToggleStates(initialToggles);
     } catch (err) {
       setError(err.message);
     }
   };
-const handleFastToggleChange = async (product) => {
-  const productKey = `fast-${product.product_type}-${product.id}`;
-  const tableName = product.product_type.toLowerCase().replace(/\s+/g, '_');
 
-  try {
-    setToggleStates(prev => ({
-      ...prev,
-      [productKey]: !prev[productKey],
-    }));
-
-    const response = await fetch(`${API_BASE_URL}/api/products/${tableName}/${product.id}/toggle-fast-running`, {
-      method: 'PATCH',
-    });
-
-    if (!response.ok) throw new Error('Failed to toggle fast running');
-
-    await fetchProducts();
-  } catch (err) {
-    setError(err.message);
-    setToggleStates(prev => ({
-      ...prev,
-      [productKey]: prev[productKey],
-    }));
-  }
-};
+  const handleFastToggleChange = async (product) => {
+    const productKey = `fast-${product.product_type}-${product.id}`;
+    const tableName = product.product_type.toLowerCase().replace(/\s+/g, '_');
+    try {
+      setToggleStates(prev => ({
+        ...prev,
+        [productKey]: !prev[productKey],
+      }));
+      const response = await fetch(`${API_BASE_URL}/api/products/${tableName}/${product.id}/toggle-fast-running`, {
+        method: 'PATCH',
+      });
+      if (!response.ok) throw new Error('Failed to toggle fast running');
+      await fetchProducts();
+    } catch (err) {
+      setError(err.message);
+      setToggleStates(prev => ({
+        ...prev,
+        [productKey]: prev[productKey],
+      }));
+    }
+  };
 
   useEffect(() => {
     fetchProductTypes();
@@ -105,7 +101,7 @@ const handleFastToggleChange = async (product) => {
     } else {
       setFilteredProducts(products.filter(product => product.product_type === filterType));
     }
-    setCurrentPage(1); // Reset to page 1 when filter changes
+    setCurrentPage(1);
   }, [filterType, products]);
 
   useEffect(() => {
@@ -174,17 +170,14 @@ const handleFastToggleChange = async (product) => {
       if (editFormData.image) {
         formData.append('image', editFormData.image);
       }
-
       const tableName = selectedProduct.product_type.toLowerCase().replace(/\s+/g, '_');
       const response = await fetch(`${API_BASE_URL}/api/products/${tableName}/${selectedProduct.id}`, {
         method: 'PUT',
         body: formData,
       });
-
       if (!response.ok) {
         throw new Error('Failed to update product');
       }
-
       fetchProducts();
       closeModal();
     } catch (err) {
@@ -204,21 +197,17 @@ const handleFastToggleChange = async (product) => {
   const handleToggleChange = async (product) => {
     const productKey = `${product.product_type}-${product.id}`;
     const tableName = product.product_type.toLowerCase().replace(/\s+/g, '_');
-
     try {
       setToggleStates(prev => ({
         ...prev,
         [productKey]: !prev[productKey],
       }));
-
       const response = await fetch(`${API_BASE_URL}/api/products/${tableName}/${product.id}/toggle-status`, {
         method: 'PATCH',
       });
-
       if (!response.ok) {
         throw new Error('Failed to toggle status');
       }
-
       await fetchProducts();
     } catch (err) {
       setToggleStates(prev => ({
@@ -237,7 +226,6 @@ const handleFastToggleChange = async (product) => {
       .join(' ');
   };
 
-  // Pagination logic
   const indexOfLastProduct = currentPage * productsPerPage;
   const indexOfFirstProduct = indexOfLastProduct - productsPerPage;
   const currentProducts = filteredProducts.slice(indexOfFirstProduct, indexOfLastProduct);
@@ -245,19 +233,19 @@ const handleFastToggleChange = async (product) => {
 
   const handlePageChange = (pageNumber) => {
     setCurrentPage(pageNumber);
-    window.scrollTo(0, 0); // Scroll to top on page change
+    window.scrollTo(0, 0);
   };
 
   return (
     <div className="flex min-h-screen overflow-hidden mobile:overflow-hidden">
       <Sidebar />
-      <div className="flex-1 md:ml-64 p-6 overflow-hidden mobile:overflow-hidden">
+      <div className="flex-1 md:ml-64 p-6 mobile:p-8 overflow-hidden">
         <div className="max-w-5xl mx-auto">
-          <h2 className="text-2xl text-center font-bold text-gray-900 mb-6">List Products</h2>
+          <h2 className="text-2xl text-center font-bold text-gray-900 mb-6 mobile:mb-2">List Products</h2>
           {error && (
-            <div className="mb-4 text-red-600 text-sm text-center">{error}</div>
+            <div className="mb-4 mobile:mb-1 text-red-600 text-sm text-center">{error}</div>
           )}
-          <div className="mb-6">
+          <div className="mb-6 mobile:mb-2">
             <label htmlFor="product-type-filter" className="block text-sm font-medium text-gray-900">
               Filter by Product Type
             </label>
@@ -265,7 +253,7 @@ const handleFastToggleChange = async (product) => {
               id="product-type-filter"
               value={filterType}
               onChange={handleFilterChange}
-              className="mt-2 block w-48 rounded-md bg-white px-3 py-1.5 text-base text-gray-900 outline-1 -outline-offset-1 outline-gray-300 focus:outline-2 focus:outline-offset-1 focus:outline-indigo-600 sm:text-sm"
+              className="mt-2 mobile:mt-1 block w-48 rounded-md bg-white px-3 py-1.5 text-base text-gray-900 outline-1 -outline-offset-1 outline-gray-300 focus:outline-2 focus:outline-offset-1 focus:outline-indigo-600 sm:text-sm"
             >
               <option value="all">All</option>
               {productTypes.map(type => (
@@ -284,35 +272,34 @@ const handleFastToggleChange = async (product) => {
               <table className="min-w-full divide-y divide-gray-200 rounded-lg shadow-sm">
                 <thead className="bg-gray-100 sticky top-0">
                   <tr>
-                    <th className="px-4 py-3 sm:px-4 text-left text-xs font-medium text-gray-500 uppercase">
+                    <th className="px-4 mobile:px-2 py-3 mobile:py-1 text-left text-xs font-medium text-gray-500 uppercase">
                       Product Type
                     </th>
-                    <th className="px-4 py-3 sm:px-6 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-4 mobile:px-2 py-3 mobile:py-1 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Serial Number
                     </th>
-                    <th className="px-4 py-3 sm:px-6 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-4 mobile:px-2 py-3 mobile:py-1 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Product Name
                     </th>
-                    <th className="px-4 py-3 sm:px-3 text-right text-xs font-medium text-gray-500 uppercase">
+                    <th className="px-4 mobile:px-2 py-3 mobile:py-1 text-right text-xs font-medium text-gray-500 uppercase">
                       Price (INR)
                     </th>
-                    <th className="px-4 py-3 sm:px-4 text-left text-xs font-medium text-gray-500 uppercase">
+                    <th className="px-4 mobile:px-2 py-3 mobile:py-1 text-left text-xs font-medium text-gray-500 uppercase">
                       Per
                     </th>
-                    <th className="px-4 py-3 sm:px-3 text-right text-xs font-medium text-gray-500 uppercase">
+                    <th className="px-4 mobile:px-2 py-3 mobile:py-1 text-right text-xs font-medium text-gray-500 uppercase">
                       Discount (%)
                     </th>
-                    <th className="px-4 py-3 sm:px-6 text-center text-xs font-medium text-gray-500 uppercase">
+                    <th className="px-4 mobile:px-2 py-3 mobile:py-1 text-center text-xs font-medium text-gray-500 uppercase">
                       Image
                     </th>
-                    <th className="px-4 py-3 sm:px-6 text-center text-xs font-medium text-gray-500 uppercase">
+                    <th className="px-4 mobile:px-2 py-3 mobile:py-1 text-center text-xs font-medium text-gray-500 uppercase">
                       Status
                     </th>
-                    <th className="px-4 py-3 sm:px-6 text-center text-xs font-medium text-gray-500 uppercase">
-  Fast Running
-</th>
-
-                    <th className="px-4 py-3 sm:px-6 text-center text-xs font-medium text-gray-500 uppercase">
+                    <th className="px-4 mobile:px-2 py-3 mobile:py-1 text-center text-xs font-medium text-gray-500 uppercase">
+                      Fast Running
+                    </th>
+                    <th className="px-4 mobile:px-2 py-3 mobile:py-1 text-center text-xs font-medium text-gray-500 uppercase">
                       Actions
                     </th>
                   </tr>
@@ -322,36 +309,36 @@ const handleFastToggleChange = async (product) => {
                     const productKey = `${product.product_type}-${product.id}`;
                     return (
                       <tr key={productKey} className="hover:bg-gray-50">
-                        <td className="px-4 py-3 sm:px-4 whitespace-nowrap text-xs sm:text-sm text-gray-900">
+                        <td className="px-4 mobile:px-2 py-3 mobile:py-1 whitespace-nowrap text-xs sm:text-sm text-gray-900">
                           {capitalize(product.product_type)}
                         </td>
-                        <td className="px-4 py-3 sm:px-6 whitespace-nowrap text-xs sm:text-sm text-gray-900">
+                        <td className="px-4 mobile:px-2 py-3 mobile:py-1 whitespace-nowrap text-xs sm:text-sm text-gray-900">
                           {product.serial_number}
                         </td>
-                        <td className="px-2 py-3 sm:px-4 whitespace-normal text-xs sm:text-sm text-gray-900 max-w-xs truncate">
+                        <td className="px-2 mobile:px-1 py-3 mobile:py-1 whitespace-normal text-xs sm:text-sm text-gray-900 max-w-xs truncate">
                           {product.productname}
                         </td>
-                        <td className="px-4 py-3 sm:px-3 whitespace-nowrap text-right text-xs sm:text-sm text-gray-900">
+                        <td className="px-4 mobile:px-2 py-3 mobile:py-1 whitespace-nowrap text-right text-xs sm:text-sm text-gray-900">
                           ₹{parseFloat(product.price).toFixed(2)}
                         </td>
-                        <td className="px-4 py-3 sm:px-4 whitespace-nowrap text-xs sm:text-sm text-gray-900">
+                        <td className="px-4 mobile:px-2 py-3 mobile:py-1 whitespace-nowrap text-xs sm:text-sm text-gray-900">
                           {product.per}
                         </td>
-                        <td className="px-4 py-3 sm:px-3 whitespace-nowrap text-right text-xs sm:text-sm text-gray-900">
+                        <td className="px-4 mobile:px-2 py-3 mobile:py-1 whitespace-nowrap text-right text-xs sm:text-sm text-gray-900">
                           {parseFloat(product.discount).toFixed(2)}%
                         </td>
-                        <td className="px-4 py-3 sm:px-6 whitespace-nowrap text-center">
+                        <td className="px-4 mobile:px-2 py-3 mobile:py-1 whitespace-nowrap text-center">
                           {product.image ? (
                             <img
                               src={`${API_BASE_URL}${product.image}`}
                               alt={product.productname}
-                              className="h-12 w-12 sm:h-16 sm:w-16 object-cover rounded-md mx-auto"
+                              className="h-12 w-12 mobile:h-8 mobile:w-8 object-cover rounded-md mx-auto"
                             />
                           ) : (
-                            <span className="text-xs sm:text-sm text-gray-500">No image</span>
+                            <span className="text-xs text-gray-500">No image</span>
                           )}
                         </td>
-                        <td className="px-4 py-3 sm:px-6 whitespace-nowrap text-center">
+                        <td className="px-4 mobile:px-2 py-3 mobile:py-1 whitespace-nowrap text-center">
                           <label className="inline-flex items-center">
                             <input
                               type="checkbox"
@@ -360,70 +347,65 @@ const handleFastToggleChange = async (product) => {
                               onChange={() => handleToggleChange(product)}
                             />
                             <div
-                              className={`relative w-11 h-6 rounded-full transition-colors duration-200 ease-in-out ${toggleStates[productKey] ? 'bg-green-600' : 'bg-red-600'}`}
+                              className={`relative w-11 h-6 mobile:w-8 mobile:h-4 rounded-full transition-colors duration-200 ease-in-out ${toggleStates[productKey] ? 'bg-green-600' : 'bg-red-600'}`}
                             >
                               <div
-                                className={`absolute top-0.5 w-5 h-5 bg-white rounded-full transition-transform duration-200 ease-in-out ${toggleStates[productKey] ? 'translate-x-5' : 'translate-x-0.5'}`}
+                                className={`absolute top-0.5 mobile:top-0.25 w-5 h-5 mobile:w-3.5 mobile:h-3.5 bg-white rounded-full transition-transform duration-200 ease-in-out ${toggleStates[productKey] ? 'translate-x-5 mobile:translate-x-4' : 'translate-x-0.5'}`}
                               ></div>
                             </div>
                           </label>
                         </td>
-                        <td className="px-4 py-3 sm:px-6 whitespace-nowrap text-center">
-  <label className="inline-flex items-center">
-    <input
-      type="checkbox"
-      className="sr-only peer"
-checked={!!toggleStates[productKey]}
-      onChange={() => handleFastToggleChange(product)}
-    />
-    <div
-      className={`relative w-11 h-6 rounded-full transition-colors duration-200 ease-in-out ${
-        toggleStates[`fast-${productKey}`] ? 'bg-blue-600' : 'bg-gray-400'
-      }`}
-    >
-      <div
-        className={`absolute top-0.5 w-5 h-5 bg-white rounded-full transition-transform duration-200 ease-in-out ${
-          toggleStates[`fast-${productKey}`] ? 'translate-x-5' : 'translate-x-0.5'
-        }`}
-      ></div>
-    </div>
-  </label>
-</td>
-
-                        <td className="px-4 py-3 sm:px-6 whitespace-nowrap text-center relative">
+                        <td className="px-4 mobile:px-2 py-3 mobile:py-1 whitespace-nowrap text-center">
+                          <label className="inline-flex items-center">
+                            <input
+                              type="checkbox"
+                              className="sr-only peer"
+                              checked={toggleStates[`fast-${productKey}`]}
+                              onChange={() => handleFastToggleChange(product)}
+                            />
+                            <div
+                              className={`relative w-11 h-6 mobile:w-8 mobile:h-4 rounded-full transition-colors duration-200 ease-in-out ${toggleStates[`fast-${productKey}`] ? 'bg-blue-600' : 'bg-gray-400'}`}
+                            >
+                              <div
+                                className={`absolute top-0.5 mobile:top-0.25 w-5 h-5 mobile:w-3.5 mobile:h-3.5 bg-white rounded-full transition-transform duration-200 ease-in-out ${toggleStates[`fast-${productKey}`] ? 'translate-x-5 mobile:translate-x-4' : 'translate-x-0.5'}`}
+                              ></div>
+                            </div>
+                          </label>
+                        </td>
+                        <td className="px-4 mobile:px-2 py-3 mobile:py-1 whitespace-nowrap text-center relative">
                           <button
                             onClick={() => setViewModalIsOpen(viewModalIsOpen === productKey ? null : productKey)}
                             className="text-gray-500 hover:text-gray-700 cursor-pointer"
                           >
-                            <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                            <svg className="w-5 h-5 mobile:w-4 mobile:h-4" fill="currentColor" viewBox="0 0 20 20">
                               <path d="M10 6a2 2 0 110-4 2 2 0 010 4zm0 8a2 2 0 110-4 2 2 0 010 4zm0 8a2 2 0 110-4 2 2 0 010 4z" />
                             </svg>
                           </button>
                           {viewModalIsOpen === productKey && (
                             <div
                               ref={(el) => (menuRef.current[productKey] = el)}
-                              className="absolute z-10 w-28 bg-white rounded-md shadow-lg border border-gray-200 right-0"
+                              className="absolute z-10 w-28 bg-white rounded-md shadow-lg border border-gray-200 right-0 mobile:w-24"
                             >
-                              <div className="py-1 flex flex-col">
+                              <div className="py-1 mobile:py-0.5 flex flex-col">
                                 <button
                                   onClick={() => openModal(product)}
-                                  className="flex cursor-pointer items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-300 text-left"
+                                  className="flex cursor-pointer items-center px-4 mobile:px-2 py-2 mobile:py-1 text-sm mobile:text-xs text-gray-700 hover:bg-gray-300 text-left"
                                 >
-                                  <FaEye className="mr-2 h-4 w-4" />
+                                  <FaEye className="mr-2 h-4 w-4 mobile:h-3 mobile:w-3" />
                                   View
                                 </button>
                                 <button
                                   onClick={() => openEditModal(product)}
-                                  className="flex cursor-pointer items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-300 text-left"
+                                  className="flex cursor-pointer items-center px-4 mobile:px-2 py-2 mobile:py-1 text-sm mobile:text-xs text-gray-700 hover:bg-gray-300 text-left"
                                 >
-                                  <FaEdit className="mr-2 h-4 w-4" />
+                                  <FaEdit className="mr-2 h-4 w-4 mobile:h-3 mobile:w-3" />
                                   Edit
                                 </button>
                                 <button
                                   onClick={() => handleDelete(product)}
-                                  className="flex cursor-pointer items-center px-4 py-2 text-sm text-red-600 hover:bg-gray-300 text-left"
+                                  className="flex cursor-pointer items-center px-4 mobile:px-2 py-2 mobile:py-1 text-sm mobile:text-xs text-red-600 hover:bg-gray-300 text-left"
                                 >
-                                  <FaTrash className="mr-2 h-4 w-4" />
+                                  <FaTrash className="mr-2 h-4 w-4 mobile:h-3 mobile:w-3" />
                                   Delete
                                 </button>
                               </div>
@@ -437,17 +419,12 @@ checked={!!toggleStates[productKey]}
               </table>
             </div>
           )}
-          {/* Pagination Controls */}
           {totalPages > 1 && (
-            <div className="mt-6 flex justify-center items-center space-x-2">
+            <div className="mt-6 mobile:mt-2 flex justify-center items-center space-x-2 mobile:space-x-1">
               <button
                 onClick={() => handlePageChange(currentPage - 1)}
                 disabled={currentPage === 1}
-                className={`px-3 py-1 rounded-md text-sm font-medium ${
-                  currentPage === 1
-                    ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
-                    : 'bg-indigo-600 text-white hover:bg-indigo-700'
-                }`}
+                className={`px-3 mobile:px-2 py-1 mobile:py-0.5 rounded-md text-sm mobile:text-xs font-medium ${currentPage === 1 ? 'bg-gray-200 text-gray-400 cursor-not-allowed' : 'bg-indigo-600 text-white hover:bg-indigo-700'}`}
               >
                 Previous
               </button>
@@ -455,11 +432,7 @@ checked={!!toggleStates[productKey]}
                 <button
                   key={page + 1}
                   onClick={() => handlePageChange(page + 1)}
-                  className={`px-3 py-1 rounded-md text-sm font-medium ${
-                    currentPage === page + 1
-                      ? 'bg-indigo-600 text-white'
-                      : 'bg-white text-gray-700 hover:bg-gray-100 border border-gray-300'
-                  }`}
+                  className={`px-3 mobile:px-2 py-1 mobile:py-0.5 rounded-md text-sm mobile:text-xs font-medium ${currentPage === page + 1 ? 'bg-indigo-600 text-white' : 'bg-white text-gray-700 hover:bg-gray-100 border border-gray-300'}`}
                 >
                   {page + 1}
                 </button>
@@ -467,11 +440,7 @@ checked={!!toggleStates[productKey]}
               <button
                 onClick={() => handlePageChange(currentPage + 1)}
                 disabled={currentPage === totalPages}
-                className={`px-3 py-1 rounded-md text-sm font-medium ${
-                  currentPage === totalPages
-                    ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
-                    : 'bg-indigo-600 text-white hover:bg-indigo-700'
-                }`}
+                className={`px-3 mobile:px-2 py-1 mobile:py-0.5 rounded-md text-sm mobile:text-xs font-medium ${currentPage === totalPages ? 'bg-gray-200 text-gray-400 cursor-not-allowed' : 'bg-indigo-600 text-white hover:bg-indigo-700'}`}
               >
                 Next
               </button>
@@ -480,27 +449,27 @@ checked={!!toggleStates[productKey]}
           <Modal
             isOpen={modalIsOpen}
             onRequestClose={closeModal}
-            className="fixed inset-0 flex items-center justify-center p-4"
+            className="fixed inset-0 flex items-center justify-center p-4 mobile:p-2"
             overlayClassName="fixed inset-0 bg-black/50"
           >
             {selectedProduct && (
-              <div className="bg-white rounded-lg p-6 max-w-md w-full sm:max-w-lg">
-                <h2 className="text-lg sm:text-xl font-bold text-gray-900 mb-4 text-center">
+              <div className="bg-white rounded-lg p-6 mobile:p-3 max-w-md w-full sm:max-w-lg">
+                <h2 className="text-lg sm:text-xl font-bold text-gray-900 mb-4 mobile:mb-2 text-center">
                   Product Details
                 </h2>
-                <div className="space-y-4">
+                <div className="space-y-4 mobile:space-y-2">
                   <div className="flex justify-center">
                     {selectedProduct.image ? (
                       <img
                         src={`${API_BASE_URL}${selectedProduct.image}`}
                         alt={selectedProduct.productname}
-                        className="h-24 w-24 sm:h-32 sm:w-32 object-cover rounded-md"
+                        className="h-24 w-24 mobile:h-16 mobile:w-16 anum-mobile:h-12 object-cover rounded-md"
                       />
                     ) : (
-                      <span className="text-gray-500 text-sm sm:text-base">No Image</span>
+                      <span className="text-gray-500 text-sm">No Image</span>
                     )}
                   </div>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mobile:gap-2">
                     <div>
                       <span className="font-medium text-gray-700 text-xs sm:text-sm">Product Type:</span>
                       <span className="ml-2 text-gray-900 text-xs sm:text-sm">{capitalize(selectedProduct.product_type)}</span>
@@ -514,7 +483,7 @@ checked={!!toggleStates[productKey]}
                       <span className="ml-2 text-gray-900 text-xs sm:text-sm">{selectedProduct.productname}</span>
                     </div>
                     <div>
-                      <span className="font-medium text-gray-700 text-xs sm:text-sm">Price:</span>
+                      <span coverings="font-medium text-gray-700 text-xs sm:text-sm">Price:</span>
                       <span className="ml-2 text-gray-900 text-xs sm:text-sm">₹{parseFloat(selectedProduct.price).toFixed(2)}</span>
                     </div>
                     <div>
@@ -531,10 +500,10 @@ checked={!!toggleStates[productKey]}
                     </div>
                   </div>
                 </div>
-                <div className="mt-6 flex justify-end">
+                <div className="mt-6 mobile:mt-3 flex justify-end">
                   <button
                     onClick={closeModal}
-                    className="rounded-md bg-gray-600 px-3 py-2 text-xs sm:text-sm font-semibold text-white shadow-sm hover:bg-gray-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gray-600"
+                    className="rounded-md bg-gray-600 px-3 mobile:px-2 py-2 mobile:py-1 text-xs sm:text-sm font-semibold text-white shadow-sm hover:bg-gray-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gray-600"
                   >
                     Close
                   </button>
@@ -545,14 +514,14 @@ checked={!!toggleStates[productKey]}
           <Modal
             isOpen={editModalIsOpen}
             onRequestClose={closeModal}
-            className="fixed inset-0 flex items-center justify-center p-4"
+            className="fixed inset-0 flex items-center justify-center p-4 mobile:p-2"
             overlayClassName="fixed inset-0 bg-black/50"
           >
-            <div className="bg-white rounded-lg p-6 max-w-md w-full sm:max-w-lg">
-              <h2 className="text-lg sm:text-xl font-semibold text-gray-900 mb-4 text-center">
+            <div className="bg-white rounded-lg p-6 mobile:p-3 max-w-md w-full sm:max-w-lg">
+              <h2 className="text-lg sm:text-xl font-semibold text-gray-900 mb-4 mobile:mb-2 text-center">
                 Edit Product
               </h2>
-              <form onSubmit={handleEditSubmit} className="space-y-4">
+              <form onSubmit={handleEditSubmit} className="space-y-4 mobile:space-y-2">
                 <div>
                   <label className="block text-sm font-medium text-gray-700">Product Name</label>
                   <input
@@ -560,7 +529,7 @@ checked={!!toggleStates[productKey]}
                     name="productname"
                     value={editFormData.productname}
                     onChange={handleInputChange}
-                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-600 focus:ring-indigo-600 sm:text-sm"
+                    className="mt-1 mobile:mt-0.5 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-600 focus:ring-indigo-600 sm:text-sm"
                     required
                   />
                 </div>
@@ -571,7 +540,7 @@ checked={!!toggleStates[productKey]}
                     name="serial_number"
                     value={editFormData.serial_number}
                     onChange={handleInputChange}
-                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-600 focus:ring-indigo-600 sm:text-sm"
+                    className="mt-1 mobile:mt-0.5 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-600 focus:ring-indigo-600 sm:text-sm"
                     required
                   />
                 </div>
@@ -582,7 +551,7 @@ checked={!!toggleStates[productKey]}
                     name="price"
                     value={editFormData.price}
                     onChange={handleInputChange}
-                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-600 focus:ring-indigo-600 sm:text-sm"
+                    className="mt-1 mobile:mt-0.5 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-600 focus:ring-indigo-600 sm:text-sm"
                     required
                     step="0.01"
                   />
@@ -594,7 +563,7 @@ checked={!!toggleStates[productKey]}
                     name="discount"
                     value={editFormData.discount}
                     onChange={handleInputChange}
-                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-600 focus:ring-indigo-600 sm:text-sm"
+                    className="mt-1 mobile:mt-0.5 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-600 focus:ring-indigo-600 sm:text-sm"
                     required
                     step="0.01"
                   />
@@ -605,7 +574,7 @@ checked={!!toggleStates[productKey]}
                     name="per"
                     value={editFormData.per}
                     onChange={handleInputChange}
-                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-600 focus:ring-indigo-600 sm:text-sm"
+                    className="mt-1 mobile:mt-0.5 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-600 focus:ring-indigo-600 sm:text-sm"
                     required
                   >
                     <option value="pieces">Pieces</option>
@@ -620,20 +589,20 @@ checked={!!toggleStates[productKey]}
                     name="image"
                     onChange={handleImageChange}
                     accept="image/jpeg,image/png"
-                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-600 focus:ring-indigo-600 sm:text-sm"
+                    className="mt-1 mobile:mt-0.5 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-600 focus:ring-indigo-600 sm:text-sm"
                   />
                 </div>
-                <div className="mt-6 flex justify-end space-x-2">
+                <div className="mt-6 mobile:mt-3 flex justify-end space-x-2 mobile:space-x-1">
                   <button
                     type="button"
                     onClick={closeModal}
-                    className="rounded-md bg-gray-600 px-3 py-2 text-xs sm:text-sm font-semibold text-white shadow-sm hover:bg-gray-700"
+                    className="rounded-md bg-gray-600 px-3 mobile:px-2 py-2 mobile:py-1 text-xs sm:text-sm font-semibold text-white shadow-sm hover:bg-gray-700"
                   >
                     Cancel
                   </button>
                   <button
                     type="submit"
-                    className="rounded-md bg-indigo-600 px-3 py-2 text-xs sm:text-sm font-semibold text-white shadow-sm hover:bg-indigo-700"
+                    className="rounded-md bg-indigo-600 px-3 mobile:px-2 py-2 mobile:py-1 text-xs sm:text-sm font-semibold text-white shadow-sm hover:bg-indigo-700"
                   >
                     Save
                   </button>

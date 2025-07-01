@@ -146,7 +146,7 @@ export default function Dispatch() {
       <Sidebar />
       <div className="flex-1 flex items-top justify-center mobile:flex mobile:overflow-hidden onefifty:ml-[20%] hundred:ml-[15%]">
         <div className="w-full max-w-5xl p-6 mobile:overflow-hidden">
-          <h1 className="text-4xl font-bold mb-8 text-center text-gray-800">Dispatch Customers</h1>
+          <h1 className="text-4xl font-bold mb-8 text-center text-gray-800 mobile:text-2xl">Dispatch Customers</h1>
 
           {error && (
             <div className="bg-red-100 border border-red-400 text-red-700 px-6 py-3 rounded-lg mb-6 text-center shadow-md">
@@ -233,7 +233,7 @@ export default function Dispatch() {
           </div>
 
           {isModalOpen && (
-            <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+            <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 mobile:p-5">
               <div className="bg-white p-6 rounded-xl shadow-2xl w-full max-w-md">
                 <h2 className="text-2xl font-bold mb-6 text-gray-800">Transport Details</h2>
                 <form onSubmit={handleModalSubmit} className="space-y-4">

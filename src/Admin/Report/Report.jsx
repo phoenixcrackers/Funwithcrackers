@@ -99,7 +99,7 @@ export default function Report() {
       <Sidebar />
       <div className="flex-1 flex items-top justify-center mobile:flex mobile:overflow-hidden onefifty:ml-[20%] hundred:ml-[15%]">
         <div className="w-full max-w-5xl p-6 mobile:overflow-hidden">
-          <h1 className="text-4xl font-bold mb-8 text-center text-gray-800">Dispatch Customers</h1>
+          <h1 className="text-4xl font-bold mb-8 text-center text-gray-800 mobile:text-2xl">Report</h1>
 
           {error && (
             <div className="bg-red-100 border border-red-400 text-red-700 px-6 py-3 rounded-lg mb-6 text-center shadow-md">
