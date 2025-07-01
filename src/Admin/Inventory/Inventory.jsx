@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import '../../App.css';
+import { FiLogOut } from 'react-icons/fi';
 import Sidebar from '../Sidebar/Sidebar';
 import { API_BASE_URL } from '../../../Config';
 import { FaPlus } from 'react-icons/fa';
+import Logout from '../Logout';
 
 export default function Inventory() {
   const [focused, setFocused] = useState({});
@@ -18,10 +19,7 @@ export default function Inventory() {
     try {
       const response = await fetch(`${API_BASE_URL}/api/product-types`);
       const data = await response.json();
-      if (!response.ok) {
-        throw new Error(data.message || 'Failed to fetch product types');
-      }
-      // Correct mapping: item.product_type is a string
+      if (!response.ok) throw new Error(data.message || 'Failed to fetch product types');
       const validTypes = data
         .filter(item => item && item.product_type && typeof item.product_type === 'string')
         .map(item => item.product_type);
@@ -72,25 +70,19 @@ export default function Inventory() {
       setError('Product type name is required');
       return;
     }
-
     const formattedProductType = newProductType.toLowerCase().replace(/\s+/g, '_');
     if (productTypes.includes(formattedProductType)) {
       setError('Product type already exists');
       return;
     }
-
     try {
       const response = await fetch(`${API_BASE_URL}/api/product-types`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ product_type: formattedProductType }),
       });
-
       const result = await response.json();
-      if (!response.ok) {
-        throw new Error(result.message || 'Failed to create product type');
-      }
-
+      if (!response.ok) throw new Error(result.message || 'Failed to create product type');
       setProductTypes([...productTypes, formattedProductType]);
       setNewProductType('');
       setSuccess('Product type created successfully!');
@@ -104,7 +96,6 @@ export default function Inventory() {
     event.preventDefault();
     setError('');
     setSuccess('');
-
     const formData = new FormData();
     formData.append('serial_number', values.serialNum || '');
     formData.append('productname', values.productName || '');
@@ -112,21 +103,14 @@ export default function Inventory() {
     formData.append('per', values.per || '');
     formData.append('discount', values.discount || '');
     formData.append('product_type', productType);
-    if (image) {
-      formData.append('image', image);
-    }
-
+    if (image) formData.append('image', image);
     try {
       const response = await fetch(`${API_BASE_URL}/api/products`, {
         method: 'POST',
         body: formData,
       });
-
       const result = await response.json();
-      if (!response.ok) {
-        throw new Error(result.message || 'Failed to save product');
-      }
-
+      if (!response.ok) throw new Error(result.message || 'Failed to save product');
       setSuccess('Product saved successfully!');
       setValues({});
       setImage(null);
@@ -137,9 +121,7 @@ export default function Inventory() {
   };
 
   const formatProductTypeDisplay = (type) => {
-    if (!type || typeof type !== 'string') {
-      return 'Unknown Type'; // Fallback for invalid types
-    }
+    if (!type || typeof type !== 'string') return 'Unknown Type';
     return type
       .split('_')
       .map(word => word.charAt(0).toUpperCase() + word.slice(1))
@@ -148,14 +130,10 @@ export default function Inventory() {
 
   const renderFormFields = () => {
     if (!productType) return null;
-
     return (
       <>
         <div className="sm:col-span-3">
-          <label
-            htmlFor={`serial-num-${productType}`}
-            className="block text-sm font-medium text-gray-900"
-          >
+          <label htmlFor={`serial-num-${productType}`} className="block text-sm font-medium text-gray-900">
             Serial Number*
           </label>
           <div className="mt-2">
@@ -172,10 +150,7 @@ export default function Inventory() {
           </div>
         </div>
         <div className="sm:col-span-3">
-          <label
-            htmlFor="product-name"
-            className="block text-sm font-medium text-gray-900"
-          >
+          <label htmlFor="product-name" className="block text-sm font-medium text-gray-900">
             Product Name*
           </label>
           <div className="mt-2">
@@ -192,10 +167,7 @@ export default function Inventory() {
           </div>
         </div>
         <div className="sm:col-span-3">
-          <label
-            htmlFor="price"
-            className="block text-sm font-medium text-gray-900"
-          >
+          <label htmlFor="price" className="block text-sm font-medium text-gray-900">
             Price (INR)*
           </label>
           <div className="mt-2">
@@ -214,10 +186,7 @@ export default function Inventory() {
           </div>
         </div>
         <div className="sm:col-span-3">
-          <label
-            htmlFor="per"
-            className="block text-sm font-medium text-gray-900"
-          >
+          <label htmlFor="per" className="block text-sm font-medium text-gray-900">
             Per*
           </label>
           <div className="mt-2">
@@ -238,10 +207,7 @@ export default function Inventory() {
           </div>
         </div>
         <div className="sm:col-span-3">
-          <label
-            htmlFor="discount"
-            className="block text-sm font-medium text-gray-900"
-          >
+          <label htmlFor="discount" className="block text-sm font-medium text-gray-900">
             Discount (%)*
           </label>
           <div className="mt-2">
@@ -261,10 +227,7 @@ export default function Inventory() {
           </div>
         </div>
         <div className="sm:col-span-3">
-          <label
-            htmlFor="image"
-            className="block text-sm font-medium text-gray-900"
-          >
+          <label htmlFor="image" className="block text-sm font-medium text-gray-900">
             Image Upload
           </label>
           <div className="mt-2">
@@ -282,25 +245,19 @@ export default function Inventory() {
   };
 
   return (
-    <div className="flex min-h-screen">
+    <div className="flex min-h-screen bg-gray-100">
       <Sidebar />
-      <div className="flex-1 md:ml-64 p-6">
+      <Logout/>
+      <div className="flex-1 md:ml-64 p-6 pt-16">
         <div className="max-w-4xl mx-auto">
           <h2 className="text-2xl text-center font-bold text-gray-900 mb-6">Add Items</h2>
-          {error && (
-            <div className="mb-4 text-red-600 text-sm text-center">{error}</div>
-          )}
-          {success && (
-            <div className="mb-4 text-green-600 text-sm text-center">{success}</div>
-          )}
+          {error && <div className="mb-4 text-red-600 text-sm text-center">{error}</div>}
+          {success && <div className="mb-4 text-green-600 text-sm text-center">{success}</div>}
           <form className="space-y-8" onSubmit={handleSubmit} encType="multipart/form-data">
             <div className="border-b border-gray-900/10 pb-8">
               <div className="mt-6 grid grid-cols-1 gap-x-6 gap-y-8 sm:grid-cols-6">
                 <div className="sm:col-span-4">
-                  <label
-                    htmlFor="new-product-type"
-                    className="block text-sm font-medium text-gray-900"
-                  >
+                  <label htmlFor="new-product-type" className="block text-sm font-medium text-gray-900">
                     Create New Product Type
                   </label>
                   <div className="mt-2 flex gap-x-4">
@@ -322,10 +279,7 @@ export default function Inventory() {
                   </div>
                 </div>
                 <div className="sm:col-span-4">
-                  <label
-                    htmlFor="product-type"
-                    className="block text-sm font-medium text-gray-900"
-                  >
+                  <label htmlFor="product-type" className="block text-sm font-medium text-gray-900">
                     Select Product Type
                   </label>
                   <div className="mt-2">

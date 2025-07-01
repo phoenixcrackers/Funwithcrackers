@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import Sidebar from '../Sidebar/Sidebar';
 import axios from 'axios';
 import { API_BASE_URL } from '../../../Config';
+import Logout from '../Logout';
 
 export default function Banner() {
   const [banners, setBanners] = useState([]);
@@ -76,6 +77,7 @@ const handleDelete = async (id) => {
 return (
   <div className="flex min-h-screen bg-gray-50">
     <Sidebar />
+    <Logout />
     <div className="p-6 w-full justify-center">
       <h2 className="text-3xl text-center font-bold mb-6">Manage Banners</h2>
 

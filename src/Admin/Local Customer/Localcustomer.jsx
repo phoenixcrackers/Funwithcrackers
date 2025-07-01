@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import "../../App.css";
 import Sidebar from "../Sidebar/Sidebar";
 import { API_BASE_URL } from "../../../Config";
+import Logout from "../Logout";
 
 export default function Localcustomer() {
   const [formData, setFormData] = useState({
@@ -277,6 +278,7 @@ export default function Localcustomer() {
   return (
     <div className="flex min-h-screen">
       <Sidebar />
+      <Logout />
       <div className="flex-1 p-6 hundred:ml-[15%] onefifty:ml-[15%] mobile:ml-[0%]">
         <div className="mx-auto max-w-3xl">
           <h1 className="text-2xl font-bold mb-6 text-gray-800 text-center">Add Customer</h1>

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import Sidebar from '../Sidebar/Sidebar';
 import { API_BASE_URL } from '../../../Config';
+import Logout from '../Logout';
 
 const Promocode = () => {
   const [promocodes, setPromocodes] = useState([]);
@@ -90,6 +91,7 @@ const Promocode = () => {
   return (
     <div className="flex flex-col md:flex-row">
       <Sidebar />
+      <Logout />
       <div className="flex-1 p-4 sm:p-6 md:ml-64 bg-gray-50 min-h-screen">
         <h1 className="text-xl sm:text-2xl font-bold mb-6 text-center md:text-left">Promocode Management</h1>
 

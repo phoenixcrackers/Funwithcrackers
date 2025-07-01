@@ -4,6 +4,7 @@ import Select from 'react-select';
 import '../../App.css';
 import { API_BASE_URL } from '../../../Config';
 import Sidebar from '../Sidebar/Sidebar';
+import Logout from '../Logout';
 
 export default function Direct() {
   const [customers, setCustomers] = useState([]);
@@ -115,6 +116,7 @@ export default function Direct() {
   return (
     <div className="flex min-h-screen bg-gray-100 mobile:flex-col">
       <Sidebar />
+      <Logout />
       <div className="flex-1 flex justify-center items-start mobile:p-2">
         <div className="w-full max-w-5xl p-6 mobile:p-4">
           <h1 className="text-4xl font-bold mb-8 text-center text-gray-800 mobile:text-2xl">Direct Booking</h1>

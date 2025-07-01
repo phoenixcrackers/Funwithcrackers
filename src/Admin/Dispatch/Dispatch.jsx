@@ -5,6 +5,7 @@ import autoTable from 'jspdf-autotable';
 import { FaDownload } from 'react-icons/fa';
 import { API_BASE_URL } from '../../../Config';
 import Sidebar from '../Sidebar/Sidebar';
+import Logout from '../Logout';
 
 export default function Dispatch() {
   const [bookings, setBookings] = useState([]);
@@ -144,6 +145,7 @@ export default function Dispatch() {
   return (
     <div className="flex min-h-screen bg-gray-100">
       <Sidebar />
+      <Logout />
       <div className="flex-1 flex items-top justify-center mobile:flex mobile:overflow-hidden onefifty:ml-[20%] hundred:ml-[15%]">
         <div className="w-full max-w-5xl p-6 mobile:overflow-hidden">
           <h1 className="text-4xl font-bold mb-8 text-center text-gray-800 mobile:text-2xl">Dispatch Customers</h1>

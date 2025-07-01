@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import '../../App.css';
 import Sidebar from '../Sidebar/Sidebar';
 import { API_BASE_URL } from '../../../Config';
+import Logout from '../Logout';
 
 export default function Location() {
   const [states, setStates] = useState([]);
@@ -154,6 +155,7 @@ export default function Location() {
   return (
     <div className="flex min-h-screen">
       <Sidebar />
+      <Logout />
       <div className="flex-1 flex justify-center p-6 hundred:ml-[15%] onefifty:ml-[15%] mobile:ml-[0%]">
         <div className="w-full max-w-4xl">
           <h2 className="text-2xl font-bold mb-6 text-gray-800 text-center">Manage Locations</h2>

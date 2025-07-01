@@ -4,6 +4,7 @@ import Sidebar from '../Sidebar/Sidebar';
 import '../../App.css';
 import { API_BASE_URL } from '../../../Config';
 import { FaEye, FaEdit, FaTrash } from 'react-icons/fa';
+import Logout from '../Logout';
 
 Modal.setAppElement('#root');
 
@@ -239,6 +240,7 @@ export default function List() {
   return (
     <div className="flex min-h-screen overflow-hidden mobile:overflow-hidden">
       <Sidebar />
+      <Logout />
       <div className="flex-1 md:ml-64 p-6 mobile:p-8 overflow-hidden">
         <div className="max-w-5xl mx-auto">
           <h2 className="text-2xl text-center font-bold text-gray-900 mb-6 mobile:mb-2">List Products</h2>
