@@ -1,24 +1,24 @@
-import React, { useState } from "react";
-import { useNavigate } from "react-router-dom";
-import { AiOutlineEye, AiOutlineEyeInvisible } from "react-icons/ai";
-import { API_BASE_URL } from "../../../Config";
+import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { AiOutlineEye, AiOutlineEyeInvisible } from 'react-icons/ai';
+import { API_BASE_URL } from '../../../Config';
 
 export default function Login() {
-  const [username, setUsername] = useState("");
-  const [password, setPassword] = useState("");
-  const [error, setError] = useState("");
+  const [username, setUsername] = useState('');
+  const [password, setPassword] = useState('');
+  const [error, setError] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const navigate = useNavigate();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setError("");
+    setError('');
 
     try {
       const response = await fetch(`${API_BASE_URL}/api/login`, {
-        method: "POST",
+        method: 'POST',
         headers: {
-          "Content-Type": "application/json",
+          'Content-Type': 'application/json',
         },
         body: JSON.stringify({ username, password }),
       });
@@ -26,19 +26,12 @@ export default function Login() {
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.error || "Login failed");
+        throw new Error(data.error || 'Login failed');
       }
 
-      // Ensure username is available in the response
-      if (data.username) {
-        localStorage.setItem("username", data.username);
-      } else {
-        localStorage.setItem("username", username); // Fallback to input username
-      }
-
-      // Navigate and scroll to top
-      navigate("/inventory", { replace: true });
-      window.scrollTo(0, 0);
+      localStorage.setItem('username', data.username);
+      
+      navigate('/inventory');
 
     } catch (err) {
       setError(err.message);
@@ -79,7 +72,7 @@ export default function Login() {
               </div>
               <div className="mt-2 relative">
                 <input 
-                  type={showPassword ? "text" : "password"} 
+                  type={showPassword ? 'text' : 'password'} 
                   name="password" 
                   id="password" 
                   autoComplete="current-password" 
