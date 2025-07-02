@@ -196,9 +196,9 @@ return (
           </ul>
         </div>
       </div>
-      <div className="mt-12 border-t border-sky-700 pt-6 text-center text-sm text-sky-300">
-        © 2023 <span className="text-white font-semibold">Fun With Crackers</span>. Developed by{' '}
-        <span className="text-white font-semibold">SPD</span>.
+      <div className="mt-12 border-t border-sky-700 pt-6 text-center text-sm text-sky-300 cursor-pointer">
+        © 2025 <span className="text-white font-semibold">Fun With Crackers</span>.<span className="text-white font-semibold">Developed by{' '}</span>
+        SPD Solutions.
       </div>
     </footer>
       <style>

@@ -6,6 +6,7 @@ import Logout from '../Logout';
 
 export default function Tracking() {
   const [bookings, setBookings] = useState([]);
+  const [filterCustomerType, setFilterCustomerType] = useState('');
   const [filterStatus, setFilterStatus] = useState('');
   const [error, setError] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
@@ -14,7 +15,10 @@ export default function Tracking() {
   const fetchBookings = async () => {
     try {
       const response = await axios.get(`${API_BASE_URL}/api/tracking/bookings`, {
-        params: { status: filterStatus || undefined }
+        params: {
+          status: filterStatus || undefined,
+          customerType: filterCustomerType || undefined  // ✅ FIXED HERE
+        }
       });
       setBookings(response.data);
       setError('');
@@ -32,7 +36,7 @@ export default function Tracking() {
 
   useEffect(() => {
     fetchBookings();
-  }, [filterStatus]);
+  }, [filterStatus, filterCustomerType]);
 
   const updateStatus = async (id, newStatus) => {
     try {
@@ -69,7 +73,7 @@ export default function Tracking() {
             </div>
           )}
 
-          <div className="mb-6 flex justify-center">
+          <div className="mb-6 flex justify-center space-x-4">
             <select
               value={filterStatus}
               onChange={e => setFilterStatus(e.target.value)}
@@ -82,6 +86,18 @@ export default function Tracking() {
               <option value="dispatched">Dispatched</option>
               <option value="delivered">Delivered</option>
             </select>
+
+            <select
+              value={filterCustomerType}
+              onChange={e => setFilterCustomerType(e.target.value)}
+              className="w-64 p-3 border-2 border-gray-300 rounded-lg bg-white shadow-md focus:outline-none focus:ring-2 focus:ring-green-500"
+            >
+              <option value="">All Customer Types</option>
+              <option value="Customer">Customer</option>
+              <option value="Agent">Agent</option>
+              <option value="Customer of Selected Agent">Customer of Selected Agent</option>
+              <option value="User">User</option>
+            </select>
           </div>
 
           <div className="overflow-x-auto">
@@ -91,6 +107,7 @@ export default function Tracking() {
                   <th className="p-4 text-center text-gray-700 font-semibold">Sl. No</th>
                   <th className="p-4 text-center text-gray-700 font-semibold">Order ID</th>
                   <th className="p-4 text-center text-gray-700 font-semibold">Customer Name</th>
+                  <th className="p-4 text-center text-gray-700 font-semibold">Customer Type</th>
                   <th className="p-4 text-center text-gray-700 font-semibold">District</th>
                   <th className="p-4 text-center text-gray-700 font-semibold">State</th>
                   <th className="p-4 text-center text-gray-700 font-semibold">Status</th>
@@ -104,6 +121,7 @@ export default function Tracking() {
                       <td className="p-4 text-center text-gray-800">{indexOfFirstOrder + index + 1}</td>
                       <td className="p-4 text-center text-gray-800">{booking.order_id}</td>
                       <td className="p-4 text-center text-gray-800">{booking.customer_name}</td>
+                      <td className="p-4 text-center text-gray-800">{booking.customer_type}</td>
                       <td className="p-4 text-center text-gray-800">{booking.district}</td>
                       <td className="p-4 text-center text-gray-800">{booking.state}</td>
                       <td className="p-4 text-center text-gray-800">{booking.status}</td>
@@ -124,7 +142,7 @@ export default function Tracking() {
                   ))
                 ) : (
                   <tr>
-                    <td colSpan="7" className="p-4 text-center text-gray-600">
+                    <td colSpan="8" className="p-4 text-center text-gray-600">
                       No bookings found
                     </td>
                   </tr>

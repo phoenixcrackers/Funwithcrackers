@@ -229,7 +229,7 @@ export default function Home() {
           <p className="mb-4 text-sky-100 leading-relaxed p-5 md:p-0">As per 2018 Supreme Court order, online sale of firecrackers are not permitted! We value our customers and at the same time, respect jurisdiction. We request you to add your products to the cart and submit the required crackers through the enquiry button. We will contact you within 24 hrs and confirm the order through WhatsApp or phone call. Please add and submit your enquiries and enjoy your Diwali with Fun With Crackers.</p>
           <p className="mb-4 text-sky-100 leading-relaxed p-5 md:p-0">Our License No. ----. Fun With Crackers as a company follows 100% legal & statutory compliances, and all our shops, go-downs are maintained as per the explosive acts. We send the parcels through registered and legal transport service providers as every other major company in Sivakasi is doing.</p>
         </motion.div>
-        <div className="mt-12 border-t border-sky-700 pt-8 text-center text-sm text-sky-300 relative z-10"><p>Copyright © 2023, <span className="text-white font-semibold">Fun With Crackers</span>. All rights reserved. Developed by <span className="text-white font-semibold">SPD</span></p></div>
+        <div className="mt-12 border-t border-sky-700 pt-8 text-center text-sm text-white relative z-10"><p>Copyright © 2025, <span className="text-sky-300 font-semibold">Fun With Crackers</span>. All rights reserved. Developed by <span className="text-sky-300 font-semibold">SPD Solutions</span></p></div>
       </footer>
       <style jsx>{`@keyframes shine { 0% { transform: translateX(-100%); } 100% { transform: translateX(100%); } } @keyframes ping { 75%, 100% { transform: scale(2); opacity: 0; } }`}</style>
     </div>
