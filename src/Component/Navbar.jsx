@@ -1,11 +1,11 @@
-import { useState } from "react"
-import { motion } from "framer-motion"
-import { Menu } from "lucide-react"
-
-const navLinks = ["Home", "About Us", "Price List", "Safety Tips", "Contact Us"]
+import { useState } from "react";
+import { motion } from "framer-motion";
+import { Menu } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 
 export default function Navbar() {
-  const [menuOpen, setMenuOpen] = useState(false)
+  const [menuOpen, setMenuOpen] = useState(false);
+  const navigate = useNavigate();
 
   return (
     <nav
@@ -28,19 +28,60 @@ export default function Navbar() {
         </motion.h1>
 
         <div className="hidden md:flex gap-4 lg:gap-8 text-sm lg:text-md font-medium">
-          {navLinks.map((link, index) => (
-            <motion.a
-              key={link}
-              href={link === "Home" ? "/" : `/${link.toLowerCase().replace(/ /g, "-")}`}
-              className="relative text-sky-100 hover:text-white transition-colors duration-300 group cursor-pointer drop-shadow-sm px-2 py-1"
-              initial={{ opacity: 0, y: -10 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: index * 0.1 }}
-            >
-              {link}
-              <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-white group-hover:w-full transition-all duration-300 rounded-full"></span>
-            </motion.a>
-          ))}
+          <motion.a
+            className="relative text-sky-100 hover:text-white transition-colors duration-300 group cursor-pointer drop-shadow-sm px-2 py-1"
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0 }}
+            onClick={() => navigate("/")}
+          >
+            Home
+            <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-white group-hover:w-full transition-all duration-300 rounded-full"></span>
+          </motion.a>
+
+          <motion.a
+            className="relative text-sky-100 hover:text-white transition-colors duration-300 group cursor-pointer drop-shadow-sm px-2 py-1"
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.1 }}
+            onClick={() => navigate("/about-us")}
+          >
+            About Us
+            <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-white group-hover:w-full transition-all duration-300 rounded-full"></span>
+          </motion.a>
+
+          <motion.a
+            className="relative text-sky-100 hover:text-white transition-colors duration-300 group cursor-pointer drop-shadow-sm px-2 py-1"
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.2 }}
+            onClick={() => navigate("/price-list")}
+          >
+            Price List
+            <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-white group-hover:w-full transition-all duration-300 rounded-full"></span>
+          </motion.a>
+
+          <motion.a
+            className="relative text-sky-100 hover:text-white transition-colors duration-300 group cursor-pointer drop-shadow-sm px-2 py-1"
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.3 }}
+            onClick={() => navigate("/safety-tips")}
+          >
+            Safety Tips
+            <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-white group-hover:w-full transition-all duration-300 rounded-full"></span>
+          </motion.a>
+
+          <motion.a
+            className="relative text-sky-100 hover:text-white transition-colors duration-300 group cursor-pointer drop-shadow-sm px-2 py-1"
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.4 }}
+            onClick={() => navigate("/contact-us")}
+          >
+            Contact Us
+            <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-white group-hover:w-full transition-all duration-300 rounded-full"></span>
+          </motion.a>
         </div>
 
         <button
@@ -69,19 +110,43 @@ export default function Navbar() {
           }}
         >
           <div className="flex flex-col space-y-2">
-            {navLinks.map((link) => (
-              <a
-                key={link}
-                href={link === "Home" ? "/" : `/${link.toLowerCase().replace(/ /g, "-")}`}
-                className="block cursor-pointer text-sm font-medium text-sky-100 hover:text-white px-3 py-2 rounded-lg transition-all duration-300 hover:bg-white/10 text-center"
-                onClick={() => setMenuOpen(false)}
-              >
-                {link}
-              </a>
-            ))}
+            <a
+              className="block cursor-pointer text-sm font-medium text-sky-100 hover:text-white px-3 py-2 rounded-lg transition-all duration-300 hover:bg-white/10 text-center"
+              onClick={() => { navigate("/"); setMenuOpen(false); }}
+            >
+              Home
+            </a>
+
+            <a
+              className="block cursor-pointer text-sm font-medium text-sky-100 hover:text-white px-3 py-2 rounded-lg transition-all duration-300 hover:bg-white/10 text-center"
+              onClick={() => { navigate("/about-us"); setMenuOpen(false); }}
+            >
+              About Us
+            </a>
+
+            <a
+              className="block cursor-pointer text-sm font-medium text-sky-100 hover:text-white px-3 py-2 rounded-lg transition-all duration-300 hover:bg-white/10 text-center"
+              onClick={() => { navigate("/price-list"); setMenuOpen(false); }}
+            >
+              Price List
+            </a>
+
+            <a
+              className="block cursor-pointer text-sm font-medium text-sky-100 hover:text-white px-3 py-2 rounded-lg transition-all duration-300 hover:bg-white/10 text-center"
+              onClick={() => { navigate("/safety-tips"); setMenuOpen(false); }}
+            >
+              Safety Tips
+            </a>
+
+            <a
+              className="block cursor-pointer text-sm font-medium text-sky-100 hover:text-white px-3 py-2 rounded-lg transition-all duration-300 hover:bg-white/10 text-center"
+              onClick={() => { navigate("/contact-us"); setMenuOpen(false); }}
+            >
+              Contact Us
+            </a>
           </div>
         </motion.div>
       )}
     </nav>
-  )
+  );
 }
