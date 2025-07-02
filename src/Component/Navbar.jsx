@@ -33,7 +33,7 @@ export default function Navbar() {
             initial={{ opacity: 0, y: -10 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0 }}
-            onClick={() => navigate("/")}
+            onClick={() => { navigate("/", { replace: true }); window.scrollTo(0, 0); }}
           >
             Home
             <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-white group-hover:w-full transition-all duration-300 rounded-full"></span>
@@ -44,7 +44,7 @@ export default function Navbar() {
             initial={{ opacity: 0, y: -10 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.1 }}
-            onClick={() => navigate("/about-us")}
+            onClick={() => { navigate("/about-us", { replace: true }); window.scrollTo(0, 0); }}
           >
             About Us
             <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-white group-hover:w-full transition-all duration-300 rounded-full"></span>
@@ -55,7 +55,7 @@ export default function Navbar() {
             initial={{ opacity: 0, y: -10 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.2 }}
-            onClick={() => navigate("/price-list")}
+            onClick={() => { navigate("/price-list", { replace: true }); window.scrollTo(0, 0); }}
           >
             Price List
             <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-white group-hover:w-full transition-all duration-300 rounded-full"></span>
@@ -66,7 +66,7 @@ export default function Navbar() {
             initial={{ opacity: 0, y: -10 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.3 }}
-            onClick={() => navigate("/safety-tips")}
+            onClick={() => { navigate("/safety-tips", { replace: true }); window.scrollTo(0, 0); }}
           >
             Safety Tips
             <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-white group-hover:w-full transition-all duration-300 rounded-full"></span>
@@ -77,7 +77,7 @@ export default function Navbar() {
             initial={{ opacity: 0, y: -10 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.4 }}
-            onClick={() => navigate("/contact-us")}
+            onClick={() => { navigate("/contact-us", { replace: true }); window.scrollTo(0, 0); }}
           >
             Contact Us
             <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-white group-hover:w-full transition-all duration-300 rounded-full"></span>
@@ -112,35 +112,35 @@ export default function Navbar() {
           <div className="flex flex-col space-y-2">
             <a
               className="block cursor-pointer text-sm font-medium text-sky-100 hover:text-white px-3 py-2 rounded-lg transition-all duration-300 hover:bg-white/10 text-center"
-              onClick={() => { navigate("/"); setMenuOpen(false); }}
+              onClick={() => { navigate("/", { replace: true }); window.scrollTo(0, 0); setMenuOpen(false); }}
             >
               Home
             </a>
 
             <a
               className="block cursor-pointer text-sm font-medium text-sky-100 hover:text-white px-3 py-2 rounded-lg transition-all duration-300 hover:bg-white/10 text-center"
-              onClick={() => { navigate("/about-us"); setMenuOpen(false); }}
+              onClick={() => { navigate("/about-us", { replace: true }); window.scrollTo(0, 0); setMenuOpen(false); }}
             >
               About Us
             </a>
 
             <a
               className="block cursor-pointer text-sm font-medium text-sky-100 hover:text-white px-3 py-2 rounded-lg transition-all duration-300 hover:bg-white/10 text-center"
-              onClick={() => { navigate("/price-list"); setMenuOpen(false); }}
+              onClick={() => { navigate("/price-list", { replace: true }); window.scrollTo(0, 0); setMenuOpen(false); }}
             >
               Price List
             </a>
 
             <a
               className="block cursor-pointer text-sm font-medium text-sky-100 hover:text-white px-3 py-2 rounded-lg transition-all duration-300 hover:bg-white/10 text-center"
-              onClick={() => { navigate("/safety-tips"); setMenuOpen(false); }}
+              onClick={() => { navigate("/safety-tips", { replace: true }); window.scrollTo(0, 0); setMenuOpen(false); }}
             >
               Safety Tips
             </a>
 
             <a
               className="block cursor-pointer text-sm font-medium text-sky-100 hover:text-white px-3 py-2 rounded-lg transition-all duration-300 hover:bg-white/10 text-center"
-              onClick={() => { navigate("/contact-us"); setMenuOpen(false); }}
+              onClick={() => { navigate("/contact-us", { replace: true }); window.scrollTo(0, 0); setMenuOpen(false); }}
             >
               Contact Us
             </a>
