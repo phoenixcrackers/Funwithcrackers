@@ -262,8 +262,8 @@ const Pricelist = () => {
                   <motion.div key={product.serial_number} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} whileHover={{ y: -8, scale: 1.02 }} className="group relative rounded-3xl p-6 overflow-hidden cursor-pointer transition-all duration-500" style={styles.card}>
                     <div className="absolute left-2 top-2 bg-red-500 text-white text-md font-bold px-2 py-1 rounded-br-lg rounded-tl-lg mobile:text-[10px] mobile:px-1.5 mobile:py-0.5">{product.discount}%</div>
                     <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-700" style={{ background: "linear-gradient(135deg, rgba(2,132,199,0.3), transparent 50%, rgba(14,165,233,0.2))" }} />
-                    <div className="relative z-10">
-                      <h3 className="text-lg font-bold text-slate-800 group-hover:text-slate-900 transition-colors duration-500 drop-shadow-sm line-clamp-2 mb-2">{product.productname}</h3>
+                    <div className="relative z-10 mobile:mt-2">
+                      <p className="text-lg mobile:text-sm font-bold text-slate-800 group-hover:text-slate-900 transition-colors duration-500 drop-shadow-sm line-clamp-2 mb-2">{product.productname}</p>
                       <div className="space-y-1 mb-4">
                         <p className="text-sm text-slate-500 line-through">MRP: ₹{originalPrice}</p>
                         <p className="text-xl font-bold text-sky-700 group-hover:text-sky-800 transition-colors duration-500">₹{finalPrice} / {product.per}</p>

@@ -192,7 +192,7 @@ export default function Direct() {
             </div>
           </div>
           <div className="overflow-x-auto onefifty:ml-32">
-            <table className="hundred:w-full onefifty:w-full border-collapse bg-white shadow rounded-lg mobile:text-xs ">
+            <table className="w-full border-collapse bg-white shadow rounded-lg mobile:text-xs">
               <thead className="bg-gray-200">
                 <tr className='hundred:text-lg mobile:text-sm'>
                   <th className="text-center mobile:p-1">Product</th>
