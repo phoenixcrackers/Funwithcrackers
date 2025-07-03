@@ -84,6 +84,7 @@ const Pricelist = () => {
   const [appliedPromo, setAppliedPromo] = useState(null)
   const [states, setStates] = useState([])
   const [districts, setDistricts] = useState([])
+  const [invoiceUrl, setInvoiceUrl] = useState(null)
 
   const screenWidth = typeof window !== "undefined" ? window.innerWidth : 1920
   const screenHeight = typeof window !== "undefined" ? window.innerHeight : 1080
@@ -153,7 +154,18 @@ const Pricelist = () => {
         body: JSON.stringify({ order_id, products: selectedProducts, total: Number.parseFloat(totals.total), customer_type: "User", ...customerDetails }),
       })
       if (response.ok) {
+        const data = await response.json();
         setShowSuccess(true)
+        setInvoiceUrl(`${API_BASE_URL}/api/direct/invoice/${customerDetails.customer_name.toLowerCase().replace(/\s+/g, '_')}-${order_id}.pdf`)
+        // Automatically trigger PDF download
+        if (invoiceUrl) {
+          const link = document.createElement('a');
+          link.href = invoiceUrl;
+          link.download = `${customerDetails.customer_name.toLowerCase().replace(/\s+/g, '_')}-${order_id}.pdf`;
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+        }
         setTimeout(() => setShowSuccess(false), 6000)
         setCart({})
         setIsCartOpen(false)
@@ -231,7 +243,9 @@ const Pricelist = () => {
             {fireworkConfigs.map((config, i) => <BigFireworkAnimation key={i} {...config} />)}
           </div>
           <motion.div className="fixed inset-0 flex items-center justify-center z-60 pointer-events-none" initial={{ opacity: 0, scale: 0.8 }} animate={{ opacity: 1, scale: 1 }} transition={{ duration: 1, delay: 2.5 }}>
-            <h2 className="text-4xl font-bold bg-gradient-to-r from-green-600 to-emerald-500 bg-clip-text text-transparent drop-shadow-lg">Booked Successfully</h2>
+            <div className="flex flex-col items-center gap-4">
+              <h2 className="text-4xl font-bold bg-gradient-to-r from-green-600 to-emerald-500 bg-clip-text text-transparent drop-shadow-lg">Booked Successfully</h2>
+            </div>
           </motion.div>
         </>
       )}
