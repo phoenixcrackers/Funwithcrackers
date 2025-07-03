@@ -156,16 +156,28 @@ const Pricelist = () => {
       if (response.ok) {
         const data = await response.json();
         setShowSuccess(true)
-        setInvoiceUrl(`${API_BASE_URL}/api/direct/invoice/${customerDetails.customer_name.toLowerCase().replace(/\s+/g, '_')}-${order_id}.pdf`)
-        // Automatically trigger PDF download
-        if (invoiceUrl) {
+        // Construct invoice URL based on customername-orderid.pdf format
+        const filename = `${customerDetails.customer_name.toLowerCase().replace(/\s+/g, '_')}-${order_id}.pdf`;
+        const invoiceUrl = `${API_BASE_URL}/api/direct/invoice/${filename}`;
+        
+        // Explicitly fetch the PDF and trigger download
+        const pdfResponse = await fetch(invoiceUrl, {
+          method: 'GET',
+          headers: { 'Content-Type': 'application/pdf' },
+        });
+        if (pdfResponse.ok) {
+          const blob = await pdfResponse.blob();
           const link = document.createElement('a');
-          link.href = invoiceUrl;
-          link.download = `${customerDetails.customer_name.toLowerCase().replace(/\s+/g, '_')}-${order_id}.pdf`;
+          link.href = window.URL.createObjectURL(blob);
+          link.download = filename;
           document.body.appendChild(link);
           link.click();
           document.body.removeChild(link);
+          window.URL.revokeObjectURL(link.href);
+        } else {
+          showError("Failed to download the invoice PDF.");
         }
+
         setTimeout(() => setShowSuccess(false), 6000)
         setCart({})
         setIsCartOpen(false)
