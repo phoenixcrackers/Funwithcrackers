@@ -4,71 +4,6 @@ import { FaPlus, FaMinus } from "react-icons/fa"
 import Navbar from "../Component/Navbar"
 import { API_BASE_URL } from "../../Config"
 
-const BigFireworkAnimation = ({ delay = 0, startPosition, endPosition, burstPosition, color }) => {
-  const screenWidth = typeof window !== "undefined" ? window.innerWidth : 1920
-  const screenHeight = typeof window !== "undefined" ? window.innerHeight : 1080
-  return (
-    <div className="absolute inset-0 pointer-events-none overflow-hidden z-50">
-      <motion.div
-        className="absolute w-6 h-6 rounded-full"
-        style={{ left: startPosition.x, top: startPosition.y, background: `linear-gradient(180deg, ${color.primary}, ${color.secondary} 50%, ${color.tertiary})`, boxShadow: `0 0 15px ${color.primary}`, transform: "rotate(45deg)" }}
-        animate={{ x: [0, endPosition.x - startPosition.x], y: [0, endPosition.y - startPosition.y], opacity: [1, 1, 0] }}
-        transition={{ duration: 2.5, delay, ease: "easeOut" }}
-      />
-      <motion.div
-        className="absolute"
-        style={{ left: burstPosition.x, top: burstPosition.y, transform: "translate(-50%, -50%)" }}
-        initial={{ opacity: 0 }}
-        animate={{ opacity: [0, 1, 0.8, 0] }}
-        transition={{ duration: 4, delay: delay + 2.5 }}
-      >
-        {[...Array(24)].map((_, i) => {
-          const angle = i * 15 * (Math.PI / 180), distance = screenWidth * 0.4, x = Math.cos(angle) * distance, y = Math.sin(angle) * distance
-          return (
-            <motion.div
-              key={`main-${i}`}
-              className="absolute w-4 h-4 rounded-full"
-              style={{ background: `hsl(${(i * 15 + Math.random() * 60) % 360}, 80%, 65%)`, boxShadow: `0 0 20px hsl(${(i * 15 + Math.random() * 60) % 360}, 80%, 65%)` }}
-              animate={{ x: [0, x * 0.3, x * 0.7, x], y: [0, y * 0.3, y * 0.7, y], opacity: [1, 0.8, 0.4, 0], scale: [1, 1.2, 0.8, 0] }}
-              transition={{ duration: 4, delay: delay + 2.5, ease: "easeOut" }}
-            />
-          )
-        })}
-        {[...Array(36)].map((_, i) => {
-          const angle = i * 10 * (Math.PI / 180), distance = screenWidth * 0.25, x = Math.cos(angle) * distance, y = Math.sin(angle) * distance
-          return (
-            <motion.div
-              key={`secondary-${i}`}
-              className="absolute w-2 h-2 rounded-full"
-              style={{ background: `hsl(${(i * 10 + Math.random() * 40) % 360}, 70%, 60%)`, boxShadow: `0 0 12px hsl(${(i * 10 + Math.random() * 40) % 360}, 70%, 60%)` }}
-              animate={{ x: [0, x * 0.4, x * 0.8, x], y: [0, y * 0.4, y * 0.8, y], opacity: [1, 0.7, 0.3, 0], scale: [1, 1.1, 0.6, 0] }}
-              transition={{ duration: 3.5, delay: delay + 2.7, ease: "easeOut" }}
-            />
-          )
-        })}
-        {[...Array(48)].map((_, i) => {
-          const angle = i * 7.5 * (Math.PI / 180), distance = screenWidth * 0.35, x = Math.cos(angle) * distance, y = Math.sin(angle) * distance
-          return (
-            <motion.div
-              key={`sparkle-${i}`}
-              className="absolute w-1 h-1 rounded-full"
-              style={{ background: "#fff", boxShadow: "0 0 8px #fff" }}
-              animate={{ x: [0, x * 0.2, x * 0.6, x * 1.2], y: [0, y * 0.2, y * 0.6, y * 1.2], opacity: [1, 0.8, 0.4, 0], scale: [1, 0.8, 0.4, 0] }}
-              transition={{ duration: 3, delay: delay + 3, ease: "easeOut" }}
-            />
-          )
-        })}
-        <motion.div
-          className="absolute w-32 h-32 rounded-full"
-          style={{ background: `radial-gradient(circle, ${color.primary}aa 0%, ${color.secondary}66 30%, transparent 70%)`, transform: "translate(-50%, -50%)" }}
-          animate={{ scale: [0, 3, 1.5, 0], opacity: [0, 1, 0.3, 0] }}
-          transition={{ duration: 2, delay: delay + 2.5, ease: "easeOut" }}
-        />
-      </motion.div>
-    </div>
-  )
-}
-
 const Pricelist = () => {
   const [products, setProducts] = useState([])
   const [cart, setCart] = useState({})
@@ -84,15 +19,7 @@ const Pricelist = () => {
   const [appliedPromo, setAppliedPromo] = useState(null)
   const [states, setStates] = useState([])
   const [districts, setDistricts] = useState([])
-  const [invoiceUrl, setInvoiceUrl] = useState(null)
-
-  const screenWidth = typeof window !== "undefined" ? window.innerWidth : 1920
-  const screenHeight = typeof window !== "undefined" ? window.innerHeight : 1080
-
-  const fireworkConfigs = [
-    { delay: 0, startPosition: { x: -50, y: screenHeight + 50 }, endPosition: { x: screenWidth * 0.5, y: screenHeight * 0.5 }, burstPosition: { x: screenWidth * 0.5, y: screenHeight * 0.5 }, color: { primary: "#ffd93d", secondary: "#ffe066", tertiary: "#ffe999" } },
-    { delay: 0, startPosition: { x: screenWidth + 50, y: screenHeight + 50 }, endPosition: { x: screenWidth * 0.5, y: screenHeight * 0.5 }, burstPosition: { x: screenWidth * 0.5, y: screenHeight * 0.5 }, color: { primary: "#a8e6cf", secondary: "#c8f7c5", tertiary: "#e8f8f5" } },
-  ]
+  const [invoiceOrderId, setInvoiceOrderId] = useState(null) // Store order_id for download
 
   const styles = {
     card: { background: "linear-gradient(135deg, rgba(255,255,255,0.4), rgba(224,242,254,0.3), rgba(186,230,253,0.2))", backdropFilter: "blur(20px)", border: "1px solid rgba(2,132,199,0.3)", boxShadow: "0 25px 45px rgba(2,132,199,0.1), inset 0 1px 0 rgba(255,255,255,0.4), inset 0 -1px 0 rgba(2,132,199,0.1)" },
@@ -134,6 +61,34 @@ const Pricelist = () => {
     return updated
   }), [])
 
+  const handleDownloadPDF = async () => {
+    if (!invoiceOrderId) return showError("No invoice available to download.")
+    try {
+      const invoiceUrl = `${API_BASE_URL}/api/direct/invoice/${invoiceOrderId}`
+      const filename = `${customerDetails.customer_name.toLowerCase().replace(/\s+/g, '_')}-${invoiceOrderId}.pdf`
+      const pdfResponse = await fetch(invoiceUrl, {
+        method: 'GET',
+        headers: { 'Content-Type': 'application/pdf' },
+      })
+      if (pdfResponse.ok) {
+        const blob = await pdfResponse.blob()
+        const link = document.createElement('a')
+        link.href = window.URL.createObjectURL(blob)
+        link.download = filename
+        document.body.appendChild(link)
+        link.click()
+        document.body.removeChild(link)
+        window.URL.revokeObjectURL(link.href)
+      } else {
+        const errorData = await pdfResponse.json()
+        showError(errorData.message || "Failed to download the invoice PDF.")
+      }
+    } catch (err) {
+      console.error("PDF download error:", err)
+      showError("Something went wrong while downloading the PDF.")
+    }
+  }
+
   const handleFinalCheckout = async () => {
     const order_id = `ORD-${Date.now()}`
     const selectedProducts = Object.entries(cart).map(([serial, qty]) => {
@@ -154,30 +109,9 @@ const Pricelist = () => {
         body: JSON.stringify({ order_id, products: selectedProducts, total: Number.parseFloat(totals.total), customer_type: "User", ...customerDetails }),
       })
       if (response.ok) {
-        const data = await response.json();
+        const data = await response.json()
+        setInvoiceOrderId(data.order_id) // Store order_id for download
         setShowSuccess(true)
-        // Construct invoice URL based on customername-orderid.pdf format
-        const filename = `${customerDetails.customer_name.toLowerCase().replace(/\s+/g, '_')}-${order_id}.pdf`;
-        const invoiceUrl = `${API_BASE_URL}/api/direct/invoice/${filename}`;
-        
-        // Explicitly fetch the PDF and trigger download
-        const pdfResponse = await fetch(invoiceUrl, {
-          method: 'GET',
-          headers: { 'Content-Type': 'application/pdf' },
-        });
-        if (pdfResponse.ok) {
-          const blob = await pdfResponse.blob();
-          const link = document.createElement('a');
-          link.href = window.URL.createObjectURL(blob);
-          link.download = filename;
-          document.body.appendChild(link);
-          link.click();
-          document.body.removeChild(link);
-          window.URL.revokeObjectURL(link.href);
-        } else {
-          showError("Failed to download the invoice PDF.");
-        }
-
         setTimeout(() => setShowSuccess(false), 6000)
         setCart({})
         setIsCartOpen(false)
@@ -250,16 +184,14 @@ const Pricelist = () => {
       <Navbar />
       {isCartOpen && <div className="fixed inset-0 bg-black/40 z-30" onClick={() => setIsCartOpen(false)} />}
       {showSuccess && (
-        <>
-          <div className="fixed inset-0 pointer-events-none z-50">
-            {fireworkConfigs.map((config, i) => <BigFireworkAnimation key={i} {...config} />)}
+        <motion.div className="fixed inset-0 flex items-center justify-center z-60 pointer-events-auto" initial={{ opacity: 0, scale: 0.8 }} animate={{ opacity: 1, scale: 1 }} transition={{ duration: 0.5 }}>
+          <div className="flex flex-col items-center gap-4 bg-white rounded-xl p-6 shadow-lg" style={styles.modal}>
+            <h2 className="text-4xl font-bold bg-gradient-to-r from-green-600 to-emerald-500 bg-clip-text text-transparent drop-shadow-lg">Booked Successfully</h2>
+            <button onClick={handleDownloadPDF} className="px-6 py-3 text-sm font-semibold rounded-xl text-white transition-all duration-300 cursor-pointer" style={{ background: styles.button.background, boxShadow: "0 10px 25px rgba(2,132,199,0.3)" }}>
+              Download Invoice PDF
+            </button>
           </div>
-          <motion.div className="fixed inset-0 flex items-center justify-center z-60 pointer-events-none" initial={{ opacity: 0, scale: 0.8 }} animate={{ opacity: 1, scale: 1 }} transition={{ duration: 1, delay: 2.5 }}>
-            <div className="flex flex-col items-center gap-4">
-              <h2 className="text-4xl font-bold bg-gradient-to-r from-green-600 to-emerald-500 bg-clip-text text-transparent drop-shadow-lg">Booked Successfully</h2>
-            </div>
-          </motion.div>
-        </>
+        </motion.div>
       )}
       {showMinOrderModal && (
         <motion.div className="fixed inset-0 flex items-center justify-center z-60 pointer-events-none" initial={{ opacity: 0, scale: 0.8 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.8 }} transition={{ duration: 0.5 }}>
