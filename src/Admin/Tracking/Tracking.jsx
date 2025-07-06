@@ -8,6 +8,7 @@ export default function Tracking() {
   const [bookings, setBookings] = useState([]);
   const [filterCustomerType, setFilterCustomerType] = useState('');
   const [filterStatus, setFilterStatus] = useState('');
+  const [searchTerm, setSearchTerm] = useState('');
   const [error, setError] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const ordersPerPage = 10;
@@ -17,7 +18,7 @@ export default function Tracking() {
       const response = await axios.get(`${API_BASE_URL}/api/tracking/bookings`, {
         params: {
           status: filterStatus || undefined,
-          customerType: filterCustomerType || undefined  // ✅ FIXED HERE
+          customerType: filterCustomerType || undefined
         }
       });
       setBookings(response.data);
@@ -52,10 +53,21 @@ export default function Tracking() {
     }
   };
 
+  // 🔍 Filter bookings with search term
+  const filteredBookings = bookings.filter(booking => {
+    const search = searchTerm.toLowerCase();
+    return (
+      booking.customer_name.toLowerCase().includes(search) ||
+      booking.order_id.toLowerCase().includes(search) ||
+      booking.total.toString().includes(search) ||
+      booking.customer_type.toLowerCase().includes(search)
+    );
+  });
+
   const indexOfLastOrder = currentPage * ordersPerPage;
   const indexOfFirstOrder = indexOfLastOrder - ordersPerPage;
-  const currentOrders = bookings.slice(indexOfFirstOrder, indexOfLastOrder);
-  const totalPages = Math.ceil(bookings.length / ordersPerPage);
+  const currentOrders = filteredBookings.slice(indexOfFirstOrder, indexOfLastOrder);
+  const totalPages = Math.ceil(filteredBookings.length / ordersPerPage);
 
   const paginate = (pageNumber) => setCurrentPage(pageNumber);
 
@@ -73,7 +85,7 @@ export default function Tracking() {
             </div>
           )}
 
-          <div className="mb-6 flex justify-center space-x-4">
+          <div className="mb-6 flex justify-center flex-wrap gap-4">
             <select
               value={filterStatus}
               onChange={e => setFilterStatus(e.target.value)}
@@ -98,6 +110,14 @@ export default function Tracking() {
               <option value="Customer of Selected Agent">Customer of Selected Agent</option>
               <option value="User">User</option>
             </select>
+
+            <input
+              type="text"
+              placeholder="Search name, order ID, total, type..."
+              value={searchTerm}
+              onChange={e => setSearchTerm(e.target.value)}
+              className="w-96 p-3 border-2 border-gray-300 rounded-lg bg-white shadow-md focus:outline-none focus:ring-2 focus:ring-purple-500"
+            />
           </div>
 
           <div className="overflow-x-auto">

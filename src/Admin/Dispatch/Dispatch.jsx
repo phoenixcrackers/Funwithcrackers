@@ -7,6 +7,7 @@ import { API_BASE_URL } from '../../../Config';
 import Sidebar from '../Sidebar/Sidebar';
 import Logout from '../Logout';
 
+
 export default function Dispatch() {
   const [bookings, setBookings] = useState([]);
   const [filterStatus, setFilterStatus] = useState('');
@@ -14,6 +15,7 @@ export default function Dispatch() {
   const [successMessage, setSuccessMessage] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedBookingId, setSelectedBookingId] = useState(null);
+  const [searchQuery, setSearchQuery] = useState('');
   const [transportDetails, setTransportDetails] = useState({
     transportName: '',
     lrNumber: '',
@@ -25,9 +27,7 @@ export default function Dispatch() {
       const allowedStatuses = ['paid', 'packed', 'dispatched', 'delivered'];
       const statuses = filterStatus ? [filterStatus] : allowedStatuses;
       const response = await axios.get(`${API_BASE_URL}/api/tracking/filtered-bookings`, {
-        params: { 
-          status: statuses.join(',')
-        }
+        params: { status: statuses.join(',') }
       });
       setBookings(response.data);
       setError('');
@@ -65,7 +65,7 @@ export default function Dispatch() {
       );
       if (newStatus === 'dispatched' && transportInfo) {
         setSuccessMessage('Transport details added successfully');
-        setTimeout(() => setSuccessMessage(''), 3000); // Clear message after 3 seconds
+        setTimeout(() => setSuccessMessage(''), 3000);
       }
       setError('');
     } catch (err) {
@@ -79,7 +79,7 @@ export default function Dispatch() {
       setError('Transport Name and LR Number are required');
       return;
     }
-    
+
     await updateStatus(selectedBookingId, 'dispatched', transportDetails);
     setIsModalOpen(false);
     setTransportDetails({
@@ -100,7 +100,7 @@ export default function Dispatch() {
 
   const generatePDF = (booking) => {
     const doc = new jsPDF();
-    
+
     doc.setFontSize(22);
     doc.text('Fun with Crackers', doc.internal.pageSize.width / 2, 20, { align: 'center' });
 
@@ -162,19 +162,28 @@ export default function Dispatch() {
             </div>
           )}
 
-          <div className="mb-6 flex justify-center">
-            <select
-              value={filterStatus}
-              onChange={e => setFilterStatus(e.target.value)}
-              className="w-64 p-3 border-2 border-gray-300 rounded-lg bg-white shadow-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-            >
-              <option value="">All Statuses</option>
-              <option value="paid">Paid</option>
-              <option value="packed">Packed</option>
-              <option value="dispatched">Dispatched</option>
-              <option value="delivered">Delivered</option>
-            </select>
-          </div>
+    <div className="mb-6 flex justify-center gap-4 flex-wrap">
+  <select
+    value={filterStatus}
+    onChange={(e) => setFilterStatus(e.target.value)}
+    className="w-48 p-3 border-2 border-gray-300 rounded-lg bg-white shadow-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+  >
+    <option value="">All Statuses</option>
+    <option value="paid">Paid</option>
+    <option value="packed">Packed</option>
+    <option value="dispatched">Dispatched</option>
+    <option value="delivered">Delivered</option>
+  </select>
+
+  <input
+    type="text"
+    placeholder="Search by Name, Order ID, or Total"
+    value={searchQuery}
+    onChange={(e) => setSearchQuery(e.target.value)}
+    className="w-96 p-3 border-2 border-gray-300 rounded-lg bg-white shadow-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+  />
+</div>
+
 
           <div className="overflow-x-auto">
             <table className="w-full border-collapse">
@@ -191,8 +200,16 @@ export default function Dispatch() {
                 </tr>
               </thead>
               <tbody>
-                {bookings.length > 0 ? (
-                  bookings.map((booking, index) => (
+                {bookings
+                  .filter((booking) => {
+                    const query = searchQuery.toLowerCase();
+                    return (
+                      booking.customer_name?.toLowerCase().includes(query) ||
+                      booking.order_id?.toLowerCase().includes(query) ||
+                      String(booking.total).includes(query)
+                    );
+                  })
+                  .map((booking, index) => (
                     <tr key={booking.id} className="border-b border-gray-300 hover:bg-gray-50">
                       <td className="text-center text-gray-800">{index + 1}</td>
                       <td className="p-2text-center text-gray-800">{booking.order_id}</td>
@@ -222,55 +239,43 @@ export default function Dispatch() {
                         </button>
                       </td>
                     </tr>
-                  ))
-                ) : (
-                  <tr>
-                    <td colSpan="8" className="p-4 text-center text-gray-600">
-                      No bookings found
-                    </td>
-                  </tr>
-                )}
+                  ))}
               </tbody>
             </table>
           </div>
 
+          {/* Modal (unchanged) */}
           {isModalOpen && (
             <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 mobile:p-5">
               <div className="bg-white p-6 rounded-xl shadow-2xl w-full max-w-md">
                 <h2 className="text-2xl font-bold mb-6 text-gray-800">Transport Details</h2>
                 <form onSubmit={handleModalSubmit} className="space-y-4">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Transport Name *
-                    </label>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Transport Name *</label>
                     <input
                       type="text"
                       value={transportDetails.transportName}
-                      onChange={(e) => setTransportDetails({...transportDetails, transportName: e.target.value})}
+                      onChange={(e) => setTransportDetails({ ...transportDetails, transportName: e.target.value })}
                       className="w-full p-3 border-2 border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all"
                       required
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      LR Number *
-                    </label>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">LR Number *</label>
                     <input
                       type="text"
                       value={transportDetails.lrNumber}
-                      onChange={(e) => setTransportDetails({...transportDetails, lrNumber: e.target.value})}
+                      onChange={(e) => setTransportDetails({ ...transportDetails, lrNumber: e.target.value })}
                       className="w-full p-3 border-2 border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all"
                       required
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Transport Contact (Optional)
-                    </label>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Transport Contact (Optional)</label>
                     <input
                       type="text"
                       value={transportDetails.transportContact}
-                      onChange={(e) => setTransportDetails({...transportDetails, transportContact: e.target.value})}
+                      onChange={(e) => setTransportDetails({ ...transportDetails, transportContact: e.target.value })}
                       className="w-full p-3 border-2 border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all"
                     />
                   </div>
