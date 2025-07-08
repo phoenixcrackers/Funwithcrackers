@@ -19,7 +19,6 @@ const Pricelist = () => {
   const [appliedPromo, setAppliedPromo] = useState(null)
   const [states, setStates] = useState([])
   const [districts, setDistricts] = useState([])
-  const [invoiceOrderId, setInvoiceOrderId] = useState(null) // Store order_id for download
 
   const styles = {
     card: { background: "linear-gradient(135deg, rgba(255,255,255,0.4), rgba(224,242,254,0.3), rgba(186,230,253,0.2))", backdropFilter: "blur(20px)", border: "1px solid rgba(2,132,199,0.3)", boxShadow: "0 25px 45px rgba(2,132,199,0.1), inset 0 1px 0 rgba(255,255,255,0.4), inset 0 -1px 0 rgba(2,132,199,0.1)" },
@@ -61,34 +60,6 @@ const Pricelist = () => {
     return updated
   }), [])
 
-  const handleDownloadPDF = async () => {
-    if (!invoiceOrderId) return showError("No invoice available to download.")
-    try {
-      const invoiceUrl = `${API_BASE_URL}/api/direct/invoice/${invoiceOrderId}`
-      const filename = `${customerDetails.customer_name.toLowerCase().replace(/\s+/g, '_')}-${invoiceOrderId}.pdf`
-      const pdfResponse = await fetch(invoiceUrl, {
-        method: 'GET',
-        headers: { 'Content-Type': 'application/pdf' },
-      })
-      if (pdfResponse.ok) {
-        const blob = await pdfResponse.blob()
-        const link = document.createElement('a')
-        link.href = window.URL.createObjectURL(blob)
-        link.download = filename
-        document.body.appendChild(link)
-        link.click()
-        document.body.removeChild(link)
-        window.URL.revokeObjectURL(link.href)
-      } else {
-        const errorData = await pdfResponse.json()
-        showError(errorData.message || "Failed to download the invoice PDF.")
-      }
-    } catch (err) {
-      console.error("PDF download error:", err)
-      showError("Something went wrong while downloading the PDF.")
-    }
-  }
-
   const handleFinalCheckout = async () => {
     const order_id = `ORD-${Date.now()}`
     const selectedProducts = Object.entries(cart).map(([serial, qty]) => {
@@ -109,8 +80,6 @@ const Pricelist = () => {
         body: JSON.stringify({ order_id, products: selectedProducts, total: Number.parseFloat(totals.total), customer_type: "User", ...customerDetails }),
       })
       if (response.ok) {
-        const data = await response.json()
-        setInvoiceOrderId(data.order_id) // Store order_id for download
         setShowSuccess(true)
         setTimeout(() => setShowSuccess(false), 6000)
         setCart({})
@@ -187,9 +156,6 @@ const Pricelist = () => {
         <motion.div className="fixed inset-0 flex items-center justify-center z-60 pointer-events-auto" initial={{ opacity: 0, scale: 0.8 }} animate={{ opacity: 1, scale: 1 }} transition={{ duration: 0.5 }}>
           <div className="flex flex-col items-center gap-4 bg-white rounded-xl p-6 shadow-lg" style={styles.modal}>
             <h2 className="text-4xl font-bold bg-gradient-to-r from-green-600 to-emerald-500 bg-clip-text text-transparent drop-shadow-lg">Booked Successfully</h2>
-            <button onClick={handleDownloadPDF} className="px-6 py-3 text-sm font-semibold rounded-xl text-white transition-all duration-300 cursor-pointer" style={{ background: styles.button.background, boxShadow: "0 10px 25px rgba(2,132,199,0.3)" }}>
-              Download Invoice PDF
-            </button>
           </div>
         </motion.div>
       )}
@@ -228,7 +194,7 @@ const Pricelist = () => {
                       </div>
                       {product.image && (
                         <div className="w-full h-30 rounded-2xl mb-4 overflow-hidden" style={{ background: "linear-gradient(135deg, rgba(255,255,255,0.6), rgba(240,249,255,0.4))", backdropFilter: "blur(10px)", border: "1px solid rgba(2,132,199,0.2)" }}>
-                          <img src={`${API_BASE_URL}${product.image}`} alt={product.productname} className="w-full h-full object-contain p-2" />
+                          <img src={product.image} alt={product.productname} className="w-full h-full object-contain p-2" />
                         </div>
                       )}
                       <div className="relative min-h-[3rem] flex items-end justify-end">
@@ -313,7 +279,7 @@ const Pricelist = () => {
                 <motion.div key={serial} initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} className="flex items-center gap-3 border-b pb-3 border-sky-100">
                   {product.image && (
                     <div className="w-16 h-16 rounded-xl overflow-hidden" style={{ background: "linear-gradient(135deg, rgba(255,255,255,0.6), rgba(240,249,255,0.4))", backdropFilter: "blur(10px)", border: "1px solid rgba(2,132,199,0.2)" }}>
-                      <img src={`${API_BASE_URL}${product.image}`} alt={product.productname} className="w-full h-full object-contain p-1" />
+                      <img src={product.image} alt={product.productname} className="w-full h-full object-contain p-1" />
                     </div>
                   )}
                   <div className="flex-1">
