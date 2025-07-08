@@ -102,7 +102,14 @@ const Pricelist = () => {
     setTimeout(() => setShowMinOrderModal(false), 5000)
   }
 
-  const handleCheckoutClick = () => Object.keys(cart).length ? setShowModal(true) : showError("Your cart is empty.")
+  const handleCheckoutClick = () => {
+    if (Object.keys(cart).length) {
+      setShowModal(true)
+      setIsCartOpen(false)
+    } else {
+      showError("Your cart is empty.")
+    }
+  }
 
   const handleInputChange = e => setCustomerDetails(prev => ({ ...prev, [e.target.name]: e.target.value }))
 
@@ -227,12 +234,6 @@ const Pricelist = () => {
           <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="relative rounded-3xl shadow-lg max-w-md w-full mx-4 overflow-hidden" style={styles.modal}>
             <div className="p-6">
               <h2 className="text-2xl font-bold mb-6 text-sky-700 drop-shadow-sm">Enter Customer Details</h2>
-              <div className="mb-4 bg-blue-50 border border-blue-200 rounded-xl p-4 text-sm text-sky-800 font-medium shadow-sm">
-                <p className="mb-2 font-semibold">🚚 Minimum Order Amount by Location:</p>
-                <ul className="list-disc pl-6 space-y-1">
-                  {states.map(s => <li key={s.name}>{s.name}: ₹{s.min_rate}</li>)}
-                </ul>
-              </div>
               <div className="space-y-4">
                 {["customer_name", "address", "mobile_number", "email"].map(field => (
                   <input key={field} name={field} type={field === "email" ? "email" : "text"} placeholder={field.replace(/_/g, " ").toUpperCase()} value={customerDetails[field]} onChange={handleInputChange} className="w-full border border-sky-200 px-4 py-3 rounded-xl text-sm focus:ring-2 focus:ring-sky-400 focus:border-transparent transition-all duration-300" style={styles.input} required />
@@ -297,6 +298,33 @@ const Pricelist = () => {
           )}
         </div>
         <div className="p-4 border-t border-sky-200 sticky bottom-0 space-y-4" style={styles.modal}>
+          <>
+            <div className="overflow-hidden whitespace-nowrap border border-blue-300 bg-blue-50 rounded-xl py-2 px-3 text-sky-900 font-medium text-sm relative">
+              <div className="flex justify-center mb-2">
+                <p className="text-center border-b w-1/2 border-blue-300 flex justify-center">Minimum Purchase Rate</p>
+              </div>
+              <div className="animate-marquee inline-block">
+                🚚 {states.map((s, i) => `${s.name}: ₹${s.min_rate}`).join(" • ")}
+              </div>
+            </div>
+
+            <style jsx>{`
+              .animate-marquee {
+                display: inline-block;
+                white-space: nowrap;
+                animation: marquee 10s linear infinite;
+              }
+
+              @keyframes marquee {
+                0% {
+                  transform: translateX(100%);
+                }
+                100% {
+                  transform: translateX(-100%);
+                }
+              }
+            `}</style>
+          </>
           <div>
             <label className="block text-sm font-medium text-slate-700 mb-1">Promocode</label>
             <div className="flex gap-2">
