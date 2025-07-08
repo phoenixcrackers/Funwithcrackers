@@ -102,7 +102,7 @@ export default function List() {
     const intervalId = setInterval(() => {
       fetchProductTypes();
       fetchProducts();
-    }, 10000);
+    }, 5000); // Changed to 5 seconds
     return () => clearInterval(intervalId);
   }, []);
 
@@ -112,8 +112,7 @@ export default function List() {
     } else {
       setFilteredProducts(products.filter(product => product.product_type === filterType));
     }
-    setCurrentPage(1);
-  }, [filterType, products]);
+  }, [filterType, products]); // Removed setCurrentPage(1)
 
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -305,12 +304,6 @@ export default function List() {
         <div className="max-w-5xl mx-auto">
           <div className="flex justify-between items-center mb-6">
             <h2 className="text-2xl text-center font-bold text-gray-900 mobile:mb-2">List Products</h2>
-            <button
-              onClick={openAddModal}
-              className="rounded-md bg-indigo-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-700"
-            >
-              Add Product
-            </button>
           </div>
           {error && (
             <div className="mb-4 mobile:mb-1 text-red-600 text-sm text-center">{error}</div>
@@ -345,7 +338,9 @@ export default function List() {
                     <th className="px-4 mobile:px-2 py-3 mobile:py-1 text-left text-xs font-medium text-gray-500 uppercase">
                       Product Type
                     </th>
-                    <th className="px-4 mobile:px-2 py-3 mobile:py-1 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-4 mobile:px-2 py-3 mobile:py-1 text-left text-xs font-medium text-gray-500
+
+ uppercase tracking-wider">
                       Serial Number
                     </th>
                     <th className="px-4 mobile:px-2 py-3 mobile:py-1 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
