@@ -15,7 +15,6 @@ export default function List() {
   const [productTypes, setProductTypes] = useState([]);
   const [modalIsOpen, setModalIsOpen] = useState(false);
   const [editModalIsOpen, setEditModalIsOpen] = useState(false);
-  const [addModalIsOpen, setAddModalIsOpen] = useState(false);
   const [viewModalIsOpen, setViewModalIsOpen] = useState(null);
   const [selectedProduct, setSelectedProduct] = useState(null);
   const [error, setError] = useState('');
@@ -27,16 +26,7 @@ export default function List() {
     price: '',
     discount: '',
     per: '',
-    imageBase64: '',
-  });
-  const [addFormData, setAddFormData] = useState({
-    productname: '',
-    serial_number: '',
-    price: '',
-    discount: '',
-    per: '',
-    product_type: '',
-    imageBase64: '',
+    image: null,
   });
   const productsPerPage = 10;
   const menuRef = useRef({});
@@ -143,32 +133,17 @@ export default function List() {
       price: product.price,
       discount: product.discount,
       per: product.per,
-      imageBase64: product.image || '',
+      image: null,
     });
     setEditModalIsOpen(true);
     setViewModalIsOpen(null);
   };
 
-  const openAddModal = () => {
-    setAddFormData({
-      productname: '',
-      serial_number: '',
-      price: '',
-      discount: '',
-      per: '',
-      product_type: '',
-      imageBase64: '',
-    });
-    setAddModalIsOpen(true);
-  };
-
   const closeModal = () => {
     setModalIsOpen(false);
     setEditModalIsOpen(false);
-    setAddModalIsOpen(false);
     setViewModalIsOpen(null);
     setSelectedProduct(null);
-    setError('');
   };
 
   const handleDelete = async (product) => {
@@ -187,14 +162,22 @@ export default function List() {
   const handleEditSubmit = async (e) => {
     e.preventDefault();
     try {
-      const response = await fetch(`${API_BASE_URL}/api/products/${selectedProduct.product_type.toLowerCase().replace(/\s+/g, '_')}/${selectedProduct.id}`, {
+      const formData = new FormData();
+      formData.append('productname', editFormData.productname);
+      formData.append('serial_number', editFormData.serial_number);
+      formData.append('price', editFormData.price);
+      formData.append('discount', editFormData.discount);
+      formData.append('per', editFormData.per);
+      if (editFormData.image) {
+        formData.append('image', editFormData.image);
+      }
+      const tableName = selectedProduct.product_type.toLowerCase().replace(/\s+/g, '_');
+      const response = await fetch(`${API_BASE_URL}/api/products/${tableName}/${selectedProduct.id}`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(editFormData),
+        body: formData,
       });
-      const data = await response.json();
       if (!response.ok) {
-        throw new Error(data.message || 'Failed to update product');
+        throw new Error('Failed to update product');
       }
       fetchProducts();
       closeModal();
@@ -203,56 +186,13 @@ export default function List() {
     }
   };
 
-  const handleAddSubmit = async (e) => {
-    e.preventDefault();
-    try {
-      const response = await fetch(`${API_BASE_URL}/api/products`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(addFormData),
-      });
-      const data = await response.json();
-      if (!response.ok) {
-        throw new Error(data.message || 'Failed to add product');
-      }
-      fetchProducts();
-      closeModal();
-    } catch (err) {
-      setError(err.message);
-    }
-  };
-
-  const handleInputChange = (e, formType = 'edit') => {
+  const handleInputChange = (e) => {
     const { name, value } = e.target;
-    if (formType === 'edit') {
-      setEditFormData(prev => ({ ...prev, [name]: value }));
-    } else {
-      setAddFormData(prev => ({ ...prev, [name]: value }));
-    }
+    setEditFormData(prev => ({ ...prev, [name]: value }));
   };
 
-  const handleImageChange = (e, formType = 'edit') => {
-    const file = e.target.files[0];
-    if (file) {
-      if (!['image/png', 'image/jpeg'].includes(file.type)) {
-        setError('Only PNG or JPEG images are allowed');
-        return;
-      }
-      if (file.size > 1000000) {
-        setError('Image size must be less than 1MB');
-        return;
-      }
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        if (formType === 'edit') {
-          setEditFormData(prev => ({ ...prev, imageBase64: reader.result }));
-        } else {
-          setAddFormData(prev => ({ ...prev, imageBase64: reader.result }));
-        }
-        setError('');
-      };
-      reader.readAsDataURL(file);
-    }
+  const handleImageChange = (e) => {
+    setEditFormData(prev => ({ ...prev, image: e.target.files[0] }));
   };
 
   const handleToggleChange = async (product) => {
@@ -303,15 +243,7 @@ export default function List() {
       <Logout />
       <div className="flex-1 md:ml-64 p-6 mobile:p-8 overflow-hidden">
         <div className="max-w-5xl mx-auto">
-          <div className="flex justify-between items-center mb-6">
-            <h2 className="text-2xl text-center font-bold text-gray-900 mobile:mb-2">List Products</h2>
-            <button
-              onClick={openAddModal}
-              className="rounded-md bg-indigo-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-700"
-            >
-              Add Product
-            </button>
-          </div>
+          <h2 className="text-2xl text-center font-bold text-gray-900 mb-6 mobile:mb-2">List Products</h2>
           {error && (
             <div className="mb-4 mobile:mb-1 text-red-600 text-sm text-center">{error}</div>
           )}
@@ -400,7 +332,7 @@ export default function List() {
                         <td className="px-4 mobile:px-2 py-3 mobile:py-1 whitespace-nowrap text-center">
                           {product.image ? (
                             <img
-                              src={product.image}
+                              src={`${API_BASE_URL}${product.image}`}
                               alt={product.productname}
                               className="h-12 w-12 mobile:h-8 mobile:w-8 object-cover rounded-md mx-auto"
                             />
@@ -531,7 +463,7 @@ export default function List() {
                   <div className="flex justify-center">
                     {selectedProduct.image ? (
                       <img
-                        src={selectedProduct.image}
+                        src={`${API_BASE_URL}${selectedProduct.image}`}
                         alt={selectedProduct.productname}
                         className="h-24 w-24 mobile:h-16 mobile:w-16 anum-mobile:h-12 object-cover rounded-md"
                       />
@@ -553,7 +485,7 @@ export default function List() {
                       <span className="ml-2 text-gray-900 text-xs sm:text-sm">{selectedProduct.productname}</span>
                     </div>
                     <div>
-                      <span className="font-medium text-gray-700 text-xs sm:text-sm">Price:</span>
+                      <span coverings="font-medium text-gray-700 text-xs sm:text-sm">Price:</span>
                       <span className="ml-2 text-gray-900 text-xs sm:text-sm">₹{parseFloat(selectedProduct.price).toFixed(2)}</span>
                     </div>
                     <div>
@@ -598,7 +530,7 @@ export default function List() {
                     type="text"
                     name="productname"
                     value={editFormData.productname}
-                    onChange={(e) => handleInputChange(e, 'edit')}
+                    onChange={handleInputChange}
                     className="mt-1 mobile:mt-0.5 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-600 focus:ring-indigo-600 sm:text-sm"
                     required
                   />
@@ -609,7 +541,7 @@ export default function List() {
                     type="text"
                     name="serial_number"
                     value={editFormData.serial_number}
-                    onChange={(e) => handleInputChange(e, 'edit')}
+                    onChange={handleInputChange}
                     className="mt-1 mobile:mt-0.5 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-600 focus:ring-indigo-600 sm:text-sm"
                     required
                   />
@@ -620,7 +552,7 @@ export default function List() {
                     type="number"
                     name="price"
                     value={editFormData.price}
-                    onChange={(e) => handleInputChange(e, 'edit')}
+                    onChange={handleInputChange}
                     className="mt-1 mobile:mt-0.5 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-600 focus:ring-indigo-600 sm:text-sm"
                     required
                     step="0.01"
@@ -632,7 +564,7 @@ export default function List() {
                     type="number"
                     name="discount"
                     value={editFormData.discount}
-                    onChange={(e) => handleInputChange(e, 'edit')}
+                    onChange={handleInputChange}
                     className="mt-1 mobile:mt-0.5 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-600 focus:ring-indigo-600 sm:text-sm"
                     required
                     step="0.01"
@@ -643,7 +575,7 @@ export default function List() {
                   <select
                     name="per"
                     value={editFormData.per}
-                    onChange={(e) => handleInputChange(e, 'edit')}
+                    onChange={handleInputChange}
                     className="mt-1 mobile:mt-0.5 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-600 focus:ring-indigo-600 sm:text-sm"
                     required
                   >
@@ -657,17 +589,10 @@ export default function List() {
                   <input
                     type="file"
                     name="image"
-                    onChange={(e) => handleImageChange(e, 'edit')}
+                    onChange={handleImageChange}
                     accept="image/jpeg,image/png"
                     className="mt-1 mobile:mt-0.5 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-600 focus:ring-indigo-600 sm:text-sm"
                   />
-                  {editFormData.imageBase64 && (
-                    <img
-                      src={editFormData.imageBase64}
-                      alt="Preview"
-                      className="mt-2 h-24 w-24 object-cover rounded-md"
-                    />
-                  )}
                 </div>
                 <div className="mt-6 mobile:mt-3 flex justify-end space-x-2 mobile:space-x-1">
                   <button
@@ -682,124 +607,6 @@ export default function List() {
                     className="rounded-md bg-indigo-600 px-3 mobile:px-2 py-2 mobile:py-1 text-xs sm:text-sm font-semibold text-white shadow-sm hover:bg-indigo-700"
                   >
                     Save
-                  </button>
-                </div>
-              </form>
-            </div>
-          </Modal>
-          <Modal
-            isOpen={addModalIsOpen}
-            onRequestClose={closeModal}
-            className="fixed inset-0 flex items-center justify-center p-4 mobile:p-2"
-            overlayClassName="fixed inset-0 bg-black/50"
-          >
-            <div className="bg-white rounded-lg p-6 mobile:p-3 max-w-md w-full sm:max-w-lg">
-              <h2 className="text-lg sm:text-xl font-semibold text-gray-900 mb-4 mobile:mb-2 text-center">
-                Add Product
-              </h2>
-              <form onSubmit={handleAddSubmit} className="space-y-4 mobile:space-y-2">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">Product Type</label>
-                  <input
-                    type="text"
-                    name="product_type"
-                    value={addFormData.product_type}
-                    onChange={(e) => handleInputChange(e, 'add')}
-                    className="mt-1 mobile:mt-0.5 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-600 focus:ring-indigo-600 sm:text-sm"
-                    required
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">Product Name</label>
-                  <input
-                    type="text"
-                    name="productname"
-                    value={addFormData.productname}
-                    onChange={(e) => handleInputChange(e, 'add')}
-                    className="mt-1 mobile:mt-0.5 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-600 focus:ring-indigo-600 sm:text-sm"
-                    required
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">Serial Number</label>
-                  <input
-                    type="text"
-                    name="serial_number"
-                    value={addFormData.serial_number}
-                    onChange={(e) => handleInputChange(e, 'add')}
-                    className="mt-1 mobile:mt-0.5 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-600 focus:ring-indigo-600 sm:text-sm"
-                    required
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">Price</label>
-                  <input
-                    type="number"
-                    name="price"
-                    value={addFormData.price}
-                    onChange={(e) => handleInputChange(e, 'add')}
-                    className="mt-1 mobile:mt-0.5 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-600 focus:ring-indigo-600 sm:text-sm"
-                    required
-                    step="0.01"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">Discount (%)</label>
-                  <input
-                    type="number"
-                    name="discount"
-                    value={addFormData.discount}
-                    onChange={(e) => handleInputChange(e, 'add')}
-                    className="mt-1 mobile:mt-0.5 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-600 focus:ring-indigo-600 sm:text-sm"
-                    required
-                    step="0.01"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">Per</label>
-                  <select
-                    name="per"
-                    value={addFormData.per}
-                    onChange={(e) => handleInputChange(e, 'add')}
-                    className="mt-1 mobile:mt-0.5 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-600 focus:ring-indigo-600 sm:text-sm"
-                    required
-                  >
-                    <option value="">Select Unit</option>
-                    <option value="pieces">Pieces</option>
-                    <option value="box">Box</option>
-                    <option value="pkt">Packet</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">Image</label>
-                  <input
-                    type="file"
-                    name="image"
-                    onChange={(e) => handleImageChange(e, 'add')}
-                    accept="image/jpeg,image/png"
-                    className="mt-1 mobile:mt-0.5 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-600 focus:ring-indigo-600 sm:text-sm"
-                  />
-                  {addFormData.imageBase64 && (
-                    <img
-                      src={addFormData.imageBase64}
-                      alt="Preview"
-                      className="mt-2 h-24 w-24 object-cover rounded-md"
-                    />
-                  )}
-                </div>
-                <div className="mt-6 mobile:mt-3 flex justify-end space-x-2 mobile:space-x-1">
-                  <button
-                    type="button"
-                    onClick={closeModal}
-                    className="rounded-md bg-gray-600 px-3 mobile:px-2 py-2 mobile:py-1 text-xs sm:text-sm font-semibold text-white shadow-sm hover:bg-gray-700"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="submit"
-                    className="rounded-md bg-indigo-600 px-3 mobile:px-2 py-2 mobile:py-1 text-xs sm:text-sm font-semibold text-white shadow-sm hover:bg-indigo-700"
-                  >
-                    Add
                   </button>
                 </div>
               </form>
