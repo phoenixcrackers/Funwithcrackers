@@ -115,7 +115,7 @@ export default function Home() {
                     <h3 className="text-lg font-bold text-slate-800 group-hover:text-slate-900 transition-colors duration-500 drop-shadow-sm line-clamp-2 mb-2 mobile:text-sm">{product.productname}</h3>
                     <div className="space-y-1 mb-4"><p className="text-sm text-slate-500 line-through mobile:text-xs">MRP: ₹{originalPrice}</p><p className="text-xl font-bold text-sky-700 group-hover:text-sky-800 transition-colors duration-500 mobile:text-base">₹{finalPrice} / {product.per}</p></div>
                     {product.image && (
-                      <div className="w-full h-30 rounded-2xl mb-4 overflow-hidden" style={{ background: "linear-gradient(135deg, rgba(255,255,255,0.6) 0%, rgba(240,249,255,0.4) 100%)", backdropFilter: "blur(10px)", border: "1px solid rgba(2,132,199,0.2)" }}><img src={`${API_BASE_URL}${product.image}`} alt={product.productname} className="w-full h-full object-contain p-2" /></div>
+                      <div className="w-full h-30 rounded-2xl mb-4 overflow-hidden" style={{ background: "linear-gradient(135deg, rgba(255,255,255,0.6) 0%, rgba(240,249,255,0.4) 100%)", backdropFilter: "blur(10px)", border: "1px solid rgba(2,132,199,0.2)" }}><img src={product.image} alt={product.productname} className="w-full h-full object-contain p-2" /></div>
                     )}
                     <div className="relative min-h-[3rem] flex items-center justify-center translate-x-3 mobile:min-h-[2rem] w-52">
                       <motion.button onClick={() => navigate("/price-list")} initial={{ scale: 0.8, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }} transition={{ duration: 0.3, ease: "easeOut" }} className="w-full cursor-pointer flex justify-center text-white font-semibold py-2 rounded-lg transition-all duration-300 mobile:text-sm mobile:py-1" style={{ background: "linear-gradient(135deg, rgba(2,132,199,0.9) 0%, rgba(14,165,233,0.95) 100%)", backdropFilter: "blur(15px)", border: "1px solid rgba(125,211,252,0.4)", boxShadow: "0 15px 35px rgba(2,132,199,0.25), inset 0 1px 0 rgba(255,255,255,0.2)" }} onMouseEnter={(e) => { e.currentTarget.style.background = "linear-gradient(135deg, rgba(14,165,233,1) 0%, rgba(2,132,199,1) 100%)"; e.currentTarget.style.boxShadow = "0 8px 24px rgba(2,132,199,0.4)"; }} onMouseLeave={(e) => { e.currentTarget.style.background = "linear-gradient(135deg, rgba(2,132,199,0.9) 0%, rgba(14,165,233,0.95) 100%)"; e.currentTarget.style.boxShadow = "0 15px 35px rgba(2,132,199,0.25)"; }}>Enquire Now</motion.button>
@@ -171,7 +171,7 @@ export default function Home() {
           </div>
         </div>
       </section>
-      <section className="py-32 mobile:-translate-y-80 px-4 sm:px-6 relative overflow-hidden">
+      <section className="py-32 mobile:-translate-y-70 px-4 sm:px-6 relative overflow-hidden">
         <div className="max-w-7xl mx-auto flex flex-col lg:flex-row items-center gap-16 relative z-10">
           <motion.div initial={{ opacity: 0, x: -100 }} whileInView={{ opacity: 1, x: 0 }} transition={{ duration: 1 }} viewport={{ once: true }} className="flex-1 space-y-8">
             <motion.p initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} transition={{ duration: 0.8 }} viewport={{ once: true }} className="text-sky-600 text-sm font-semibold uppercase tracking-wider mb-4">Why Choose Us</motion.p>
