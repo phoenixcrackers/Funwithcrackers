@@ -194,7 +194,7 @@ const Pricelist = () => {
                       </div>
                       {product.image && (
                         <div className="w-full h-30 rounded-2xl mb-4 overflow-hidden" style={{ background: "linear-gradient(135deg, rgba(255,255,255,0.6), rgba(240,249,255,0.4))", backdropFilter: "blur(10px)", border: "1px solid rgba(2,132,199,0.2)" }}>
-                          <img src={`${API_BASE_URL}${product.image}`} alt={product.productname} className="w-full h-full object-contain p-2" />
+                          <img src={product.image} alt={product.productname} className="w-full h-full object-contain p-2" />
                         </div>
                       )}
                       <div className="relative min-h-[3rem] flex items-end justify-end">
@@ -279,7 +279,7 @@ const Pricelist = () => {
                 <motion.div key={serial} initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} className="flex items-center gap-3 border-b pb-3 border-sky-100">
                   {product.image && (
                     <div className="w-16 h-16 rounded-xl overflow-hidden" style={{ background: "linear-gradient(135deg, rgba(255,255,255,0.6), rgba(240,249,255,0.4))", backdropFilter: "blur(10px)", border: "1px solid rgba(2,132,199,0.2)" }}>
-                      <img src={`${API_BASE_URL}${product.image}`} alt={product.productname} className="w-full h-full object-contain p-1" />
+                      <img src={product.image} alt={product.productname} className="w-full h-full object-contain p-1" />
                     </div>
                   )}
                   <div className="flex-1">
