@@ -42,17 +42,20 @@ export default function List() {
   const menuRef = useRef({});
 
   const fetchProductTypes = async () => {
-    try {
-      const response = await fetch(`${API_BASE_URL}/api/product-types`);
-      const data = await response.json();
-      if (!response.ok) {
-        throw new Error(data.message || 'Failed to fetch product types');
-      }
-      setProductTypes(data.map(item => item.product_type));
-    } catch (err) {
-      setError(err.message);
+  try {
+    const response = await fetch(`${API_BASE_URL}/api/product-types`);
+    const data = await response.json();
+    if (!response.ok) {
+      throw new Error(data.message || 'Failed to fetch product types');
     }
-  };
+    const filteredTypes = data
+      .map(item => item.product_type)
+      .filter(type => type !== 'gift_box_dealers');
+    setProductTypes(filteredTypes);
+  } catch (err) {
+    setError(err.message);
+  }
+};
 
   const fetchProducts = async () => {
     try {

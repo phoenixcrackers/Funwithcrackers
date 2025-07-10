@@ -17,6 +17,7 @@ import Contact from './Home/Contact';
 import Booking from './Home/Booking';
 import Pricelist from './Home/Pricelist';
 import Promocode from './Admin/Promo/Promocode';
+import Dealers from './Admin/Dealers/Dealers';
 
 const AllRoutes = () => {
   return (
@@ -40,6 +41,7 @@ const AllRoutes = () => {
         <Route path="/dispatch-customers" element={<Dispatch />} />
         <Route path="/banner" element={<Banner />} />
         <Route path="/promo-code" element={<Promocode />} />
+        <Route path="/dealers" element={<Dealers />} />
       </Route>
     </Routes>
   );

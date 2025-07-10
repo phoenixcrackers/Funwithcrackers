@@ -7,6 +7,7 @@ export default function Sidebar() {
 
   const navItems = [
     { name: 'Inventory', path: '/inventory', icon: <FaBox className="mr-2" /> },
+    { name: 'Gift Box Inventory', path: '/dealers', icon: <FaBox className="mr-2" /> },
     { name: 'Listing', path: '/listing', icon: <FaList className="mr-2" /> },
     { name: 'Promo Code', path: '/promo-code', icon: <FaTag className="mr-2" /> },
     { name: 'Banner', path: '/banner', icon: <FaImage className="mr-2" /> },
