@@ -36,10 +36,12 @@ export default function List() {
     }
   };
 
-  const fetchProductTypes = () => fetchData(`${API_BASE_URL}/api/product-types`, 'Failed to fetch product types', data => setProductTypes(data.map(item => item.product_type)));
+  const fetchProductTypes = () => fetchData(`${API_BASE_URL}/api/product-types`, 'Failed to fetch product types', data => setProductTypes(data.filter(item => item.product_type !== 'gift_box_dealers').map(item => item.product_type)));
 
   const fetchProducts = () => fetchData(`${API_BASE_URL}/api/products`, 'Failed to fetch products', data => {
-    const normalizedData = data.map(product => ({
+  const normalizedData = data
+    .filter(product => product.product_type !== 'gift_box_dealers')
+    .map(product => ({
       ...product,
       images: product.image ? (Array.isArray(JSON.parse(product.image)) ? JSON.parse(product.image) : [product.image]) : [],
     }));
@@ -192,9 +194,7 @@ export default function List() {
   return (
     <div className="flex min-h-screen overflow-hidden mobile:overflow-hidden">
       <Sidebar />
-      <div className='mobile:-translate-x-10'>
-        <Logout />
-      </div>
+      <Logout />
       <div className="flex-1 md:ml-64 p-6 mobile:p-8 overflow-hidden">
         <div className="max-w-5xl mx-auto">
           <h2 className="text-2xl text-center font-bold text-gray-900 mb-6 mobile:mb-2">List Products</h2>
