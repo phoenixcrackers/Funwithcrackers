@@ -80,7 +80,6 @@ const Carousel = ({ media }) => {
 
   const handleTouchMove = (e) => {
     if (!isDragging) return
-    e.preventDefault()
   }
 
   const handleTouchEnd = (e) => {
@@ -284,14 +283,11 @@ const Pricelist = () => {
   const handleInputChange = e => setCustomerDetails(prev => ({ ...prev, [e.target.name]: e.target.value }))
 
   const handleShowDetails = useCallback((product) => {
-    console.log("handleShowDetails called with product:", product)
     setSelectedProduct(product)
     setShowDetailsModal(true)
-    console.log("showDetailsModal set to:", true, "selectedProduct set to:", product)
   }, [])
 
   const handleCloseDetails = useCallback(() => {
-    console.log("handleCloseDetails called")
     setSelectedProduct(null)
     setShowDetailsModal(false)
   }, [])

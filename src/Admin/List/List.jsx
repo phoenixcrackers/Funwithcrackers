@@ -192,9 +192,7 @@ export default function List() {
   return (
     <div className="flex min-h-screen overflow-hidden mobile:overflow-hidden">
       <Sidebar />
-      <div className='mobile:-translate-x-10'>
-        <Logout />
-      </div>
+      <Logout />
       <div className="flex-1 md:ml-64 p-6 mobile:p-8 overflow-hidden">
         <div className="max-w-5xl mx-auto">
           <h2 className="text-2xl text-center font-bold text-gray-900 mb-6 mobile:mb-2">List Products</h2>

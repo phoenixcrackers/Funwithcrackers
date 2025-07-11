@@ -203,8 +203,7 @@ export default function Contact() {
       title: "Mobile Number",
       content: [
         { text: "+91 63836 59214", href: "tel:+916383659214" },
-        { text: "+91 63836 59214", href: "tel:+916383659214" },
-        { text: "+91 63836 59214", href: "tel:+916383659214" },
+        { text: "+91 96554 56167", href: "tel:+919655456167" },
       ],
     },
     {

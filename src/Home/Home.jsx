@@ -1,8 +1,9 @@
-import { useState, useEffect, useRef } from "react"
+import { useState, useEffect, useRef, useMemo } from "react"
 import { useNavigate } from "react-router-dom"
 import { Sparkles, Rocket, Volume2, Bomb, Disc, CloudSun, Heart, SmilePlus, Clock } from "lucide-react"
-import { motion, useScroll, useTransform } from "framer-motion"
+import { motion, useScroll, useTransform, AnimatePresence } from "framer-motion"
 import { useInView } from "react-intersection-observer"
+import { FaInfoCircle, FaArrowLeft, FaArrowRight } from "react-icons/fa"
 import Navbar from '../Component/Navbar'
 import "../App.css"
 import { API_BASE_URL } from "../../Config"
@@ -22,6 +23,120 @@ const statsData = [
   { label: "Days Of Crackers", value: 365, icon: Clock },
 ]
 const navLinks = ["Home", "About Us", "Price List", "Safety Tips", "Contact Us"]
+
+const Carousel = ({ media }) => {
+  const [currentIndex, setCurrentIndex] = useState(0)
+  const [isDragging, setIsDragging] = useState(false)
+  const [startX, setStartX] = useState(0)
+  const dragRef = useRef(null)
+
+  const mediaItems = useMemo(() => {
+    const items = media && typeof media === 'string' ? JSON.parse(media) : (Array.isArray(media) ? media : [])
+    return items.sort((a, b) => {
+      const aStr = typeof a === 'string' ? a : ''
+      const bStr = typeof b === 'string' ? b : ''
+      const isAVideo = aStr.startsWith('data:video/')
+      const isBVideo = bStr.startsWith('data:video/')
+      const isAGif = aStr.startsWith('data:image/gif') || aStr.toLowerCase().endsWith('.gif')
+      const isBGif = bStr.startsWith('data:image/gif') || bStr.toLowerCase().endsWith('.gif')
+      const isAImage = aStr.startsWith('data:image/') && !isAGif
+      const isBImage = bStr.startsWith('data:image/') && !isBGif
+
+      const getPriority = (isImage, isGif, isVideo) => {
+        if (isImage) return 0
+        if (isGif) return 1
+        if (isVideo) return 2
+        return 3
+      }
+
+      return getPriority(isAImage, isAGif, isAVideo) - getPriority(isBImage, isBGif, isBVideo)
+    })
+  }, [media])
+
+  const isVideo = (item) => typeof item === 'string' && item.startsWith('data:video/')
+  const getVideoPreview = () => '/video-preview-placeholder.png'
+
+  const handlePrev = () => setCurrentIndex((prev) => (prev === 0 ? mediaItems.length - 1 : prev - 1))
+  const handleNext = () => setCurrentIndex((prev) => (prev === mediaItems.length - 1 ? 0 : prev + 1))
+
+  const handleTouchStart = (e) => {
+    setIsDragging(true)
+    setStartX(e.touches[0].clientX)
+  }
+
+  const handleTouchMove = (e) => {
+    if (!isDragging) return
+  }
+
+  const handleTouchEnd = (e) => {
+    if (!isDragging) return
+    setIsDragging(false)
+    const endX = e.changedTouches[0].clientX
+    const diffX = startX - endX
+    const threshold = 50
+
+    if (diffX > threshold) {
+      setCurrentIndex((prev) => (prev === mediaItems.length - 1 ? 0 : prev + 1))
+    } else if (diffX < -threshold) {
+      setCurrentIndex((prev) => (prev === 0 ? mediaItems.length - 1 : prev - 1))
+    }
+  }
+
+  if (!mediaItems || mediaItems.length === 0) {
+    return <div className="w-full h-30 rounded-2xl mb-4 overflow-hidden bg-gray-200 flex items-center justify-center">No media available</div>
+  }
+
+  return (
+    <div
+      className="relative w-full h-30 rounded-2xl mb-4 overflow-hidden select-none"
+      style={{ background: "linear-gradient(135deg, rgba(255,255,255,0.6) 0%, rgba(240,249,255,0.4) 100%)", backdropFilter: "blur(10px)", border: "1px solid rgba(2,132,199,0.2)" }}
+      onTouchStart={handleTouchStart}
+      onTouchMove={handleTouchMove}
+      onTouchEnd={handleTouchEnd}
+      ref={dragRef}
+    >
+      {isVideo(mediaItems[currentIndex]) ? (
+        <video
+          src={mediaItems[currentIndex]}
+          autoPlay
+          muted
+          loop
+          className="w-full h-full object-contain p-2"
+        />
+      ) : (
+        <img src={mediaItems[currentIndex] || "/placeholder.svg"} alt="Product" className="w-full h-full object-contain p-2" />
+      )}
+      {mediaItems.length > 1 && (
+        <>
+          <button
+            onClick={handlePrev}
+            className="mobile:hidden sm:flex absolute left-2 top-1/2 transform -translate-y-1/2 w-8 h-8 rounded-full bg-white/80 text-sky-700 flex items-center justify-center text-lg opacity-100 z-10 hover:bg-sky-700 hover:text-white cursor-pointer"
+            style={{ boxShadow: "0 4px 10px rgba(0,0,0,0.2)" }}
+            aria-label="Previous media"
+          >
+            <FaArrowLeft />
+          </button>
+          <button
+            onClick={handleNext}
+            className="mobile:hidden sm:flex absolute right-2 top-1/2 transform -translate-y-1/2 w-8 h-8 rounded-full bg-white/80 text-sky-700 flex items-center justify-center text-lg opacity-100 z-10 hover:bg-sky-700 hover:text-white cursor-pointer"
+            style={{ boxShadow: "0 4px 10px rgba(0,0,0,0.2)" }}
+            aria-label="Next media"
+          >
+            <FaArrowRight />
+          </button>
+          <div className="absolute bottom-2 left-1/2 transform -translate-x-1/2 flex gap-1 z-10">
+            {mediaItems.map((_, index) => (
+              <div
+                key={index}
+                className={`w-2 h-2 rounded-full ${index === currentIndex ? 'bg-sky-700' : 'bg-gray-300'}`}
+              />
+            ))}
+          </div>
+        </>
+      )}
+    </div>
+  )
+}
 
 function StatCard({ icon: Icon, value, label, delay }) {
   const [count, setCount] = useState(0)
@@ -51,12 +166,30 @@ export default function Home() {
   const [banners, setBanners] = useState([])
   const [currentSlide, setCurrentSlide] = useState(0)
   const [fastRunningProducts, setFastRunningProducts] = useState([])
+  const [selectedProduct, setSelectedProduct] = useState(null)
+  const [showDetailsModal, setShowDetailsModal] = useState(false)
   const containerRef = useRef(null)
   const { scrollYProgress } = useScroll({ target: containerRef, offset: ["start start", "end start"] })
   const heroY = useTransform(scrollYProgress, [0, 1], ["0%", "50%"])
   const heroOpacity = useTransform(scrollYProgress, [0, 0.5], [1, 0])
   const aboutY = useTransform(scrollYProgress, [0, 1], ["0%", "-20%"])
   const navigate = useNavigate()
+
+  const styles = { 
+    modal: { background: "linear-gradient(135deg, rgba(255,255,255,0.95), rgba(240,249,255,0.9))", backdropFilter: "blur(20px)", border: "1px solid rgba(2,132,199,0.3)", boxShadow: "0 25px 45px rgba(2,132,199,0.2)" },
+    button: { background: "linear-gradient(135deg, rgba(2,132,199,0.9), rgba(14,165,233,0.95))", backdropFilter: "blur(15px)", border: "1px solid rgba(125,211,252,0.4)", boxShadow: "0 15px 35px rgba(2,132,199,0.3), inset 0 1px 0 rgba(255,255,255,0.2)" }
+  }
+
+  const handleShowDetails = (product) => {
+    setSelectedProduct(product)
+    setShowDetailsModal(true)
+  }
+
+  const handleCloseDetails = () => {
+    setSelectedProduct(null)
+    setShowDetailsModal(false)
+  }
+
   useEffect(() => {
     const fetchBanners = () => {
       fetch(`${API_BASE_URL}/api/banners`)
@@ -68,6 +201,7 @@ export default function Home() {
     const interval = setInterval(fetchBanners, 1200 * 1000)
     return () => clearInterval(interval)
   }, [])
+
   useEffect(() => {
     const fetchFastProducts = () => {
       fetch(`${API_BASE_URL}/api/products`)
@@ -79,13 +213,40 @@ export default function Home() {
     const interval = setInterval(fetchFastProducts, 5 * 1000)
     return () => clearInterval(interval)
   }, [])
+
   useEffect(() => {
     const interval = setInterval(() => setCurrentSlide((prev) => (prev + 1) % banners.length), 4000)
     return () => clearInterval(interval)
   }, [banners])
+
   return (
     <div ref={containerRef} className="min-h-screen text-slate-800 overflow-x-hidden" style={{ background: "linear-gradient(135deg, #fef7ff 0%, #f0f9ff 25%, #ecfdf5 50%, #fef3c7 75%, #fef7ff 100%)", minHeight: "100vh" }}>
       <Navbar />
+      {showDetailsModal && selectedProduct && (
+        <div className="fixed inset-0 bg-black/50 z-55 flex items-center justify-center details-modal">
+          <motion.div 
+            initial={{ scale: 0.9, opacity: 0 }} 
+            animate={{ scale: 1, opacity: 1 }} 
+            className="relative rounded-3xl shadow-lg max-w-md w-full mx-4 overflow-hidden" 
+            style={styles.modal}
+          >
+            <div className="p-6">
+              <div className="flex justify-between items-center mb-4">
+                <h2 className="text-2xl font-bold text-sky-700 drop-shadow-sm">{selectedProduct.productname}</h2>
+                <button onClick={handleCloseDetails} className="text-gray-600 hover:text-red-500 text-xl cursor-pointer" aria-label="Close details modal">×</button>
+              </div>
+              <Carousel media={selectedProduct.image} />
+              <div className="mt-4">
+                <h3 className="text-lg font-semibold text-slate-800">Description</h3>
+                <p className="text-sm text-slate-600 mt-2">{selectedProduct.description || "No description available."}</p>
+              </div>
+              <div className="mt-6 flex justify-end">
+                <button onClick={handleCloseDetails} className="px-6 py-3 text-sm font-semibold rounded-xl text-white transition-all duration-300 cursor-pointer" style={{ background: styles.button.background, boxShadow: "0 10px 25px rgba(2,132,199,0.3)" }}>Close</button>
+              </div>
+            </div>
+          </motion.div>
+        </div>
+      )}
       <motion.div style={{ y: heroY, opacity: heroOpacity }} className="relative max-w-8xl mt-[100px] h-[350px] hundred:h-[500px] onefifty:h-[350px] overflow-hidden rounded-3xl mx-4 md:mx-8">
         <div className="absolute inset-0 z-10 rounded-3xl"></div>
         {banners.map((banner, idx) => (
@@ -109,13 +270,22 @@ export default function Home() {
             return (
               <motion.div key={product.serial_number} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} whileHover={{ y: -8, scale: 1.02 }} className="group relative rounded-3xl p-6 overflow-hidden cursor-pointer transition-all duration-500 mobile:p-3 min-w-[300px] mobile:min-w-[250px] snap-center" style={{ background: "linear-gradient(135deg, rgba(255,255,255,0.4) 0%, rgba(224,242,254,0.3) 50%, rgba(186,230,253,0.2) 100%)", backdropFilter: "blur(20px)", border: "1px solid rgba(2,132,199,0.3)", boxShadow: "0 25px 45px rgba(2,132,199,0.1), inset 0 1px 0 rgba(255,255,255,0.4), inset 0 -1px 0 rgba(2,132,199,0.1)" }}>
                 <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-700" style={{ background: "linear-gradient(135deg, rgba(2,132,199,0.3) 0%, transparent 50%, rgba(14,165,233,0.2) 100%)" }} />
+                <motion.button 
+                  onClick={() => handleShowDetails(product)} 
+                  className="absolute cursor-pointer right-2 top-2 bg-sky-500 text-white mobile:text-md hundred:text-2xl font-bold hundred:w-8 hundred:h-8 mobile:w-6 mobile:h-6 rounded-full flex items-center justify-center hover:bg-sky-700 transition-all duration-300 z-20 pointer-events-auto" 
+                  whileHover={{ scale: 1.1 }} 
+                  whileTap={{ scale: 0.9 }} 
+                  aria-label="View product details"
+                >
+                  <FaInfoCircle />
+                </motion.button>
                 <div className="relative z-10 flex">
                   <div className="absolute left-0 top-0 bg-red-500 text-white text-xs font-bold px-2 py-1 rounded-br-lg rounded-tl-lg mobile:text-[10px] mobile:px-1.5 mobile:py-0.5">{product.discount}% OFF</div>
                   <div className="flex-1 mt-5">
                     <h3 className="text-lg font-bold text-slate-800 group-hover:text-slate-900 transition-colors duration-500 drop-shadow-sm line-clamp-2 mb-2 mobile:text-sm">{product.productname}</h3>
                     <div className="space-y-1 mb-4"><p className="text-sm text-slate-500 line-through mobile:text-xs">MRP: ₹{originalPrice}</p><p className="text-xl font-bold text-sky-700 group-hover:text-sky-800 transition-colors duration-500 mobile:text-base">₹{finalPrice} / {product.per}</p></div>
                     {product.image && (
-                      <div className="w-full h-30 rounded-2xl mb-4 overflow-hidden" style={{ background: "linear-gradient(135deg, rgba(255,255,255,0.6) 0%, rgba(240,249,255,0.4) 100%)", backdropFilter: "blur(10px)", border: "1px solid rgba(2,132,199,0.2)" }}><img src={product.image} alt={product.productname} className="w-full h-full object-contain p-2" /></div>
+                      <Carousel media={product.image} />
                     )}
                     <div className="relative min-h-[3rem] flex items-center justify-center translate-x-3 mobile:min-h-[2rem] w-52">
                       <motion.button onClick={() => navigate("/price-list")} initial={{ scale: 0.8, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }} transition={{ duration: 0.3, ease: "easeOut" }} className="w-full cursor-pointer flex justify-center text-white font-semibold py-2 rounded-lg transition-all duration-300 mobile:text-sm mobile:py-1" style={{ background: "linear-gradient(135deg, rgba(2,132,199,0.9) 0%, rgba(14,165,233,0.95) 100%)", backdropFilter: "blur(15px)", border: "1px solid rgba(125,211,252,0.4)", boxShadow: "0 15px 35px rgba(2,132,199,0.25), inset 0 1px 0 rgba(255,255,255,0.2)" }} onMouseEnter={(e) => { e.currentTarget.style.background = "linear-gradient(135deg, rgba(14,165,233,1) 0%, rgba(2,132,199,1) 100%)"; e.currentTarget.style.boxShadow = "0 8px 24px rgba(2,132,199,0.4)"; }} onMouseLeave={(e) => { e.currentTarget.style.background = "linear-gradient(135deg, rgba(2,132,199,0.9) 0%, rgba(14,165,233,0.95) 100%)"; e.currentTarget.style.boxShadow = "0 15px 35px rgba(2,132,199,0.25)"; }}>Enquire Now</motion.button>
@@ -172,29 +342,10 @@ export default function Home() {
         </div>
       </section>
       <section className="py-32 mobile:-translate-y-70 px-4 sm:px-6 relative overflow-hidden">
-        <div className="max-w-7xl mx-auto flex flex-col lg:flex-row items-center gap-16 relative z-10">
-          <motion.div initial={{ opacity: 0, x: -100 }} whileInView={{ opacity: 1, x: 0 }} transition={{ duration: 1 }} viewport={{ once: true }} className="flex-1 space-y-8">
-            <motion.p initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} transition={{ duration: 0.8 }} viewport={{ once: true }} className="text-sky-600 text-sm font-semibold uppercase tracking-wider mb-4">Why Choose Us</motion.p>
-            <motion.h2 initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} transition={{ duration: 0.8, delay: 0.1 }} viewport={{ once: true }} className="text-5xl font-bold text-slate-800 mb-6 drop-shadow-sm">Fun With Crackers</motion.h2>
-            <motion.p initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} transition={{ duration: 0.8, delay: 0.2 }} viewport={{ once: true }} className="text-xl text-slate-600 leading-relaxed mb-8">We are a leading online crackers shop in Sivakasi offering top quality directly from factories.</motion.p>
-            <div className="grid grid-cols-2 gap-6">
-              {[["👨‍💼", "Customer Support"], ["🎁", "Good Packaging"], ["💸", "80% Discount"], ["✅", "Trust Worthy"]].map(([icon, label], i) => (
-                <motion.div key={i} initial={{ opacity: 0, x: -20 }} whileInView={{ opacity: 1, x: 0 }} transition={{ duration: 0.8, delay: 0.3 + i * 0.1 }} viewport={{ once: true }} className="flex items-center space-x-4 p-4 rounded-2xl transition-all duration-300 hover:scale-105" style={{ background: "linear-gradient(135deg, rgba(255,255,255,0.6) 0%, rgba(240,249,255,0.4) 100%)", backdropFilter: "blur(15px)", border: "1px solid rgba(125,211,252,0.3)", boxShadow: "0 15px 35px rgba(56,189,248,0.1)" }}><span className="text-3xl drop-shadow-sm">{icon}</span><p className="font-semibold text-slate-800">{label}</p></motion.div>
-              ))}
-            </div>
-            <motion.button initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} transition={{ duration: 0.8, delay: 0.7 }} viewport={{ once: true }} whileHover={{ scale: 1.05 }} className="cursor-pointer text-white px-8 py-4 rounded-full font-semibold transition-all duration-300" style={{ background: "linear-gradient(135deg, rgba(56,189,248,0.9) 0%, rgba(14,165,233,0.9) 100%)", backdropFilter: "blur(10px)", border: "1px solid rgba(125,211,252,0.3)", boxShadow: "0 10px 25px rgba(56,189,248,0.3)" }} onMouseEnter={(e) => { e.currentTarget.style.background = "linear-gradient(135deg, rgba(14,165,233,1) 0%, rgba(2,132,199,1) 100%)"; e.currentTarget.style.boxShadow = "0 15px 35px rgba(56,189,248,0.4)"; }} onMouseLeave={(e) => { e.currentTarget.style.background = "linear-gradient(135deg, rgba(56,189,248,0.9) 0%, rgba(14,165,233,0.9) 100%)"; e.currentTarget.style.boxShadow = "0 10px 25px rgba(56,189,248,0.3)"; }} onClick={() => { navigate("/about-us")}}>LEARN MORE →</motion.button>
-          </motion.div>
-          <motion.div initial={{ opacity: 0, x: 100 }} whileInView={{ opacity: 1, x: 0 }} transition={{ duration: 1 }} viewport={{ once: true }} className="relative">
-            <div className="absolute -inset-4 rounded-3xl transform -rotate-3" style={{ background: "linear-gradient(135deg, rgba(56,189,248,0.2) 0%, rgba(125,211,252,0.3) 100%)", backdropFilter: "blur(10px)" }}></div>
-            <motion.img whileHover={{ scale: 1.05, rotate: 2 }} transition={{ duration: 0.5 }} src="/cont2.png" alt="Why Choose Us" className="relative w-80 md:w-96 object-contain rounded-3xl hover:scale-105 transition-all duration-700" style={{ filter: "drop-shadow(0 25px 45px rgba(56,189,248,0.2))" }} />
-          </motion.div>
-        </div>
-      </section>
-      <section className="relative py-32 mobile:-translate-y-70 px-4 sm:px-6 text-white overflow-hidden">
         <div className="absolute inset-0 rounded-3xl mx-4" style={{ background: "linear-gradient(135deg, rgba(15,23,42,0.9) 0%, rgba(30,41,59,0.9) 100%)", backdropFilter: "blur(20px)", border: "1px solid rgba(125,211,252,0.2)", boxShadow: "0 25px 45px rgba(15,23,42,0.3)" }}></div>
         <motion.div className="absolute inset-0 opacity-20 rounded-3xl mx-4 overflow-hidden" style={{ backgroundImage: "url('/fireworks-bg.jpg')", backgroundSize: "cover", backgroundPosition: "center", backgroundAttachment: "fixed" }} />
         <div className="relative z-10 max-w-4xl mx-auto text-center">
-          <motion.h2 initial={{ opacity: 0, y: 50 }} whileInView={{ opacity: 1, y: 0 }} transition={{ duration: 1 }} viewport={{ once: true }} className="text-4xl md:text-6xl font-bold mb-6 drop-shadow-lg">Order Your Crackers<br /><span className="text-transparent bg-clip-text bg-gradient-to-r from-sky-300 to-teal-300">& Gift Boxes Now</span></motion.h2>
+          <motion.h2 initial={{ opacity: 0, y: 50 }} whileInView={{ opacity: 1, y: 0 }} transition={{ duration: 1 }} viewport={{ once: true }} className="text-4xl md:text-6xl font-bold mb-6 drop-shadow-lg text-white">Order Your Crackers<br /><span className="text-transparent bg-clip-text bg-gradient-to-r from-sky-300 to-teal-300">& Gift Boxes Now</span></motion.h2>
           <motion.p initial={{ opacity: 0, y: 30 }} whileInView={{ opacity: 1, y: 0 }} transition={{ duration: 1, delay: 0.2 }} viewport={{ once: true }} className="text-xl mb-8 text-sky-100 drop-shadow-sm leading-relaxed p-5 md:p-0">Order online and get the best discounts on all products.</motion.p>
           <motion.button initial={{ opacity: 0, y: 30 }} whileInView={{ opacity: 1, y: 0 }} transition={{ duration: 1, delay: 0.4 }} viewport={{ once: true }} whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }} className="cursor-pointer text-slate-800 px-12 py-4 rounded-full text-lg font-bold transition-all duration-300 uppercase tracking-wide" style={{ background: "linear-gradient(135deg, rgba(255,255,255,0.95) 0%, rgba(240,249,255,0.9) 100%)", backdropFilter: "blur(15px)", border: "1px solid rgba(125,211,252,0.3)", boxShadow: "0 15px 35px rgba(56,189,248,0.3)" }} onMouseEnter={(e) => { e.currentTarget.style.background = "linear-gradient(135deg, rgba(56,189,248,0.9) 0%, rgba(14,165,233,0.9) 100%)"; e.currentTarget.style.color = "white"; e.currentTarget.style.boxShadow = "0 20px 40px rgba(56,189,248,0.4)"; }} onMouseLeave={(e) => { e.currentTarget.style.background = "linear-gradient(135deg, rgba(255,255,255,0.95) 0%, rgba(240,249,255,0.9) 100%)"; e.currentTarget.style.color = "#0f172a"; e.currentTarget.style.boxShadow = "0 15px 35px rgba(56,189,248,0.3)"; }} onClick={() => { navigate("/price-list")}}>PLACE YOUR ORDER</motion.button>
         </div>
@@ -230,7 +381,11 @@ export default function Home() {
         </motion.div>
         <div className="mt-12 border-t border-sky-700 pt-8 text-center text-sm text-white relative z-10"><p>Copyright © 2025, <span className="text-sky-300 font-semibold">Fun With Crackers</span>. All rights reserved. Developed by <span className="text-sky-300 font-semibold">SPD Solutions</span></p></div>
       </footer>
-      <style jsx>{`@keyframes shine { 0% { transform: translateX(-100%); } 100% { transform: translateX(100%); } } @keyframes ping { 75%, 100% { transform: scale(2); opacity: 0; } }`}</style>
+      <style jsx>{`
+        @keyframes shine { 0% { transform: translateX(-100%); } 100% { transform: translateX(100%); } } 
+        @keyframes ping { 75%, 100% { transform: scale(2); opacity: 0; } }
+        .details-modal { display: flex !important; visibility: visible !important; opacity: 1 !important; }
+      `}</style>
     </div>
   )
 }
