@@ -1,8 +1,9 @@
-import { useState, useEffect, useMemo, useCallback } from "react"
+import { useState, useEffect, useMemo, useCallback, useRef } from "react"
 import { motion, AnimatePresence } from "framer-motion"
-import { FaPlus, FaMinus } from "react-icons/fa"
+import { FaPlus, FaMinus, FaArrowLeft, FaArrowRight, FaInfoCircle } from "react-icons/fa"
 import Navbar from "../Component/Navbar"
 import { API_BASE_URL } from "../../Config"
+import '../App.css'
 
 const BigFireworkAnimation = ({ delay = 0 }) => {
   const screenWidth = typeof window !== "undefined" ? window.innerWidth : 1920
@@ -37,6 +38,121 @@ const BigFireworkAnimation = ({ delay = 0 }) => {
   )
 }
 
+const Carousel = ({ media }) => {
+  const [currentIndex, setCurrentIndex] = useState(0)
+  const [isDragging, setIsDragging] = useState(false)
+  const [startX, setStartX] = useState(0)
+  const dragRef = useRef(null)
+
+  const mediaItems = useMemo(() => {
+    const items = media && typeof media === 'string' ? JSON.parse(media) : (Array.isArray(media) ? media : [])
+    return items.sort((a, b) => {
+      const aStr = typeof a === 'string' ? a : ''
+      const bStr = typeof b === 'string' ? b : ''
+      const isAVideo = aStr.startsWith('data:video/')
+      const isBVideo = bStr.startsWith('data:video/')
+      const isAGif = aStr.startsWith('data:image/gif') || aStr.toLowerCase().endsWith('.gif')
+      const isBGif = bStr.startsWith('data:image/gif') || bStr.toLowerCase().endsWith('.gif')
+      const isAImage = aStr.startsWith('data:image/') && !isAGif
+      const isBImage = bStr.startsWith('data:image/') && !isBGif
+
+      const getPriority = (isImage, isGif, isVideo) => {
+        if (isImage) return 0
+        if (isGif) return 1
+        if (isVideo) return 2
+        return 3
+      }
+
+      return getPriority(isAImage, isAGif, isAVideo) - getPriority(isBImage, isBGif, isBVideo)
+    })
+  }, [media])
+
+  const isVideo = (item) => typeof item === 'string' && item.startsWith('data:video/')
+  const getVideoPreview = () => '/video-preview-placeholder.png'
+
+  const handlePrev = () => setCurrentIndex((prev) => (prev === 0 ? mediaItems.length - 1 : prev - 1))
+  const handleNext = () => setCurrentIndex((prev) => (prev === mediaItems.length - 1 ? 0 : prev + 1))
+
+  const handleTouchStart = (e) => {
+    setIsDragging(true)
+    setStartX(e.touches[0].clientX)
+  }
+
+  const handleTouchMove = (e) => {
+    if (!isDragging) return
+    e.preventDefault()
+  }
+
+  const handleTouchEnd = (e) => {
+    if (!isDragging) return
+    setIsDragging(false)
+    const endX = e.changedTouches[0].clientX
+    const diffX = startX - endX
+    const threshold = 50
+
+    if (diffX > threshold) {
+      setCurrentIndex((prev) => (prev === mediaItems.length - 1 ? 0 : prev + 1))
+    } else if (diffX < -threshold) {
+      setCurrentIndex((prev) => (prev === 0 ? mediaItems.length - 1 : prev - 1))
+    }
+  }
+
+  if (!mediaItems || mediaItems.length === 0) {
+    return <div className="w-full h-30 rounded-2xl mb-4 overflow-hidden bg-gray-200 flex items-center justify-center">No media available</div>
+  }
+
+  return (
+    <div
+      className="relative w-full h-30 rounded-2xl mb-4 overflow-hidden select-none"
+      style={{ background: "linear-gradient(135deg, rgba(255,255,255,0.6), rgba(240,249,255,0.4))", backdropFilter: "blur(10px)", border: "1px solid rgba(2,132,199,0.2)" }}
+      onTouchStart={handleTouchStart}
+      onTouchMove={handleTouchMove}
+      onTouchEnd={handleTouchEnd}
+      ref={dragRef}
+    >
+      {isVideo(mediaItems[currentIndex]) ? (
+        <video
+          src={mediaItems[currentIndex]}
+          autoPlay
+          muted
+          loop
+          className="w-full h-full object-contain p-2"
+        />
+      ) : (
+        <img src={mediaItems[currentIndex] || "/placeholder.svg"} alt="Product" className="w-full h-full object-contain p-2" />
+      )}
+      {mediaItems.length > 1 && (
+        <>
+          <button
+            onClick={handlePrev}
+            className="mobile:hidden sm:flex absolute left-2 top-1/2 transform -translate-y-1/2 w-8 h-8 rounded-full bg-white/80 text-sky-700 flex items-center justify-center text-lg opacity-100 z-10 hover:bg-sky-700 hover:text-white cursor-pointer"
+            style={{ boxShadow: "0 4px 10px rgba(0,0,0,0.2)" }}
+            aria-label="Previous media"
+          >
+            <FaArrowLeft />
+          </button>
+          <button
+            onClick={handleNext}
+            className="mobile:hidden sm:flex absolute right-2 top-1/2 transform -translate-y-1/2 w-8 h-8 rounded-full bg-white/80 text-sky-700 flex items-center justify-center text-lg opacity-100 z-10 hover:bg-sky-700 hover:text-white cursor-pointer"
+            style={{ boxShadow: "0 4px 10px rgba(0,0,0,0.2)" }}
+            aria-label="Next media"
+          >
+            <FaArrowRight />
+          </button>
+          <div className="absolute bottom-2 left-1/2 transform -translate-x-1/2 flex gap-1 z-10">
+            {mediaItems.map((item, index) => (
+              <div
+                key={index}
+                className={`w-2 h-2 rounded-full ${index === currentIndex ? 'bg-sky-700' : 'bg-gray-300'}`}
+              />
+            ))}
+          </div>
+        </>
+      )}
+    </div>
+  )
+}
+
 const Pricelist = () => {
   const [products, setProducts] = useState([])
   const [cart, setCart] = useState({})
@@ -52,6 +168,9 @@ const Pricelist = () => {
   const [appliedPromo, setAppliedPromo] = useState(null)
   const [states, setStates] = useState([])
   const [districts, setDistricts] = useState([])
+  const [selectedProduct, setSelectedProduct] = useState(null)
+  const [showDetailsModal, setShowDetailsModal] = useState(false)
+
   const styles = { 
     card: { background: "linear-gradient(135deg, rgba(255,255,255,0.4), rgba(224,242,254,0.3), rgba(186,230,253,0.2))", backdropFilter: "blur(20px)", border: "1px solid rgba(2,132,199,0.3)", boxShadow: "0 25px 45px rgba(2,132,199,0.1), inset 0 1px 0 rgba(255,255,255,0.4), inset 0 -1px 0 rgba(2,132,199,0.1)" }, 
     button: { background: "linear-gradient(135deg, rgba(2,132,199,0.9), rgba(14,165,233,0.95))", backdropFilter: "blur(15px)", border: "1px solid rgba(125,211,252,0.4)", boxShadow: "0 15px 35px rgba(2,132,199,0.3), inset 0 1px 0 rgba(255,255,255,0.2)" }, 
@@ -60,24 +179,23 @@ const Pricelist = () => {
   }
 
   const formatPrice = (price) => {
-    const num = Number.parseFloat(price);
-    return Number.isInteger(num) ? num.toString() : num.toFixed(2);
+    const num = Number.parseFloat(price)
+    return Number.isInteger(num) ? num.toString() : num.toFixed(2)
   }
 
   useEffect(() => { 
-    const savedCart = localStorage.getItem("firecracker-cart"); 
-    if (savedCart) setCart(JSON.parse(savedCart)); 
+    const savedCart = localStorage.getItem("firecracker-cart")
+    if (savedCart) setCart(JSON.parse(savedCart))
     fetch(`${API_BASE_URL}/api/locations/states`)
       .then(res => res.json())
       .then(setStates)
-      .catch(err => console.error("Error fetching states:", err)); 
+      .catch(err => console.error("Error fetching states:", err))
     fetch(`${API_BASE_URL}/api/products`)
       .then(res => res.json())
       .then(data => {
-        console.log("Fetched products:", data);
-        setProducts(data.filter(p => p.status === "on"));
+        setProducts(data.filter(p => p.status === "on"))
       })
-      .catch(err => console.error("Error loading products:", err));
+      .catch(err => console.error("Error loading products:", err))
   }, [])
 
   useEffect(() => { 
@@ -92,31 +210,29 @@ const Pricelist = () => {
 
   const addToCart = useCallback((product) => {
     if (!product || !product.serial_number) {
-      console.error("Invalid product or missing serial_number:", product);
-      return;
+      console.error("Invalid product or missing serial_number:", product)
+      return
     }
-    console.log("Adding to cart:", product.serial_number);
     try {
       setCart(prev => {
-        const newCart = { ...prev, [product.serial_number]: (prev[product.serial_number] || 0) + 1 };
-        console.log("Updated cart:", newCart);
-        return newCart;
-      });
+        const newCart = { ...prev, [product.serial_number]: (prev[product.serial_number] || 0) + 1 }
+        return newCart
+      })
     } catch (error) {
-      console.error("Error in addToCart:", error);
+      console.error("Error in addToCart:", error)
     }
-  }, []);
+  }, [])
 
   const removeFromCart = useCallback(product => {
     if (!product || !product.serial_number) {
-      console.error("Invalid product or missing serial_number:", product);
-      return;
+      console.error("Invalid product or missing serial_number:", product)
+      return
     }
     setCart(prev => { 
-      const count = (prev[product.serial_number] || 1) - 1; 
-      const updated = { ...prev }; 
-      if (count <= 0) delete updated[product.serial_number]; 
-      else updated[product.serial_number] = count; 
+      const count = (prev[product.serial_number] || 1) - 1
+      const updated = { ...prev }
+      if (count <= 0) delete updated[product.serial_number]
+      else updated[product.serial_number] = count
       return updated 
     })
   }, [])
@@ -124,7 +240,7 @@ const Pricelist = () => {
   const handleFinalCheckout = async () => {
     const order_id = `ORD-${Date.now()}`, 
           selectedProducts = Object.entries(cart).map(([serial, qty]) => { 
-            const product = products.find(p => p.serial_number === serial); 
+            const product = products.find(p => p.serial_number === serial)
             return { id: product.id, product_type: product.product_type, quantity: qty, per: product.per, image: product.image, price: product.price, discount: product.discount, serial_number: product.serial_number, productname: product.productname, status: product.status } 
           })
     if (!selectedProducts.length) return showError("Your cart is empty.")
@@ -139,25 +255,25 @@ const Pricelist = () => {
         body: JSON.stringify({ order_id, products: selectedProducts, total: Number.parseFloat(totals.total), customer_type: "User", ...customerDetails }) 
       })
       if (response.ok) { 
-        setShowSuccess(true); 
-        setTimeout(() => setShowSuccess(false), 4000); 
-        setCart({}); 
-        setIsCartOpen(false); 
-        setShowModal(false); 
+        setShowSuccess(true)
+        setTimeout(() => setShowSuccess(false), 4000)
+        setCart({})
+        setIsCartOpen(false)
+        setShowModal(false)
         setCustomerDetails({ customer_name: "", address: "", district: "", state: "", mobile_number: "", email: "", customer_type: "User" }) 
       } else { 
-        const data = await response.json(); 
+        const data = await response.json()
         showError(data.message || "Booking failed.") 
       }
     } catch (err) { 
-      console.error("Checkout error:", err); 
+      console.error("Checkout error:", err)
       showError("Something went wrong during checkout.") 
     }
   }
 
   const showError = message => { 
-    setMinOrderMessage(message); 
-    setShowMinOrderModal(true); 
+    setMinOrderMessage(message)
+    setShowMinOrderModal(true)
     setTimeout(() => setShowMinOrderModal(false), 5000) 
   }
 
@@ -167,22 +283,35 @@ const Pricelist = () => {
 
   const handleInputChange = e => setCustomerDetails(prev => ({ ...prev, [e.target.name]: e.target.value }))
 
+  const handleShowDetails = useCallback((product) => {
+    console.log("handleShowDetails called with product:", product)
+    setSelectedProduct(product)
+    setShowDetailsModal(true)
+    console.log("showDetailsModal set to:", true, "selectedProduct set to:", product)
+  }, [])
+
+  const handleCloseDetails = useCallback(() => {
+    console.log("handleCloseDetails called")
+    setSelectedProduct(null)
+    setShowDetailsModal(false)
+  }, [])
+
   const totals = useMemo(() => {
     let net = 0, save = 0, total = 0
     for (const serial in cart) { 
       const qty = cart[serial], 
-            product = products.find(p => p.serial_number === serial); 
-      if (!product) continue; 
+            product = products.find(p => p.serial_number === serial)
+      if (!product) continue
       const originalPrice = Number.parseFloat(product.price), 
             discount = originalPrice * (product.discount / 100), 
-            priceAfterDiscount = originalPrice - discount; 
-      net += originalPrice * qty; 
-      save += discount * qty; 
+            priceAfterDiscount = originalPrice - discount
+      net += originalPrice * qty
+      save += discount * qty
       total += priceAfterDiscount * qty 
     }
     if (appliedPromo) { 
-      const promoDiscount = (total * appliedPromo.discount) / 100; 
-      total -= promoDiscount; 
+      const promoDiscount = (total * appliedPromo.discount) / 100
+      total -= promoDiscount
       save += promoDiscount 
     }
     return { 
@@ -195,32 +324,61 @@ const Pricelist = () => {
   const handleApplyPromo = async () => {
     if (!promocode) return showError("Enter a promocode.")
     try { 
-      const res = await fetch(`${API_BASE_URL}/api/promocodes`); 
-      const promos = await res.json(); 
-      const found = promos.find(p => p.code.toLowerCase() === promocode.toLowerCase()); 
+      const res = await fetch(`${API_BASE_URL}/api/promocodes`)
+      const promos = await res.json()
+      const found = promos.find(p => p.code.toLowerCase() === promocode.toLowerCase())
       found ? setAppliedPromo(found) : (showError("Invalid promocode."), setAppliedPromo(null)) 
     } catch (err) { 
-      console.error("Promo apply error:", err); 
+      console.error("Promo apply error:", err)
       showError("Could not validate promocode.") 
     }
   }
 
   const productTypes = useMemo(() => ["All", ...new Set(products.map(p => (p.product_type || "Others").replace(/_/g, " ")).sort())], [products])
-  const grouped = useMemo(() => products.filter(p => (selectedType === "All" || p.product_type === selectedType.replace(/ /g, "_")) && (!searchTerm || p.productname.toLowerCase().includes(searchTerm.toLowerCase()) || p.serial_number.toLowerCase().includes(searchTerm.toLowerCase()))).reduce((acc, p) => { const key = p.product_type || "Others"; acc[key] = acc[key] || []; acc[key].push(p); return acc }, {}), [products, selectedType, searchTerm])
+  const grouped = useMemo(() => products.filter(p => p.product_type !== "gift_box_dealers" && (selectedType === "All" || p.product_type === selectedType.replace(/ /g, "_")) && (!searchTerm || p.productname.toLowerCase().includes(searchTerm.toLowerCase()) || p.serial_number.toLowerCase().includes(searchTerm.toLowerCase()))).reduce((acc, p) => { const key = p.product_type || "Others"; acc[key] = acc[key] || []; acc[key].push(p); return acc }, {}), [products, selectedType, searchTerm])
 
   return (
     <>
       <Navbar />
       {isCartOpen && <div className="fixed inset-0 bg-black/40 z-30" onClick={() => setIsCartOpen(false)} />}
       {showSuccess && (
-        <motion.div className="fixed inset-0 flex items-center justify-center z-60 pointer-events-none" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.5 }}>
+        <motion.div className="fixed inset-0 flex items-center justify-center z-60 pointer-events-none" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.5 }}>
           <BigFireworkAnimation delay={0} />
           <motion.div className="flex flex-col items-center gap-4 z-10" style={{ background: "none" }} initial={{ scale: 0.8, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} transition={{ duration: 0.5, delay: 0.5 }}>
             <motion.h2 className="text-5xl font-bold bg-gradient-to-r from-green-600 via-emerald-500 to-green-700 bg-clip-text text-transparent" style={{ textShadow: "0 0 20px rgba(34, 197, 94, 0.8), 0 0 40px rgba(34, 197, 94, 0.5)" }} animate={{ scale: [1, 1.1, 1] }} transition={{ duration: 2, repeat: 1, delay: 0.5 }}>Booked</motion.h2>
           </motion.div>
         </motion.div>
       )}
-      {showMinOrderModal && <motion.div className="fixed inset-0 flex items-center justify-center z-60 pointer-events-none" initial={{ opacity: 0, scale: 0.8 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.8 }} transition={{ duration: 0.5 }}><div className="bg-red-200 text-red-400 border-2 text-lg font-semibold rounded-xl p-6 max-w-md mx-4 text-center shadow-lg">{minOrderMessage}</div></motion.div>}
+      {showMinOrderModal && (
+        <motion.div className="fixed inset-0 flex items-center justify-center z-60 pointer-events-none" initial={{ opacity: 0, scale: 0.8 }} animate={{ opacity: 1, scale: 1 }} transition={{ duration: 0.5 }}>
+          <div className="bg-red-200 text-red-400 border-2 text-lg font-semibold rounded-xl p-6 max-w-md mx-4 text-center shadow-lg">{minOrderMessage}</div>
+        </motion.div>
+      )}
+      {showDetailsModal && selectedProduct && (
+        <div className="fixed inset-0 bg-black/50 z-55 flex items-center justify-center details-modal">
+          <motion.div 
+            initial={{ scale: 0.9, opacity: 0 }} 
+            animate={{ scale: 1, opacity: 1 }} 
+            className="relative rounded-3xl shadow-lg max-w-md w-full mx-4 overflow-hidden" 
+            style={styles.modal}
+          >
+            <div className="p-6">
+              <div className="flex justify-between items-center mb-4">
+                <h2 className="text-2xl font-bold text-sky-700 drop-shadow-sm">{selectedProduct.productname}</h2>
+                <button onClick={handleCloseDetails} className="text-gray-600 hover:text-red-500 text-xl cursor-pointer" aria-label="Close details modal">×</button>
+              </div>
+              <Carousel media={selectedProduct.image} />
+              <div className="mt-4">
+                <h3 className="text-lg font-semibold text-slate-800">Description</h3>
+                <p className="text-sm text-slate-600 mt-2">{selectedProduct.description || "No description available."}</p>
+              </div>
+              <div className="mt-6 flex justify-end">
+                <button onClick={handleCloseDetails} className="px-6 py-3 text-sm font-semibold rounded-xl text-white transition-all duration-300 cursor-pointer" style={{ background: styles.button.background, boxShadow: "0 10px 25px rgba(2,132,199,0.3)" }}>Close</button>
+              </div>
+            </div>
+          </motion.div>
+        </div>
+      )}
       <main className={`relative pt-28 px-4 sm:px-8 max-w-7xl mx-auto transition-all duration-300 ${isCartOpen ? "mr-80" : ""}`}>
         <section className="rounded-xl px-4 py-3 shadow-inner flex justify-between flex-wrap gap-4 text-sm sm:text-base border border-sky-300 bg-gradient-to-br from-sky-400/80 to-sky-600/90 text-white font-semibold">
           <div>Net Total: ₹{totals.net}</div><div>You Save: ₹{totals.save}</div><div className="font-bold">Total: ₹{totals.total}</div>
@@ -234,7 +392,7 @@ const Pricelist = () => {
             <h2 className="text-3xl text-sky-800 mb-5 font-semibold capitalize border-b-4 border-sky-500 pb-2">{type.replace(/_/g, " ")}</h2>
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-6">
               {items.map(product => {
-                if (!product) return null;
+                if (!product) return null
                 const originalPrice = Number.parseFloat(product.price)
                 const discount = originalPrice * (product.discount / 100)
                 const finalPrice = product.discount > 0 ? formatPrice(originalPrice - discount) : formatPrice(originalPrice)
@@ -244,7 +402,16 @@ const Pricelist = () => {
                     {product.discount > 0 && (
                       <div className="absolute left-2 top-2 bg-red-500 text-white text-md font-bold px-2 py-1 rounded-br-lg rounded-tl-lg mobile:text-[10px] mobile:px-1.5 mobile:py-0.5">{product.discount}%</div>
                     )}
-                    <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-700" style={{ background: "linear-gradient(135deg, rgba(2,132,199,0.3), transparent 50%, rgba(14,165,233,0.2))" }} />
+                    <motion.button 
+                      onClick={() => handleShowDetails(product)} 
+                      className="absolute cursor-pointer right-2 top-2 bg-sky-500 text-white mobile:text-md hundred:text-2xl font-bold hundred:w-8 hundred:h-8 mobile:w-6 mobile:h-6 rounded-full flex items-center justify-center hover:bg-sky-700 transition-all duration-300 z-20 pointer-events-auto" 
+                      whileHover={{ scale: 1.1 }} 
+                      whileTap={{ scale: 0.9 }} 
+                      aria-label="View product details"
+                    >
+                      <FaInfoCircle />
+                    </motion.button>
+                    <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-700 z-10" style={{ background: "linear-gradient(135deg, rgba(2,132,199,0.3), transparent 50%, rgba(14,165,233,0.2))" }} />
                     <div className="relative z-10 mobile:mt-2">
                       <p className="text-lg mobile:text-sm font-bold text-slate-800 group-hover:text-slate-900 transition-colors duration-500 drop-shadow-sm line-clamp-2 mb-2">{product.productname}</p>
                       <div className="space-y-1 mb-4">
@@ -257,7 +424,7 @@ const Pricelist = () => {
                           <p className="text-xl font-bold text-sky-700 group-hover:text-sky-800 transition-colors duration-500">₹{finalPrice} / {product.per}</p>
                         )}
                       </div>
-                      {product.image && <div className="w-full h-30 rounded-2xl mb-4 overflow-hidden" style={{ background: "linear-gradient(135deg, rgba(255,255,255,0.6), rgba(240,249,255,0.4))", backdropFilter: "blur(10px)", border: "1px solid rgba(2,132,199,0.2)" }}><img src={product.image || "/placeholder.svg"} alt={product.productname} className="w-full h-full object-contain p-2" /></div>}
+                      <Carousel media={product.image} />
                       <div className="relative min-h-[3rem] flex items-end justify-end">
                         <AnimatePresence mode="wait">
                           {count > 0 ? (
@@ -310,9 +477,12 @@ const Pricelist = () => {
             if (!product) return null
             const discount = (product.price * product.discount) / 100, 
                   priceAfterDiscount = formatPrice(product.price - discount)
+            const imageSrc = (product.image && typeof product.image === 'string' ? JSON.parse(product.image) : (Array.isArray(product.image) ? product.image : [])).filter(item => !item.startsWith('data:video/') && !item.startsWith('data:image/gif') && !item.toLowerCase().endsWith('.gif'))[0] || "/placeholder.svg"
             return (
               <motion.div key={serial} initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} className="flex items-center gap-3 border-b pb-3 border-sky-100">
-                {product.image && <div className="w-16 h-16 rounded-xl overflow-hidden" style={{ background: "linear-gradient(135deg, rgba(255,255,255,0.6), rgba(240,249,255,0.4))", backdropFilter: "blur(10px)", border: "1px solid rgba(2,132,199,0.2)" }}><img src={product.image || "/placeholder.svg"} alt={product.productname} className="w-full h-full object-contain p-1" /></div>}
+                <div className="w-16 h-16">
+                  <img src={imageSrc} alt={product.productname} className="w-full h-full object-contain rounded-lg" />
+                </div>
                 <div className="flex-1"><p className="text-sm font-semibold text-slate-800">{product.productname}</p><p className="text-sm text-sky-700 font-bold">₹{priceAfterDiscount} x {qty}</p>
                   <div className="flex items-center gap-2 mt-2"><button onClick={() => removeFromCart(product)} className="w-7 h-7 text-sm text-white cursor-pointer rounded-full flex items-center justify-center transition-all duration-300" style={{ background: styles.button.background }}><FaMinus /></button><span className="text-sm font-medium px-2">{qty}</span><button onClick={() => addToCart(product)} className="w-7 h-7 text-sm text-white cursor-pointer rounded-full flex items-center justify-center transition-all duration-300" style={{ background: styles.button.background }}><FaPlus /></button></div>
                 </div>
@@ -331,7 +501,10 @@ const Pricelist = () => {
           <div className="flex gap-2"><button onClick={() => setCart({})} className="flex-1 text-white text-sm font-semibold py-3 rounded-xl transition-all duration-300 cursor-pointer" style={{ background: "linear-gradient(135deg, rgba(239,68,68,0.9), rgba(220,38,38,0.9))", boxShadow: "0 5px 15px rgba(239,68,68,0.3)" }}>Clear Cart</button><button onClick={handleCheckoutClick} className="flex-1 text-white text-sm font-semibold py-3 rounded-xl transition-all duration-300 cursor-pointer" style={{ background: styles.button.background, boxShadow: "0 5px 15px rgba(2,132,199,0.3)" }}>Checkout</button></div>
         </div>
       </motion.aside>
-      <style jsx>{`.line-clamp-2 { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }`}</style>
+      <style jsx>{`
+        .line-clamp-2 { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+        .details-modal { display: flex !important; visibility: visible !important; opacity: 1 !important; }
+      `}</style>
     </>
   )
 }
