@@ -59,14 +59,12 @@ const dontsData = [
   },
 ]
 
-// Big Firework Animation Component
 const BigFireworkAnimation = ({ delay = 0, startPosition, endPosition, burstPosition, color }) => {
   const screenWidth = typeof window !== "undefined" ? window.innerWidth : 1920
   const screenHeight = typeof window !== "undefined" ? window.innerHeight : 1080
 
   return (
     <div className="absolute inset-0 pointer-events-none overflow-hidden">
-      {/* Rocket trajectory */}
       <motion.div
         className="absolute w-6 h-6 rounded-full"
         style={{
@@ -90,7 +88,6 @@ const BigFireworkAnimation = ({ delay = 0, startPosition, endPosition, burstPosi
         }}
       />
 
-      {/* Massive burst particles */}
       <motion.div
         className="absolute"
         style={{
@@ -107,7 +104,6 @@ const BigFireworkAnimation = ({ delay = 0, startPosition, endPosition, burstPosi
           repeatDelay: 8,
         }}
       >
-        {/* Main burst - Large particles */}
         {Array.from({ length: 24 }).map((_, i) => {
           const angle = i * 15 * (Math.PI / 180)
           const distance = screenWidth * 0.4 // Much larger distance
@@ -139,7 +135,6 @@ const BigFireworkAnimation = ({ delay = 0, startPosition, endPosition, burstPosi
           )
         })}
 
-        {/* Secondary burst - Medium particles */}
         {Array.from({ length: 36 }).map((_, i) => {
           const angle = i * 10 * (Math.PI / 180)
           const distance = screenWidth * 0.25
@@ -171,7 +166,6 @@ const BigFireworkAnimation = ({ delay = 0, startPosition, endPosition, burstPosi
           )
         })}
 
-        {/* Sparkle layer - Small particles */}
         {Array.from({ length: 48 }).map((_, i) => {
           const angle = i * 7.5 * (Math.PI / 180)
           const distance = screenWidth * 0.35
@@ -203,7 +197,6 @@ const BigFireworkAnimation = ({ delay = 0, startPosition, endPosition, burstPosi
           )
         })}
 
-        {/* Center flash effect */}
         <motion.div
           className="absolute w-32 h-32 rounded-full"
           style={{

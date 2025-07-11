@@ -163,28 +163,26 @@ export default function Dispatch() {
           )}
 
     <div className="mb-6 flex justify-center gap-4 flex-wrap">
-  <select
-    value={filterStatus}
-    onChange={(e) => setFilterStatus(e.target.value)}
-    className="w-48 p-3 border-2 border-gray-300 rounded-lg bg-white shadow-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-  >
-    <option value="">All Statuses</option>
-    <option value="paid">Paid</option>
-    <option value="packed">Packed</option>
-    <option value="dispatched">Dispatched</option>
-    <option value="delivered">Delivered</option>
-  </select>
+        <select
+          value={filterStatus}
+          onChange={(e) => setFilterStatus(e.target.value)}
+          className="w-48 p-3 border-2 border-gray-300 rounded-lg bg-white shadow-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+        >
+          <option value="">All Statuses</option>
+          <option value="paid">Paid</option>
+          <option value="packed">Packed</option>
+          <option value="dispatched">Dispatched</option>
+          <option value="delivered">Delivered</option>
+        </select>
 
-  <input
-    type="text"
-    placeholder="Search by Name, Order ID, or Total"
-    value={searchQuery}
-    onChange={(e) => setSearchQuery(e.target.value)}
-    className="w-96 p-3 border-2 border-gray-300 rounded-lg bg-white shadow-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-  />
-</div>
-
-
+        <input
+          type="text"
+          placeholder="Search by Name, Order ID, or Total"
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          className="w-96 p-3 border-2 border-gray-300 rounded-lg bg-white shadow-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+        />
+      </div>
           <div className="overflow-x-auto">
             <table className="w-full border-collapse">
               <thead>

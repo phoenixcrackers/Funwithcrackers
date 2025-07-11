@@ -3,7 +3,7 @@ import Modal from 'react-modal';
 import Sidebar from '../Sidebar/Sidebar';
 import '../../App.css';
 import { API_BASE_URL } from '../../../Config';
-import { FaEye, FaEdit, FaTrash } from 'react-icons/fa';
+import { FaEye, FaEdit, FaTrash, FaArrowLeft, FaArrowRight } from 'react-icons/fa';
 import Logout from '../Logout';
 
 Modal.setAppElement('#root');
@@ -21,147 +21,99 @@ export default function List() {
   const [error, setError] = useState('');
   const [toggleStates, setToggleStates] = useState({});
   const [currentPage, setCurrentPage] = useState(1);
-  const [editFormData, setEditFormData] = useState({
-    productname: '',
-    serial_number: '',
-    price: '',
-    discount: '',
-    per: '',
-    imageBase64: '',
-  });
-  const [addFormData, setAddFormData] = useState({
-    productname: '',
-    serial_number: '',
-    price: '',
-    discount: '',
-    per: '',
-    product_type: '',
-    imageBase64: '',
-  });
+  const [formData, setFormData] = useState({ productname: '', serial_number: '', price: '', discount: '', per: '', product_type: '', description: '', images: [] });
   const productsPerPage = 10;
   const menuRef = useRef({});
 
-  const fetchProductTypes = async () => {
-  try {
-    const response = await fetch(`${API_BASE_URL}/api/product-types`);
-    const data = await response.json();
-    if (!response.ok) {
-      throw new Error(data.message || 'Failed to fetch product types');
-    }
-    const filteredTypes = data
-      .map(item => item.product_type)
-      .filter(type => type !== 'gift_box_dealers');
-    setProductTypes(filteredTypes);
-  } catch (err) {
-    setError(err.message);
-  }
-};
-
-  const fetchProducts = async () => {
+  const fetchData = async (url, errorMsg, setter) => {
     try {
-      const response = await fetch(`${API_BASE_URL}/api/products`);
+      const response = await fetch(url);
       const data = await response.json();
-      if (!response.ok) {
-        throw new Error(data.message || 'Failed to fetch products');
-      }
-      setProducts(data);
-      setFilteredProducts(data);
-      const initialToggles = data.reduce((acc, product) => ({
-        ...acc,
-        [`${product.product_type}-${product.id}`]: product.status === 'on',
-        [`fast-${product.product_type}-${product.id}`]: product.fast_running === true,
-      }), {});
-      setToggleStates(initialToggles);
+      if (!response.ok) throw new Error(data.message || errorMsg);
+      setter(data);
     } catch (err) {
       setError(err.message);
     }
   };
 
-  const handleFastToggleChange = async (product) => {
-    const productKey = `fast-${product.product_type}-${product.id}`;
+  const fetchProductTypes = () => fetchData(`${API_BASE_URL}/api/product-types`, 'Failed to fetch product types', data => setProductTypes(data.map(item => item.product_type)));
+
+  const fetchProducts = () => fetchData(`${API_BASE_URL}/api/products`, 'Failed to fetch products', data => {
+    const normalizedData = data.map(product => ({
+      ...product,
+      images: product.image ? (Array.isArray(JSON.parse(product.image)) ? JSON.parse(product.image) : [product.image]) : [],
+    }));
+    setProducts(normalizedData);
+    setFilteredProducts(filterType === 'all' ? normalizedData : normalizedData.filter(p => p.product_type === filterType));
+    setToggleStates(normalizedData.reduce((acc, p) => ({
+      ...acc, [`${p.product_type}-${p.id}`]: p.status === 'on', [`fast-${p.product_type}-${p.id}`]: p.fast_running === true,
+    }), {}));
+  });
+
+  const handleToggle = async (product, endpoint, keyPrefix) => {
+    const productKey = `${keyPrefix}${product.product_type}-${product.id}`;
     const tableName = product.product_type.toLowerCase().replace(/\s+/g, '_');
     try {
-      setToggleStates(prev => ({
-        ...prev,
-        [productKey]: !prev[productKey],
-      }));
-      const response = await fetch(`${API_BASE_URL}/api/products/${tableName}/${product.id}/toggle-fast-running`, {
-        method: 'PATCH',
-      });
-      if (!response.ok) throw new Error('Failed to toggle fast running');
-      await fetchProducts();
+      setToggleStates(prev => ({ ...prev, [productKey]: !prev[productKey] }));
+      const response = await fetch(`${API_BASE_URL}/api/products/${tableName}/${product.id}/${endpoint}`, { method: 'PATCH' });
+      if (!response.ok) throw new Error(`Failed to toggle ${endpoint}`);
+      fetchProducts();
     } catch (err) {
       setError(err.message);
-      setToggleStates(prev => ({
-        ...prev,
-        [productKey]: prev[productKey],
-      }));
+      setToggleStates(prev => ({ ...prev, [productKey]: prev[productKey] }));
     }
   };
 
   useEffect(() => {
     fetchProductTypes();
     fetchProducts();
-    const intervalId = setInterval(() => {
-      fetchProductTypes();
-      fetchProducts();
-    }, 5000); // Changed to 5 seconds
+    const intervalId = setInterval(() => { fetchProductTypes(); fetchProducts(); }, 5000);
     return () => clearInterval(intervalId);
   }, []);
 
   useEffect(() => {
-    if (filterType === 'all') {
-      setFilteredProducts(products);
-    } else {
-      setFilteredProducts(products.filter(product => product.product_type === filterType));
-    }
-  }, [filterType, products]); // Removed setCurrentPage(1)
+    setFilteredProducts(filterType === 'all' ? products : products.filter(p => p.product_type === filterType));
+  }, [filterType, products]);
 
   useEffect(() => {
-    const handleClickOutside = (event) => {
-      if (viewModalIsOpen && menuRef.current[viewModalIsOpen] && !menuRef.current[viewModalIsOpen].contains(event.target)) {
-        setViewModalIsOpen(null);
-      }
-    };
+    const handleClickOutside = e => viewModalIsOpen && menuRef.current[viewModalIsOpen] && !menuRef.current[viewModalIsOpen].contains(e.target) && setViewModalIsOpen(null);
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [viewModalIsOpen]);
 
-  const handleFilterChange = (event) => {
-    setFilterType(event.target.value);
+  const handleImageChange = (e, isEdit) => {
+    const files = Array.from(e.target.files).slice(0, 3);
+    const allowedTypes = ['image/png', 'image/jpeg', 'image/jpg', 'image/gif', 'video/mp4', 'video/webm', 'video/ogg'];
+    const maxSize = 5 * 1024 * 1024;
+    if (files.some(file => !allowedTypes.includes(file.type))) return setError('Only JPG, PNG, GIF, MP4, WebM, or Ogg files allowed');
+    if (files.some(file => file.size > maxSize)) return setError('Each file must be less than 5MB');
+    Promise.all(files.map(file => new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onloadend = () => resolve(reader.result);
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    }))).then(base64Files => {
+      setError('');
+      setFormData(prev => ({ ...prev, images: base64Files }));
+    }).catch(() => setError('Failed to read files'));
   };
 
-  const openModal = (product) => {
-    setSelectedProduct(product);
-    setModalIsOpen(true);
-    setViewModalIsOpen(null);
-  };
-
-  const openEditModal = (product) => {
-    setSelectedProduct(product);
-    setEditFormData({
-      productname: product.productname,
-      serial_number: product.serial_number,
-      price: product.price,
-      discount: product.discount,
-      per: product.per,
-      imageBase64: product.image || '',
-    });
-    setEditModalIsOpen(true);
-    setViewModalIsOpen(null);
-  };
-
-  const openAddModal = () => {
-    setAddFormData({
-      productname: '',
-      serial_number: '',
-      price: '',
-      discount: '',
-      per: '',
-      product_type: '',
-      imageBase64: '',
-    });
-    setAddModalIsOpen(true);
+  const handleSubmit = async (e, isEdit) => {
+    e.preventDefault();
+    const url = isEdit ? `${API_BASE_URL}/api/products/${selectedProduct.product_type.toLowerCase().replace(/\s+/g, '_')}/${selectedProduct.id}` : `${API_BASE_URL}/api/products`;
+    try {
+      const response = await fetch(url, {
+        method: isEdit ? 'PUT' : 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(formData),
+      });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.message || `Failed to ${isEdit ? 'update' : 'add'} product`);
+      fetchProducts();
+      closeModal();
+    } catch (err) {
+      setError(err.message);
+    }
   };
 
   const closeModal = () => {
@@ -171,311 +123,139 @@ export default function List() {
     setViewModalIsOpen(null);
     setSelectedProduct(null);
     setError('');
+    setFormData({ productname: '', serial_number: '', price: '', discount: '', per: '', product_type: '', description: '', images: [] });
   };
 
-  const handleDelete = async (product) => {
-    try {
-      const tableName = product.product_type.toLowerCase().replace(/\s+/g, '_');
-      await fetch(`${API_BASE_URL}/api/products/${tableName}/${product.id}`, {
-        method: 'DELETE',
-      });
-      fetchProducts();
-      setViewModalIsOpen(null);
-    } catch (err) {
-      setError('Failed to delete product');
-    }
-  };
+  const capitalize = str => str ? str.split('_').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ') : '';
 
-  const handleEditSubmit = async (e) => {
-    e.preventDefault();
-    try {
-      const response = await fetch(`${API_BASE_URL}/api/products/${selectedProduct.product_type.toLowerCase().replace(/\s+/g, '_')}/${selectedProduct.id}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(editFormData),
-      });
-      const data = await response.json();
-      if (!response.ok) {
-        throw new Error(data.message || 'Failed to update product');
-      }
-      fetchProducts();
-      closeModal();
-    } catch (err) {
-      setError(err.message);
-    }
-  };
+  const renderMedia = (media, idx, sizeClass) => (
+    media.startsWith('data:video/') ? (
+      <video key={idx} src={media} controls className={`${sizeClass} object-cover rounded-md inline-block mx-1`} />
+    ) : media.startsWith('data:image/') ? (
+      <img key={idx} src={media} alt={`media-${idx}`} className={`${sizeClass} object-cover rounded-md inline-block mx-1`} />
+    ) : (
+      <span key={idx} className="text-xs text-gray-500">Unsupported format</span>
+    )
+  );
 
-  const handleAddSubmit = async (e) => {
-    e.preventDefault();
-    try {
-      const response = await fetch(`${API_BASE_URL}/api/products`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(addFormData),
-      });
-      const data = await response.json();
-      if (!response.ok) {
-        throw new Error(data.message || 'Failed to add product');
-      }
-      fetchProducts();
-      closeModal();
-    } catch (err) {
-      setError(err.message);
-    }
-  };
+  const renderModalForm = (isEdit) => (
+    <div className="bg-white rounded-lg p-6 mobile:p-3 max-w-md w-full sm:max-w-lg">
+      <h2 className="text-lg sm:text-xl font-semibold text-gray-900 mb-4 mobile:mb-2 text-center">{isEdit ? 'Edit Product' : 'Add Product'}</h2>
+      <form onSubmit={e => handleSubmit(e, isEdit)} className="space-y-4 mobile:space-y-2">
+        {!isEdit && (
+          <div>
+            <label className="block text-sm font-medium text-gray-700">Product Type</label>
+            <input type="text" name="product_type" value={formData.product_type} onChange={e => setFormData(prev => ({ ...prev, [e.target.name]: e.target.value }))} className="mt-1 mobile:mt-0.5 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-600 focus:ring-indigo-600 sm:text-sm" required />
+          </div>
+        )}
+        {['productname', 'serial_number', 'price', 'discount'].map(field => (
+          <div key={field}>
+            <label className="block text-sm font-medium text-gray-700">{capitalize(field.replace('_', ' '))}</label>
+            <input
+              type={field === 'price' || field === 'discount' ? 'number' : 'text'}
+              name={field}
+              value={formData[field]}
+              onChange={e => setFormData(prev => ({ ...prev, [e.target.name]: e.target.value }))}
+              className="mt-1 mobile:mt-0.5 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-600 focus:ring-indigo-600 sm:text-sm"
+              required
+              step={field === 'price' || field === 'discount' ? '0.01' : undefined}
+            />
+          </div>
+        ))}
+        <div>
+          <label className="block text-sm font-medium text-gray-700">Per</label>
+          <select name="per" value={formData.per} onChange={e => setFormData(prev => ({ ...prev, per: e.target.value }))} className="mt-1 mobile:mt-0.5 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-600 focus:ring-indigo-600 sm:text-sm" required>
+            {isEdit ? ['pieces', 'box', 'pkt'].map(opt => <option key={opt} value={opt}>{opt}</option>) : [<option key="" value="">Select Unit</option>, ...['pieces', 'box', 'pkt'].map(opt => <option key={opt} value={opt}>{opt}</option>)]}
+          </select>
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-gray-700">Description</label>
+          <textarea name="description" value={formData.description} onChange={e => setFormData(prev => ({ ...prev, description: e.target.value }))} className="mt-1 mobile:mt-0.5 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-600 focus:ring-indigo-600 sm:text-sm" rows="3" placeholder="Enter product description" />
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-gray-700">Image</label>
+          <input type="file" name="images" multiple onChange={e => handleImageChange(e, isEdit)} accept="image/jpeg,image/png,image/gif,video/mp4,video/webm,video/ogg" className="mt-1 mobile:mt-0.5 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-600 focus:ring-indigo-600 sm:text-sm" />
+          {formData.images.length > 0 && <div className="mt-2 flex flex-wrap gap-2">{formData.images.map((file, idx) => renderMedia(file, idx, 'h-24 w-24'))}</div>}
+        </div>
+        <div className="mt-6 mobile:mt-3 flex justify-end space-x-2 mobile:space-x-1">
+          <button type="button" onClick={closeModal} className="rounded-md bg-gray-600 px-3 mobile:px-2 py-2 mobile:py-1 text-xs sm:text-sm font-semibold text-white shadow-sm hover:bg-gray-700">Cancel</button>
+          <button type="submit" className="rounded-md bg-indigo-600 px-3 mobile:px-2 py-2 mobile:py-1 text-xs sm:text-sm font-semibold text-white shadow-sm hover:bg-indigo-700">{isEdit ? 'Save' : 'Add'}</button>
+        </div>
+      </form>
+    </div>
+  );
 
-  const handleInputChange = (e, formType = 'edit') => {
-    const { name, value } = e.target;
-    if (formType === 'edit') {
-      setEditFormData(prev => ({ ...prev, [name]: value }));
-    } else {
-      setAddFormData(prev => ({ ...prev, [name]: value }));
-    }
-  };
-
-  const handleImageChange = (e, formType = 'edit') => {
-    const file = e.target.files[0];
-    if (file) {
-      if (!['image/png', 'image/jpeg'].includes(file.type)) {
-        setError('Only PNG or JPEG images are allowed');
-        return;
-      }
-      if (file.size > 1000000) {
-        setError('Image size must be less than 1MB');
-        return;
-      }
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        if (formType === 'edit') {
-          setEditFormData(prev => ({ ...prev, imageBase64: reader.result }));
-        } else {
-          setAddFormData(prev => ({ ...prev, imageBase64: reader.result }));
-        }
-        setError('');
-      };
-      reader.readAsDataURL(file);
-    }
-  };
-
-  const handleToggleChange = async (product) => {
-    const productKey = `${product.product_type}-${product.id}`;
-    const tableName = product.product_type.toLowerCase().replace(/\s+/g, '_');
-    try {
-      setToggleStates(prev => ({
-        ...prev,
-        [productKey]: !prev[productKey],
-      }));
-      const response = await fetch(`${API_BASE_URL}/api/products/${tableName}/${product.id}/toggle-status`, {
-        method: 'PATCH',
-      });
-      if (!response.ok) {
-        throw new Error('Failed to toggle status');
-      }
-      await fetchProducts();
-    } catch (err) {
-      setToggleStates(prev => ({
-        ...prev,
-        [productKey]: prev[productKey],
-      }));
-      setError(err.message);
-    }
-  };
-
-  const capitalize = (str) => {
-    if (!str) return '';
-    return str
-      .split('_')
-      .map(word => word.charAt(0).toUpperCase() + word.slice(1))
-      .join(' ');
-  };
-
-  const indexOfLastProduct = currentPage * productsPerPage;
-  const indexOfFirstProduct = indexOfLastProduct - productsPerPage;
+  const { indexOfFirstProduct, indexOfLastProduct } = { indexOfFirstProduct: currentPage * productsPerPage - productsPerPage, indexOfLastProduct: currentPage * productsPerPage };
   const currentProducts = filteredProducts.slice(indexOfFirstProduct, indexOfLastProduct);
   const totalPages = Math.ceil(filteredProducts.length / productsPerPage);
-
-  const handlePageChange = (pageNumber) => {
-    setCurrentPage(pageNumber);
-    window.scrollTo(0, 0);
-  };
 
   return (
     <div className="flex min-h-screen overflow-hidden mobile:overflow-hidden">
       <Sidebar />
-      <Logout />
+      <div className='mobile:-translate-x-10'>
+        <Logout />
+      </div>
       <div className="flex-1 md:ml-64 p-6 mobile:p-8 overflow-hidden">
         <div className="max-w-5xl mx-auto">
-          <div className="flex justify-between items-center mb-6">
-            <h2 className="text-2xl text-center font-bold text-gray-900 mobile:mb-2">List Products</h2>
-          </div>
-          {error && (
-            <div className="mb-4 mobile:mb-1 text-red-600 text-sm text-center">{error}</div>
-          )}
+          <h2 className="text-2xl text-center font-bold text-gray-900 mb-6 mobile:mb-2">List Products</h2>
+          {error && <div className="mb-4 mobile:mb-1 text-red-600 text-sm text-center">{error}</div>}
           <div className="mb-6 mobile:mb-2">
-            <label htmlFor="product-type-filter" className="block text-sm font-medium text-gray-900">
-              Filter by Product Type
-            </label>
-            <select
-              id="product-type-filter"
-              value={filterType}
-              onChange={handleFilterChange}
-              className="mt-2 mobile:mt-1 block w-48 rounded-md bg-white px-3 py-1.5 text-base text-gray-900 outline-1 -outline-offset-1 outline-gray-300 focus:outline-2 focus:outline-offset-1 focus:outline-indigo-600 sm:text-sm"
-            >
+            <label htmlFor="product-type-filter" className="block text-sm font-medium text-gray-900">Filter by Product Type</label>
+            <select id="product-type-filter" value={filterType} onChange={e => setFilterType(e.target.value)} className="mt-2 mobile:mt-1 block w-48 rounded-md bg-white px-3 py-1.5 text-base text-gray-900 outline-1 -outline-offset-1 outline-gray-300 focus:outline-2 focus:outline-offset-1 focus:outline-indigo-600 sm:text-sm">
               <option value="all">All</option>
-              {productTypes.map(type => (
-                <option key={type} value={type}>
-                  {capitalize(type)}
-                </option>
-              ))}
+              {productTypes.map(type => <option key={type} value={type}>{capitalize(type)}</option>)}
             </select>
           </div>
           {currentProducts.length === 0 ? (
-            <p className="text-lg text-center text-gray-600 sm:text-xl font-medium">
-              No products found
-            </p>
+            <p className="text-lg text-center text-gray-600 sm:text-xl font-medium">No products found</p>
           ) : (
             <div className="overflow-x-auto">
               <table className="min-w-full divide-y divide-gray-200 rounded-lg shadow-sm">
                 <thead className="bg-gray-100 sticky top-0">
                   <tr>
-                    <th className="px-4 mobile:px-2 py-3 mobile:py-1 text-left text-xs font-medium text-gray-500 uppercase">
-                      Product Type
-                    </th>
-                    <th className="px-4 mobile:px-2 py-3 mobile:py-1 text-left text-xs font-medium text-gray-500
-
- uppercase tracking-wider">
-                      Serial Number
-                    </th>
-                    <th className="px-4 mobile:px-2 py-3 mobile:py-1 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Product Name
-                    </th>
-                    <th className="px-4 mobile:px-2 py-3 mobile:py-1 text-right text-xs font-medium text-gray-500 uppercase">
-                      Price (INR)
-                    </th>
-                    <th className="px-4 mobile:px-2 py-3 mobile:py-1 text-left text-xs font-medium text-gray-500 uppercase">
-                      Per
-                    </th>
-                    <th className="px-4 mobile:px-2 py-3 mobile:py-1 text-right text-xs font-medium text-gray-500 uppercase">
-                      Discount (%)
-                    </th>
-                    <th className="px-4 mobile:px-2 py-3 mobile:py-1 text-center text-xs font-medium text-gray-500 uppercase">
-                      Image
-                    </th>
-                    <th className="px-4 mobile:px-2 py-3 mobile:py-1 text-center text-xs font-medium text-gray-500 uppercase">
-                      Status
-                    </th>
-                    <th className="px-4 mobile:px-2 py-3 mobile:py-1 text-center text-xs font-medium text-gray-500 uppercase">
-                      Fast Running
-                    </th>
-                    <th className="px-4 mobile:px-2 py-3 mobile:py-1 text-center text-xs font-medium text-gray-500 uppercase">
-                      Actions
-                    </th>
+                    {['Product Type', 'Serial Number', 'Product Name', 'Price (INR)', 'Per', 'Discount (%)', 'Image', 'Status', 'Fast Running', 'Actions'].map(header => (
+                      <th key={header} className={`px-4 mobile:px-2 py-3 mobile:py-1 text-${header === 'Price (INR)' || header === 'Discount (%)' ? 'right' : header === 'Image' || header === 'Status' || header === 'Fast Running' || header === 'Actions' ? 'center' : 'left'} text-xs font-medium text-gray-500 uppercase ${header === 'Serial Number' || header === 'Product Name' ? 'tracking-wider' : ''}`}>
+                        {header}
+                      </th>
+                    ))}
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200 border-b border-gray-200">
-                  {currentProducts.map((product) => {
+                  {currentProducts.map(product => {
                     const productKey = `${product.product_type}-${product.id}`;
                     return (
                       <tr key={productKey} className="hover:bg-gray-50">
-                        <td className="px-4 mobile:px-2 py-3 mobile:py-1 whitespace-nowrap text-xs sm:text-sm text-gray-900">
-                          {capitalize(product.product_type)}
-                        </td>
-                        <td className="px-4 mobile:px-2 py-3 mobile:py-1 whitespace-nowrap text-xs sm:text-sm text-gray-900">
-                          {product.serial_number}
-                        </td>
-                        <td className="px-2 mobile:px-1 py-3 mobile:py-1 whitespace-normal text-xs sm:text-sm text-gray-900 max-w-xs truncate">
-                          {product.productname}
-                        </td>
-                        <td className="px-4 mobile:px-2 py-3 mobile:py-1 whitespace-nowrap text-right text-xs sm:text-sm text-gray-900">
-                          ₹{parseFloat(product.price).toFixed(2)}
-                        </td>
-                        <td className="px-4 mobile:px-2 py-3 mobile:py-1 whitespace-nowrap text-xs sm:text-sm text-gray-900">
-                          {product.per}
-                        </td>
-                        <td className="px-4 mobile:px-2 py-3 mobile:py-1 whitespace-nowrap text-right text-xs sm:text-sm text-gray-900">
-                          {parseFloat(product.discount).toFixed(2)}%
-                        </td>
+                        <td className="px-4 mobile:px-2 py-3 mobile:py-1 whitespace-nowrap text-xs sm:text-sm text-gray-900">{capitalize(product.product_type)}</td>
+                        <td className="px-4 mobile:px-2 py-3 mobile:py-1 whitespace-nowrap text-xs sm:text-sm text-gray-900">{product.serial_number}</td>
+                        <td className="px-2 mobile:px-1 py-3 mobile:py-1 whitespace-normal text-xs sm:text-sm text-gray-900 max-w-xs truncate">{product.productname}</td>
+                        <td className="px-4 mobile:px-2 py-3 mobile:py-1 whitespace-nowrap text-right text-xs sm:text-sm text-gray-900">₹{parseFloat(product.price).toFixed(2)}</td>
+                        <td className="px-4 mobile:px-2 py-3 mobile:py-1 whitespace-nowrap text-xs sm:text-sm text-gray-900">{product.per}</td>
+                        <td className="px-4 mobile:px-2 py-3 mobile:py-1 whitespace-nowrap text-right text-xs sm:text-sm text-gray-900">{parseFloat(product.discount).toFixed(2)}%</td>
                         <td className="px-4 mobile:px-2 py-3 mobile:py-1 whitespace-nowrap text-center">
-                          {product.image ? (
-                            <img
-                              src={product.image}
-                              alt={product.productname}
-                              className="h-12 w-12 mobile:h-8 mobile:w-8 object-cover rounded-md mx-auto"
-                            />
-                          ) : (
-                            <span className="text-xs text-gray-500">No image</span>
-                          )}
+                          {product.images.length > 0 ? product.images.map((media, idx) => renderMedia(media, idx, 'h-12 w-12')) : <span className="text-xs text-gray-500">No media</span>}
                         </td>
-                        <td className="px-4 mobile:px-2 py-3 mobile:py-1 whitespace-nowrap text-center">
-                          <label className="inline-flex items-center">
-                            <input
-                              type="checkbox"
-                              className="sr-only peer"
-                              checked={toggleStates[productKey]}
-                              onChange={() => handleToggleChange(product)}
-                            />
-                            <div
-                              className={`relative w-11 h-6 mobile:w-8 mobile:h-4 rounded-full transition-colors duration-200 ease-in-out ${toggleStates[productKey] ? 'bg-green-600' : 'bg-red-600'}`}
-                            >
-                              <div
-                                className={`absolute top-0.5 mobile:top-0.25 w-5 h-5 mobile:w-3.5 mobile:h-3.5 bg-white rounded-full transition-transform duration-200 ease-in-out ${toggleStates[productKey] ? 'translate-x-5 mobile:translate-x-4' : 'translate-x-0.5'}`}
-                              ></div>
-                            </div>
-                          </label>
-                        </td>
-                        <td className="px-4 mobile:px-2 py-3 mobile:py-1 whitespace-nowrap text-center">
-                          <label className="inline-flex items-center">
-                            <input
-                              type="checkbox"
-                              className="sr-only peer"
-                              checked={toggleStates[`fast-${productKey}`]}
-                              onChange={() => handleFastToggleChange(product)}
-                            />
-                            <div
-                              className={`relative w-11 h-6 mobile:w-8 mobile:h-4 rounded-full transition-colors duration-200 ease-in-out ${toggleStates[`fast-${productKey}`] ? 'bg-blue-600' : 'bg-gray-400'}`}
-                            >
-                              <div
-                                className={`absolute top-0.5 mobile:top-0.25 w-5 h-5 mobile:w-3.5 mobile:h-3.5 bg-white rounded-full transition-transform duration-200 ease-in-out ${toggleStates[`fast-${productKey}`] ? 'translate-x-5 mobile:translate-x-4' : 'translate-x-0.5'}`}
-                              ></div>
-                            </div>
-                          </label>
-                        </td>
+                        {[productKey, `fast-${productKey}`].map((key, i) => (
+                          <td key={key} className="px-4 mobile:px-2 py-3 mobile:py-1 whitespace-nowrap text-center">
+                            <label className="inline-flex items-center">
+                              <input type="checkbox" className="sr-only peer" checked={toggleStates[key]} onChange={() => handleToggle(product, i === 0 ? 'toggle-status' : 'toggle-fast-running', i === 0 ? '' : 'fast-')} />
+                              <div className={`relative w-11 h-6 mobile:w-8 mobile:h-4 rounded-full transition-colors duration-200 ease-in-out ${toggleStates[key] ? (i === 0 ? 'bg-green-600' : 'bg-blue-600') : (i === 0 ? 'bg-red-600' : 'bg-gray-400')}`}>
+                                <div className={`absolute top-0.5 mobile:top-0.25 w-5 h-5 mobile:w-3.5 mobile:h-3.5 bg-white rounded-full transition-transform duration-200 ease-in-out ${toggleStates[key] ? 'translate-x-5 mobile:translate-x-4' : 'translate-x-0.5'}`}></div>
+                              </div>
+                            </label>
+                          </td>
+                        ))}
                         <td className="px-4 mobile:px-2 py-3 mobile:py-1 whitespace-nowrap text-center relative">
-                          <button
-                            onClick={() => setViewModalIsOpen(viewModalIsOpen === productKey ? null : productKey)}
-                            className="text-gray-500 hover:text-gray-700 cursor-pointer"
-                          >
-                            <svg className="w-5 h-5 mobile:w-4 mobile:h-4" fill="currentColor" viewBox="0 0 20 20">
-                              <path d="M10 6a2 2 0 110-4 2 2 0 010 4zm0 8a2 2 0 110-4 2 2 0 010 4zm0 8a2 2 0 110-4 2 2 0 010 4z" />
-                            </svg>
+                          <button onClick={() => setViewModalIsOpen(viewModalIsOpen === productKey ? null : productKey)} className="text-gray-500 hover:text-gray-700 cursor-pointer">
+                            <svg className="w-5 h-5 mobile:w-4 mobile:h-4" fill="currentColor" viewBox="0 0 20 20"><path d="M10 6a2 2 0 110-4 2 2 0 010 4zm0 8a2 2 0 110-4 2 2 0 010 4zm0 8a2 2 0 110-4 2 2 0 010 4z" /></svg>
                           </button>
                           {viewModalIsOpen === productKey && (
-                            <div
-                              ref={(el) => (menuRef.current[productKey] = el)}
-                              className="absolute z-10 w-28 bg-white rounded-md shadow-lg border border-gray-200 right-0 mobile:w-24"
-                            >
+                            <div ref={el => (menuRef.current[productKey] = el)} className="absolute z-10 w-28 bg-white rounded-md shadow-lg border border-gray-200 right-0 mobile:w-24">
                               <div className="py-1 mobile:py-0.5 flex flex-col">
-                                <button
-                                  onClick={() => openModal(product)}
-                                  className="flex cursor-pointer items-center px-4 mobile:px-2 py-2 mobile:py-1 text-sm mobile:text-xs text-gray-700 hover:bg-gray-300 text-left"
-                                >
-                                  <FaEye className="mr-2 h-4 w-4 mobile:h-3 mobile:w-3" />
-                                  View
-                                </button>
-                                <button
-                                  onClick={() => openEditModal(product)}
-                                  className="flex cursor-pointer items-center px-4 mobile:px-2 py-2 mobile:py-1 text-sm mobile:text-xs text-gray-700 hover:bg-gray-300 text-left"
-                                >
-                                  <FaEdit className="mr-2 h-4 w-4 mobile:h-3 mobile:w-3" />
-                                  Edit
-                                </button>
-                                <button
-                                  onClick={() => handleDelete(product)}
-                                  className="flex cursor-pointer items-center px-4 mobile:px-2 py-2 mobile:py-1 text-sm mobile:text-xs text-red-600 hover:bg-gray-300 text-left"
-                                >
-                                  <FaTrash className="mr-2 h-4 w-4 mobile:h-3 mobile:w-3" />
-                                  Delete
-                                </button>
+                                {[{ icon: FaEye, label: 'View', action: () => { setSelectedProduct(product); setModalIsOpen(true); setViewModalIsOpen(null); } }, { icon: FaEdit, label: 'Edit', action: () => { setSelectedProduct(product); setFormData({ productname: product.productname, serial_number: product.serial_number, price: product.price, discount: product.discount, per: product.per, description: product.description || '', images: product.images }); setEditModalIsOpen(true); setViewModalIsOpen(null); } }, { icon: FaTrash, label: 'Delete', action: async () => { try { await fetch(`${API_BASE_URL}/api/products/${product.product_type.toLowerCase().replace(/\s+/g, '_')}/${product.id}`, { method: 'DELETE' }); fetchProducts(); setViewModalIsOpen(null); } catch (err) { setError('Failed to delete product'); } }, className: 'text-red-600' }].map(({ icon: Icon, label, action, className }, i) => (
+                                  <button key={i} onClick={action} className={`flex cursor-pointer items-center px-4 mobile:px-2 py-2 mobile:py-1 text-sm mobile:text-xs ${className || 'text-gray-700'} hover:bg-gray-300 text-left`}>
+                                    <Icon className="mr-2 h-4 w-4 mobile:h-3 mobile:w-3" />{label}
+                                  </button>
+                                ))}
                               </div>
                             </div>
                           )}
@@ -488,321 +268,40 @@ export default function List() {
             </div>
           )}
           {totalPages > 1 && (
-            <div className="mt-6 mobile:mt-2 flex justify-center items-center space-x-2 mobile:space-x-1">
-              <button
-                onClick={() => handlePageChange(currentPage - 1)}
-                disabled={currentPage === 1}
-                className={`px-3 mobile:px-2 py-1 mobile:py-0.5 rounded-md text-sm mobile:text-xs font-medium ${currentPage === 1 ? 'bg-gray-200 text-gray-400 cursor-not-allowed' : 'bg-indigo-600 text-white hover:bg-indigo-700'}`}
-              >
-                Previous
+            <div className="mt-6 mobile:mt-2 flex justify-center items-center space-x-4 mobile:space-x-2">
+              <button onClick={() => { setCurrentPage(p => p - 1); window.scrollTo(0, 0); }} disabled={currentPage === 1} className={`p-2 rounded-md ${currentPage === 1 ? 'bg-gray-200 text-gray-400 cursor-not-allowed' : 'bg-indigo-600 text-white hover:bg-indigo-700'}`}>
+                <FaArrowLeft className="h-5 w-5 mobile:h-4 mobile:w-4" />
               </button>
-              {[...Array(totalPages).keys()].map((page) => (
-                <button
-                  key={page + 1}
-                  onClick={() => handlePageChange(page + 1)}
-                  className={`px-3 mobile:px-2 py-1 mobile:py-0.5 rounded-md text-sm mobile:text-xs font-medium ${currentPage === page + 1 ? 'bg-indigo-600 text-white' : 'bg-white text-gray-700 hover:bg-gray-100 border border-gray-300'}`}
-                >
-                  {page + 1}
-                </button>
-              ))}
-              <button
-                onClick={() => handlePageChange(currentPage + 1)}
-                disabled={currentPage === totalPages}
-                className={`px-3 mobile:px-2 py-1 mobile:py-0.5 rounded-md text-sm mobile:text-xs font-medium ${currentPage === totalPages ? 'bg-gray-200 text-gray-400 cursor-not-allowed' : 'bg-indigo-600 text-white hover:bg-indigo-700'}`}
-              >
-                Next
+              <button onClick={() => { setCurrentPage(p => p + 1); window.scrollTo(0, 0); }} disabled={currentPage === totalPages} className={`p-2 rounded-md ${currentPage === totalPages ? 'bg-gray-200 text-gray-400 cursor-not-allowed' : 'bg-indigo-600 text-white hover:bg-indigo-700'}`}>
+                <FaArrowRight className="h-5 w-5 mobile:h-4 mobile:w-4" />
               </button>
             </div>
           )}
-          <Modal
-            isOpen={modalIsOpen}
-            onRequestClose={closeModal}
-            className="fixed inset-0 flex items-center justify-center p-4 mobile:p-2"
-            overlayClassName="fixed inset-0 bg-black/50"
-          >
+          <Modal isOpen={modalIsOpen} onRequestClose={closeModal} className="fixed inset-0 flex items-center justify-center p-4 mobile:p-2" overlayClassName="fixed inset-0 bg-black/50">
             {selectedProduct && (
               <div className="bg-white rounded-lg p-6 mobile:p-3 max-w-md w-full sm:max-w-lg">
-                <h2 className="text-lg sm:text-xl font-bold text-gray-900 mb-4 mobile:mb-2 text-center">
-                  Product Details
-                </h2>
+                <h2 className="text-lg sm:text-xl font-bold text-gray-900 mb-4 mobile:mb-2 text-center">Product Details</h2>
                 <div className="space-y-4 mobile:space-y-2">
-                  <div className="flex justify-center">
-                    {selectedProduct.image ? (
-                      <img
-                        src={selectedProduct.image}
-                        alt={selectedProduct.productname}
-                        className="h-24 w-24 mobile:h-16 mobile:w-16 anum-mobile:h-12 object-cover rounded-md"
-                      />
-                    ) : (
-                      <span className="text-gray-500 text-sm">No Image</span>
-                    )}
-                  </div>
+                  <div className="flex justify-center">{selectedProduct.images.length > 0 ? selectedProduct.images.map((media, idx) => renderMedia(media, idx, 'h-24 w-24 mobile:h-16 mobile:w-16')) : <span className="text-gray-500 text-sm">No media</span>}</div>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mobile:gap-2">
-                    <div>
-                      <span className="font-medium text-gray-700 text-xs sm:text-sm">Product Type:</span>
-                      <span className="ml-2 text-gray-900 text-xs sm:text-sm">{capitalize(selectedProduct.product_type)}</span>
-                    </div>
-                    <div>
-                      <span className="font-medium text-gray-700 text-xs sm:text-sm">Serial Number:</span>
-                      <span className="ml-2 text-gray-900 text-xs sm:text-sm">{selectedProduct.serial_number}</span>
-                    </div>
-                    <div>
-                      <span className="font-medium text-gray-700 text-xs sm:text-sm">Product Name:</span>
-                      <span className="ml-2 text-gray-900 text-xs sm:text-sm">{selectedProduct.productname}</span>
-                    </div>
-                    <div>
-                      <span className="font-medium text-gray-700 text-xs sm:text-sm">Price:</span>
-                      <span className="ml-2 text-gray-900 text-xs sm:text-sm">₹{parseFloat(selectedProduct.price).toFixed(2)}</span>
-                    </div>
-                    <div>
-                      <span className="font-medium text-gray-700 text-xs sm:text-sm">Per:</span>
-                      <span className="ml-2 text-gray-900 text-xs sm:text-sm">{selectedProduct.per}</span>
-                    </div>
-                    <div>
-                      <span className="font-medium text-gray-700 text-xs sm:text-sm">Discount:</span>
-                      <span className="ml-2 text-gray-900 text-xs sm:text-sm">{parseFloat(selectedProduct.discount).toFixed(2)}%</span>
-                    </div>
-                    <div>
-                      <span className="font-medium text-gray-700 text-xs sm:text-sm">Status:</span>
-                      <span className="ml-2 text-gray-900 text-xs sm:text-sm">{capitalize(selectedProduct.status)}</span>
-                    </div>
+                    {['product_type', 'serial_number', 'productname', 'price', 'per', 'discount', 'description', 'status'].map(field => (
+                      <div key={field} className={field === 'description' ? 'sm:col-span-2' : ''}>
+                        <span className="font-medium text-gray-700 text-xs sm:text-sm">{capitalize(field.replace('_', ' '))}:</span>
+                        <span className="ml-2 text-gray-900 text-xs sm:text-sm">
+                          {field === 'price' ? `₹${parseFloat(selectedProduct[field]).toFixed(2)}` : field === 'discount' ? `${parseFloat(selectedProduct[field]).toFixed(2)}%` : field === 'description' ? (selectedProduct[field] || 'No description') : capitalize(selectedProduct[field])}
+                        </span>
+                      </div>
+                    ))}
                   </div>
                 </div>
                 <div className="mt-6 mobile:mt-3 flex justify-end">
-                  <button
-                    onClick={closeModal}
-                    className="rounded-md bg-gray-600 px-3 mobile:px-2 py-2 mobile:py-1 text-xs sm:text-sm font-semibold text-white shadow-sm hover:bg-gray-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gray-600"
-                  >
-                    Close
-                  </button>
+                  <button onClick={closeModal} className="rounded-md bg-gray-600 px-3 mobile:px-2 py-2 mobile:py-1 text-xs sm:text-sm font-semibold text-white shadow-sm hover:bg-gray-700">Close</button>
                 </div>
               </div>
             )}
           </Modal>
-          <Modal
-            isOpen={editModalIsOpen}
-            onRequestClose={closeModal}
-            className="fixed inset-0 flex items-center justify-center p-4 mobile:p-2"
-            overlayClassName="fixed inset-0 bg-black/50"
-          >
-            <div className="bg-white rounded-lg p-6 mobile:p-3 max-w-md w-full sm:max-w-lg">
-              <h2 className="text-lg sm:text-xl font-semibold text-gray-900 mb-4 mobile:mb-2 text-center">
-                Edit Product
-              </h2>
-              <form onSubmit={handleEditSubmit} className="space-y-4 mobile:space-y-2">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">Product Name</label>
-                  <input
-                    type="text"
-                    name="productname"
-                    value={editFormData.productname}
-                    onChange={(e) => handleInputChange(e, 'edit')}
-                    className="mt-1 mobile:mt-0.5 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-600 focus:ring-indigo-600 sm:text-sm"
-                    required
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">Serial Number</label>
-                  <input
-                    type="text"
-                    name="serial_number"
-                    value={editFormData.serial_number}
-                    onChange={(e) => handleInputChange(e, 'edit')}
-                    className="mt-1 mobile:mt-0.5 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-600 focus:ring-indigo-600 sm:text-sm"
-                    required
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">Price</label>
-                  <input
-                    type="number"
-                    name="price"
-                    value={editFormData.price}
-                    onChange={(e) => handleInputChange(e, 'edit')}
-                    className="mt-1 mobile:mt-0.5 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-600 focus:ring-indigo-600 sm:text-sm"
-                    required
-                    step="0.01"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">Discount (%)</label>
-                  <input
-                    type="number"
-                    name="discount"
-                    value={editFormData.discount}
-                    onChange={(e) => handleInputChange(e, 'edit')}
-                    className="mt-1 mobile:mt-0.5 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-600 focus:ring-indigo-600 sm:text-sm"
-                    required
-                    step="0.01"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">Per</label>
-                  <select
-                    name="per"
-                    value={editFormData.per}
-                    onChange={(e) => handleInputChange(e, 'edit')}
-                    className="mt-1 mobile:mt-0.5 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-600 focus:ring-indigo-600 sm:text-sm"
-                    required
-                  >
-                    <option value="pieces">Pieces</option>
-                    <option value="box">Box</option>
-                    <option value="pkt">Packet</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">Image</label>
-                  <input
-                    type="file"
-                    name="image"
-                    onChange={(e) => handleImageChange(e, 'edit')}
-                    accept="image/jpeg,image/png"
-                    className="mt-1 mobile:mt-0.5 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-600 focus:ring-indigo-600 sm:text-sm"
-                  />
-                  {editFormData.imageBase64 && (
-                    <img
-                      src={editFormData.imageBase64}
-                      alt="Preview"
-                      className="mt-2 h-24 w-24 object-cover rounded-md"
-                    />
-                  )}
-                </div>
-                <div className="mt-6 mobile:mt-3 flex justify-end space-x-2 mobile:space-x-1">
-                  <button
-                    type="button"
-                    onClick={closeModal}
-                    className="rounded-md bg-gray-600 px-3 mobile:px-2 py-2 mobile:py-1 text-xs sm:text-sm font-semibold text-white shadow-sm hover:bg-gray-700"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="submit"
-                    className="rounded-md bg-indigo-600 px-3 mobile:px-2 py-2 mobile:py-1 text-xs sm:text-sm font-semibold text-white shadow-sm hover:bg-indigo-700"
-                  >
-                    Save
-                  </button>
-                </div>
-              </form>
-            </div>
-          </Modal>
-          <Modal
-            isOpen={addModalIsOpen}
-            onRequestClose={closeModal}
-            className="fixed inset-0 flex items-center justify-center p-4 mobile:p-2"
-            overlayClassName="fixed inset-0 bg-black/50"
-          >
-            <div className="bg-white rounded-lg p-6 mobile:p-3 max-w-md w-full sm:max-w-lg">
-              <h2 className="text-lg sm:text-xl font-semibold text-gray-900 mb-4 mobile:mb-2 text-center">
-                Add Product
-              </h2>
-              <form onSubmit={handleAddSubmit} className="space-y-4 mobile:space-y-2">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">Product Type</label>
-                  <input
-                    type="text"
-                    name="product_type"
-                    value={addFormData.product_type}
-                    onChange={(e) => handleInputChange(e, 'add')}
-                    className="mt-1 mobile:mt-0.5 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-600 focus:ring-indigo-600 sm:text-sm"
-                    required
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">Product Name</label>
-                  <input
-                    type="text"
-                    name="productname"
-                    value={addFormData.productname}
-                    onChange={(e) => handleInputChange(e, 'add')}
-                    className="mt-1 mobile:mt-0.5 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-600 focus:ring-indigo-600 sm:text-sm"
-                    required
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">Serial Number</label>
-                  <input
-                    type="text"
-                    name="serial_number"
-                    value={addFormData.serial_number}
-                    onChange={(e) => handleInputChange(e, 'add')}
-                    className="mt-1 mobile:mt-0.5 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-600 focus:ring-indigo-600 sm:text-sm"
-                    required
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">Price</label>
-                  <input
-                    type="number"
-                    name="price"
-                    value={addFormData.price}
-                    onChange={(e) => handleInputChange(e, 'add')}
-                    className="mt-1 mobile:mt-0.5 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-600 focus:ring-indigo-600 sm:text-sm"
-                    required
-                    step="0.01"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">Discount (%)</label>
-                  <input
-                    type="number"
-                    name="discount"
-                    value={addFormData.discount}
-                    onChange={(e) => handleInputChange(e, 'add')}
-                    className="mt-1 mobile:mt-0.5 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-600 focus:ring-indigo-600 sm:text-sm"
-                    required
-                    step="0.01"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">Per</label>
-                  <select
-                    name="per"
-                    value={addFormData.per}
-                    onChange={(e) => handleInputChange(e, 'add')}
-                    className="mt-1 mobile:mt-0.5 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-600 focus:ring-indigo-600 sm:text-sm"
-                    required
-                  >
-                    <option value="">Select Unit</option>
-                    <option value="pieces">Pieces</option>
-                    <option value="box">Box</option>
-                    <option value="pkt">Packet</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">Image</label>
-                  <input
-                    type="file"
-                    name="image"
-                    onChange={(e) => handleImageChange(e, 'add')}
-                    accept="image/jpeg,image/png"
-                    className="mt-1 mobile:mt-0.5 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-600 focus:ring-indigo-600 sm:text-sm"
-                  />
-                  {addFormData.imageBase64 && (
-                    <img
-                      src={addFormData.imageBase64}
-                      alt="Preview"
-                      className="mt-2 h-24 w-24 object-cover rounded-md"
-                    />
-                  )}
-                </div>
-                <div className="mt-6 mobile:mt-3 flex justify-end space-x-2 mobile:space-x-1">
-                  <button
-                    type="button"
-                    onClick={closeModal}
-                    className="rounded-md bg-gray-600 px-3 mobile:px-2 py-2 mobile:py-1 text-xs sm:text-sm font-semibold text-white shadow-sm hover:bg-gray-700"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="submit"
-                    className="rounded-md bg-indigo-600 px-3 mobile:px-2 py-2 mobile:py-1 text-xs sm:text-sm font-semibold text-white shadow-sm hover:bg-indigo-700"
-                  >
-                    Add
-                  </button>
-                </div>
-              </form>
-            </div>
-          </Modal>
+          <Modal isOpen={editModalIsOpen} onRequestClose={closeModal} className="fixed inset-0 flex items-center justify-center p-4 mobile:p-2" overlayClassName="fixed inset-0 bg-black/50">{renderModalForm(true)}</Modal>
+          <Modal isOpen={addModalIsOpen} onRequestClose={closeModal} className="fixed inset-0 flex items-center justify-center p-4 mobile:p-2" overlayClassName="fixed inset-0 bg-black/50">{renderModalForm(false)}</Modal>
         </div>
       </div>
     </div>

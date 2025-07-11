@@ -59,7 +59,6 @@ const Pricelist = () => {
     modal: { background: "linear-gradient(135deg, rgba(255,255,255,0.95), rgba(240,249,255,0.9))", backdropFilter: "blur(20px)", border: "1px solid rgba(2,132,199,0.3)", boxShadow: "0 25px 45px rgba(2,132,199,0.2)" } 
   }
 
-  // Helper function to format prices
   const formatPrice = (price) => {
     const num = Number.parseFloat(price);
     return Number.isInteger(num) ? num.toString() : num.toFixed(2);

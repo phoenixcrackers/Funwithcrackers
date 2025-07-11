@@ -7,11 +7,11 @@ import Logout from '../Logout';
 
 export default function Inventory() {
   const [focused, setFocused] = useState({});
-  const [values, setValues] = useState({});
+const [values, setValues] = useState({ description: '' });
   const [productType, setProductType] = useState('');
   const [newProductType, setNewProductType] = useState('');
   const [productTypes, setProductTypes] = useState([]);
-  const [image, setImage] = useState(null);
+const [images, setImages] = useState([]); // instead of image
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
 
@@ -48,15 +48,40 @@ export default function Inventory() {
     setValues((prev) => ({ ...prev, [inputId]: event.target.value }));
   };
 
-  const handleImageChange = (event) => {
-    setImage(event.target.files[0]);
-  };
+const handleImageChange = (event) => {
+  const files = Array.from(event.target.files);
+  const allowedImageTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/jpg'];
+  const allowedVideoTypes = ['video/mp4', 'video/webm', 'video/ogg'];
+  const allowedTypes = [...allowedImageTypes, ...allowedVideoTypes];
+
+  const validFiles = [];
+
+  for (const file of files) {
+    const fileType = file.type.toLowerCase();
+    if (!allowedTypes.includes(fileType)) {
+      setError('Only JPG, PNG, GIF images and MP4, WebM, Ogg videos are allowed');
+      return;
+    }
+
+    if (file.size > 5 * 1024 * 1024) {
+      setError('Each file must be less than 5MB');
+      return;
+    }
+
+    validFiles.push(file);
+  }
+
+  setError('');
+  setImages(validFiles);
+};
+
+
 
   const handleProductTypeChange = (event) => {
     setProductType(event.target.value);
     setValues({});
     setFocused({});
-    setImage(null);
+    setImages(null);
     setError('');
     setSuccess('');
   };
@@ -92,33 +117,63 @@ export default function Inventory() {
     }
   };
 
-  const handleSubmit = async (event) => {
-    event.preventDefault();
-    setError('');
-    setSuccess('');
-    const formData = new FormData();
-    formData.append('serial_number', values.serialNum || '');
-    formData.append('productname', values.productName || '');
-    formData.append('price', values.price || '');
-    formData.append('per', values.per || '');
-    formData.append('discount', values.discount || '');
-    formData.append('product_type', productType);
-    if (image) formData.append('image', image);
+const handleSubmit = async (event) => {
+  event.preventDefault();
+  setError('');
+  setSuccess('');
+
+  // Validate required fields
+  if (!values.serialNum || !values.productName || !values.price || !values.per || !values.discount || !productType) {
+    setError('Please fill in all required fields');
+    return;
+  }
+
+  // Convert image to base64 if it exists
+let imageBase64Array = [];
+
+if (images.length > 0) {
+  for (const file of images) {
+    const base64 = await new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onloadend = () => resolve(reader.result);
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+    imageBase64Array.push(base64);
+  }
+}
+  
+  const payload = {
+    serial_number: values.serialNum,
+    productname: values.productName,
+    price: values.price,
+    per: values.per,
+    discount: values.discount,
+      description: values.description || '',
+
+    product_type: productType,
+    images: imageBase64Array.length ? imageBase64Array : null,
+    };
+
     try {
       const response = await fetch(`${API_BASE_URL}/api/products`, {
         method: 'POST',
-        body: formData,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
       });
+
       const result = await response.json();
       if (!response.ok) throw new Error(result.message || 'Failed to save product');
+
       setSuccess('Product saved successfully!');
       setValues({});
-      setImage(null);
+      setImages([]);
       event.target.reset();
     } catch (err) {
       setError(err.message);
     }
   };
+
 
   const formatProductTypeDisplay = (type) => {
     if (!type || typeof type !== 'string') return 'Unknown Type';
@@ -226,6 +281,24 @@ export default function Inventory() {
             />
           </div>
         </div>
+        <div className="sm:col-span-6">
+          <label htmlFor="description" className="block text-sm font-medium text-gray-900">
+            Description
+          </label>
+          <div className="mt-2">
+            <textarea
+              id="description"
+              rows="3"
+              value={values.description || ''}
+              onChange={(e) => handleChange('description', e)}
+              onFocus={() => handleFocus('description')}
+              onBlur={() => handleBlur('description')}
+              className="block w-full rounded-md bg-white px-3 py-2 text-base text-gray-900 outline-1 -outline-offset-1 outline-gray-300 placeholder:text-gray-400 focus:outline-2 focus:-outline-offset-2 focus:outline-indigo-600 sm:text-sm"
+              placeholder="Enter product description"
+            />
+          </div>
+        </div>
+
         <div className="sm:col-span-3">
           <label htmlFor="image" className="block text-sm font-medium text-gray-900">
             Image Upload
@@ -234,7 +307,8 @@ export default function Inventory() {
             <input
               type="file"
               id="image"
-              accept="image/jpeg,image/png"
+              accept="image/jpeg,image/png,image/gif,video/mp4,video/webm,video/ogg"
+              multiple
               onChange={handleImageChange}
               className="block w-full text-sm text-gray-900 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-600 hover:file:bg-indigo-100"
             />
@@ -312,9 +386,7 @@ export default function Inventory() {
                     type="button"
                     className="text-sm cursor-pointer font-semibold text-gray-900"
                     onClick={() => {
-                      setValues({});
-                      setImage(null);
-                      setProductType('');
+                      setValues({});setImages([]);setProductType('');
                     }}
                   >
                     Cancel

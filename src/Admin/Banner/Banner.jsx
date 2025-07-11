@@ -45,7 +45,7 @@ const handleDelete = async (id) => {
     if (selectedFiles.length === 0) return;
 
     const formData = new FormData();
-    selectedFiles.forEach((file) => formData.append('images', file)); // name must match multer config
+    selectedFiles.forEach((file) => formData.append('images', file));
 
     try {
       setUploading(true);
