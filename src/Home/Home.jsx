@@ -247,14 +247,14 @@ export default function Home() {
           </motion.div>
         </div>
       )}
-      <motion.div style={{ y: heroY, opacity: heroOpacity }} className="relative max-w-8xl mt-[100px] h-[350px] hundred:h-[500px] onefifty:h-[350px] overflow-hidden rounded-3xl mx-4 md:mx-8">
+      <motion.div style={{ y: heroY, opacity: heroOpacity }} className="relative max-w-8xl mt-[100px] h-[350px] hundred:h-[500px] onefifty:h-[350px] mobile:h-[150px] overflow-hidden rounded-3xl mx-4 md:mx-8">
         <div className="absolute inset-0 z-10 rounded-3xl"></div>
         {banners.map((banner, idx) => (
-          <motion.div key={banner.id} className={`absolute inset-0 transition-opacity duration-1000 ease-in-out rounded-3xl overflow-hidden ${currentSlide === idx ? "opacity-100 z-5" : "opacity-0 z-0"}`} style={{ transition: "transform 4s ease-in-out" }}>
-            <img src={`${API_BASE_URL}${banner.image_url}`} alt={`Banner ${banner.id}`} className="w-full h-full object-cover rounded-3xl" />
+          <motion.div key={banner.id} className={`absolute inset-0 transition-opacity duration-1000 ease-in-out rounded-3xl overflow-hidden${currentSlide === idx ? "opacity-100 z-5" : "opacity-0 z-0"}`} style={{ transition: "transform 4s ease-in-out" }}>
+            <img src={`${API_BASE_URL}${banner.image_url}`} alt={`Banner ${banner.id}`} className="hundred:w-full hundred:h-full object-cover rounded-3xl mobile:w-[100%] mobile:h-[100%]" />
           </motion.div>
         ))}
-        <div className="absolute bottom-8 left-1/2 -translate-x-1/2 z-30 flex space-x-3">
+        <div className="absolute bottom-8 left-1/2 -translate-x-1/2 z-30 flex space-x-3 mobile:top-32">
           {banners.map((_, i) => (
             <button key={i} onClick={() => setCurrentSlide(i)} className={`w-3 cursor-pointer h-3 rounded-full transition-all duration-300 ${currentSlide === i ? "scale-125 shadow-lg" : ""}`} style={{ background: currentSlide === i ? "linear-gradient(135deg, rgba(56,189,248,0.9) 0%, rgba(125,211,252,0.8) 100%)" : "rgba(255,255,255,0.6)", backdropFilter: "blur(10px)", boxShadow: currentSlide === i ? "0 4px 15px rgba(56,189,248,0.4)" : "none" }} />
           ))}
