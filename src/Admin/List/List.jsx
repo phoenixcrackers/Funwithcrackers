@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import Modal from 'react-modal';
 import Sidebar from '../Sidebar/Sidebar';
 import '../../App.css';
@@ -16,23 +16,22 @@ export default function List() {
   const [modalIsOpen, setModalIsOpen] = useState(false);
   const [editModalIsOpen, setEditModalIsOpen] = useState(false);
   const [addModalIsOpen, setAddModalIsOpen] = useState(false);
-  const [viewModalIsOpen, setViewModalIsOpen] = useState(null);
   const [selectedProduct, setSelectedProduct] = useState(null);
   const [error, setError] = useState('');
   const [toggleStates, setToggleStates] = useState({});
   const [currentPage, setCurrentPage] = useState(1);
-  const [formData, setFormData] = useState({ 
-    productname: '', 
-    serial_number: '', 
-    price: '', 
-    discount: '', 
-    per: '', 
-    product_type: '', 
-    description: '', 
-    images: [] 
+  const [formData, setFormData] = useState({
+    productname: '',
+    serial_number: '',
+    price: '',
+    discount: '',
+    per: '',
+    product_type: '',
+    description: '',
+    box_count: 1,
+    images: []
   });
-  const productsPerPage = 10;
-  const menuRef = useRef({});
+  const productsPerPage = 9;
 
   const fetchData = async (url, errorMsg, setter) => {
     try {
@@ -46,8 +45,8 @@ export default function List() {
   };
 
   const fetchProductTypes = () => fetchData(
-    `${API_BASE_URL}/api/product-types`, 
-    'Failed to fetch product types', 
+    `${API_BASE_URL}/api/product-types`,
+    'Failed to fetch product types',
     data => setProductTypes(data.filter(item => item.product_type !== 'gift_box_dealers').map(item => item.product_type))
   );
 
@@ -57,12 +56,13 @@ export default function List() {
       .map(product => ({
         ...product,
         images: product.image ? (Array.isArray(JSON.parse(product.image)) ? JSON.parse(product.image) : [product.image]) : [],
+        box_count: product.box_count || 1
       }));
     setProducts(normalizedData);
     setFilteredProducts(filterType === 'all' ? normalizedData : normalizedData.filter(p => p.product_type === filterType));
     setToggleStates(normalizedData.reduce((acc, p) => ({
-      ...acc, 
-      [`${p.product_type}-${p.id}`]: p.status === 'on', 
+      ...acc,
+      [`${p.product_type}-${p.id}`]: p.status === 'on',
       [`fast-${p.product_type}-${p.id}`]: p.fast_running === true,
     }), {}));
   });
@@ -90,13 +90,8 @@ export default function List() {
 
   useEffect(() => {
     setFilteredProducts(filterType === 'all' ? products : products.filter(p => p.product_type === filterType));
+    setCurrentPage(1);
   }, [filterType, products]);
-
-  useEffect(() => {
-    const handleClickOutside = e => viewModalIsOpen && menuRef.current[viewModalIsOpen] && !menuRef.current[viewModalIsOpen].contains(e.target) && setViewModalIsOpen(null);
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, [viewModalIsOpen]);
 
   const handleImageChange = (e, isEdit) => {
     const files = Array.from(e.target.files).slice(0, 3);
@@ -121,14 +116,14 @@ export default function List() {
       setError('Product type "gift_box_dealers" is not allowed');
       return;
     }
-    const url = isEdit 
-      ? `${API_BASE_URL}/api/products/${selectedProduct.product_type.toLowerCase().replace(/\s+/g, '_')}/${selectedProduct.id}` 
+    const url = isEdit
+      ? `${API_BASE_URL}/api/products/${selectedProduct.product_type.toLowerCase().replace(/\s+/g, '_')}/${selectedProduct.id}`
       : `${API_BASE_URL}/api/products`;
     try {
       const response = await fetch(url, {
         method: isEdit ? 'PUT' : 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData),
+        body: JSON.stringify({ ...formData, box_count: Math.max(1, parseInt(formData.box_count) || 1) }),
       });
       const result = await response.json();
       if (!response.ok) throw new Error(result.message || `Failed to ${isEdit ? 'update' : 'add'} product`);
@@ -139,14 +134,22 @@ export default function List() {
     }
   };
 
+  const handleDelete = async (product) => {
+    try {
+      await fetch(`${API_BASE_URL}/api/products/${product.product_type.toLowerCase().replace(/\s+/g, '_')}/${product.id}`, { method: 'DELETE' });
+      fetchProducts();
+    } catch (err) {
+      setError('Failed to delete product');
+    }
+  };
+
   const closeModal = () => {
     setModalIsOpen(false);
     setEditModalIsOpen(false);
     setAddModalIsOpen(false);
-    setViewModalIsOpen(null);
     setSelectedProduct(null);
     setError('');
-    setFormData({ productname: '', serial_number: '', price: '', discount: '', per: '', product_type: '', description: '', images: [] });
+    setFormData({ productname: '', serial_number: '', price: '', discount: '', per: '', product_type: '', description: '', box_count: 1, images: [] });
   };
 
   const capitalize = str => str ? str.split('_').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ') : '';
@@ -178,17 +181,18 @@ export default function List() {
             />
           </div>
         )}
-        {['productname', 'serial_number', 'price', 'discount'].map(field => (
+        {['productname', 'serial_number', 'price', 'discount', 'box_count'].map(field => (
           <div key={field}>
             <label className="block text-sm font-medium text-gray-700">{capitalize(field.replace('_', ' '))}</label>
             <input
-              type={field === 'price' || field === 'discount' ? 'number' : 'text'}
+              type={field === 'price' || field === 'discount' || field === 'box_count' ? 'number' : 'text'}
               name={field}
               value={formData[field]}
               onChange={e => setFormData(prev => ({ ...prev, [e.target.name]: e.target.value }))}
               className="mt-1 mobile:mt-0.5 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-600 focus:ring-indigo-600 sm:text-sm"
               required
               step={field === 'price' || field === 'discount' ? '0.01' : undefined}
+              min={field === 'box_count' ? '1' : undefined}
             />
           </div>
         ))}
@@ -201,8 +205,8 @@ export default function List() {
             className="mt-1 mobile:mt-0.5 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-600 focus:ring-indigo-600 sm:text-sm"
             required
           >
-            {isEdit 
-              ? ['pieces', 'box', 'pkt'].map(opt => <option key={opt} value={opt}>{opt}</option>) 
+            {isEdit
+              ? ['pieces', 'box', 'pkt'].map(opt => <option key={opt} value={opt}>{opt}</option>)
               : [<option key="" value="">Select Unit</option>, ...['pieces', 'box', 'pkt'].map(opt => <option key={opt} value={opt}>{opt}</option>)]
             }
           </select>
@@ -253,18 +257,18 @@ export default function List() {
     </div>
   );
 
-  const { indexOfFirstProduct, indexOfLastProduct } = { 
-    indexOfFirstProduct: currentPage * productsPerPage - productsPerPage, 
-    indexOfLastProduct: currentPage * productsPerPage 
+  const { indexOfFirstProduct, indexOfLastProduct } = {
+    indexOfFirstProduct: currentPage * productsPerPage - productsPerPage,
+    indexOfLastProduct: currentPage * productsPerPage
   };
   const currentProducts = filteredProducts.slice(indexOfFirstProduct, indexOfLastProduct);
   const totalPages = Math.ceil(filteredProducts.length / productsPerPage);
 
   return (
-    <div className="flex min-h-screen overflow-hidden mobile:overflow-hidden">
+    <div className="flex min-h-screen overflow-hidden">
       <Sidebar />
       <Logout />
-      <div className="flex-1 md:ml-64 p-6 mobile:p-4 overflow-hidden">
+      <div className="flex-1 p-6 mobile:p-4 overflow-hidden">
         <div className="max-w-5xl mx-auto">
           <h2 className="text-2xl text-center font-bold text-gray-900 mb-6 mobile:mb-4">List Products</h2>
           {error && <div className="mb-4 mobile:mb-2 text-red-600 text-sm text-center">{error}</div>}
@@ -275,7 +279,7 @@ export default function List() {
                 id="product-type-filter"
                 value={filterType}
                 onChange={e => setFilterType(e.target.value)}
-                className="mt-2 mobile:mt-1 block w-48 rounded-md bg-white px-3 py-1.5 text-base text-gray-900 outline-1 -outline-offset-1 outline-gray-300 focus:outline-2 focus:outline-offset-1 focus:outline-indigo-600 sm:text-sm"
+                className="mt-2 mobile:mt-1 block w-48 rounded-md bg-white px-3 py-1.5 text-base text-gray-900 outline-1 outline-gray-300 focus:outline-2 focus:outline-indigo-600 sm:text-sm"
               >
                 <option value="all">All</option>
                 {productTypes.map(type => <option key={type} value={type}>{capitalize(type)}</option>)}
@@ -283,7 +287,7 @@ export default function List() {
             </div>
             <button
               onClick={() => setAddModalIsOpen(true)}
-              className="rounded-md bg-indigo-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-700"
+              className="rounded-md bg-indigo-600 px-3 py-2 mobile:translate-y-3 text-sm font-semibold text-white shadow-sm hover:bg-indigo-700"
             >
               Add Product
             </button>
@@ -291,140 +295,21 @@ export default function List() {
           {currentProducts.length === 0 ? (
             <p className="text-lg text-center text-gray-600 sm:text-xl font-medium">No products found</p>
           ) : (
-            <>
-              {/* Desktop Table View */}
-              <div className="hidden md:block overflow-x-auto">
-                <table className="min-w-full divide-y divide-gray-200 rounded-lg shadow-sm">
-                  <thead className="bg-gray-100 sticky top-0">
-                    <tr>
-                      {['Product Type', 'Serial Number', 'Product Name', 'Price (INR)', 'Per', 'Discount (%)', 'Image', 'Status', 'Fast Running', 'Actions'].map(header => (
-                        <th
-                          key={header}
-                          className={`px-4 py-3 text-${header === 'Price (INR)' || header === 'Discount (%)' ? 'right' : header === 'Image' || header === 'Status' || header === 'Fast Running' || header === 'Actions' ? 'center' : 'left'} text-xs font-medium text-gray-500 uppercase ${header === 'Serial Number' || header === 'Product Name' ? 'tracking-wider' : ''}`}
-                        >
-                          {header}
-                        </th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody className="bg-white divide-y divide-gray-200 border-b border-gray-200">
-                    {currentProducts.map(product => {
-                      const productKey = `${product.product_type}-${product.id}`;
-                      return (
-                        <tr key={productKey} className="hover:bg-gray-50">
-                          <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900">{capitalize(product.product_type)}</td>
-                          <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900">{product.serial_number}</td>
-                          <td className="px-2 py-3 whitespace-normal text-sm text-gray-900 max-w-xs truncate">{product.productname}</td>
-                          <td className="px-4 py-3 whitespace-nowrap text-right text-sm text-gray-900">₹{parseFloat(product.price).toFixed(2)}</td>
-                          <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900">{product.per}</td>
-                          <td className="px-4 py-3 whitespace-nowrap text-right text-sm text-gray-900">{parseFloat(product.discount).toFixed(2)}%</td>
-                          <td className="px-4 py-3 whitespace-nowrap text-center">
-                            {product.images.length > 0 ? product.images.map((media, idx) => renderMedia(media, idx, 'h-12 w-12')) : <span className="text-xs text-gray-500">No media</span>}
-                          </td>
-                          {[productKey, `fast-${productKey}`].map((key, i) => (
-                            <td key={key} className="px-4 py-3 whitespace-nowrap text-center">
-                              <label className="inline-flex items-center">
-                                <input
-                                  type="checkbox"
-                                  className="sr-only peer"
-                                  checked={toggleStates[key]}
-                                  onChange={() => handleToggle(product, i === 0 ? 'toggle-status' : 'toggle-fast-running', i === 0 ? '' : 'fast-')}
-                                />
-                                <div className={`relative w-11 h-6 rounded-full transition-colors duration-200 ease-in-out ${toggleStates[key] ? (i === 0 ? 'bg-green-600' : 'bg-blue-600') : (i === 0 ? 'bg-red-600' : 'bg-gray-400')}`}>
-                                  <div className={`absolute top-0.5 w-5 h-5 bg-white rounded-full transition-transform duration-200 ease-in-out ${toggleStates[key] ? 'translate-x-5' : 'translate-x-0.5'}`}></div>
-                                </div>
-                              </label>
-                            </td>
-                          ))}
-                          <td className="px-4 py-3 whitespace-nowrap text-center relative">
-                            <button
-                              onClick={() => setViewModalIsOpen(viewModalIsOpen === productKey ? null : productKey)}
-                              className="text-gray-500 hover:text-gray-700 cursor-pointer"
-                            >
-                              <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20"><path d="M10 6a2 2 0 110-4 2 2 0 010 4zm0 8a2 2 0 110-4 2 2 0 010 4zm0 8a2 2 0 110-4 2 2 0 010 4z" /></svg>
-                            </button>
-                            {viewModalIsOpen === productKey && (
-                              <div ref={el => (menuRef.current[productKey] = el)} className="absolute z-10 w-28 bg-white rounded-md shadow-lg border border-gray-200 right-0">
-                                <div className="py-1 flex flex-col">
-                                  {[
-                                    { icon: FaEye, label: 'View', action: () => { setSelectedProduct(product); setModalIsOpen(true); setViewModalIsOpen(null); } },
-                                    { icon: FaEdit, label: 'Edit', action: () => { setSelectedProduct(product); setFormData({ productname: product.productname, serial_number: product.serial_number, price: product.price, discount: product.discount, per: product.per, description: product.description || '', images: product.images }); setEditModalIsOpen(true); setViewModalIsOpen(null); } },
-                                    { icon: FaTrash, label: 'Delete', action: async () => { 
-                                      try { 
-                                        await fetch(`${API_BASE_URL}/api/products/${product.product_type.toLowerCase().replace(/\s+/g, '_')}/${product.id}`, { method: 'DELETE' }); 
-                                        fetchProducts(); 
-                                        setViewModalIsOpen(null); 
-                                      } catch (err) { 
-                                        setError('Failed to delete product'); 
-                                      } 
-                                    }, className: 'text-red-600' }
-                                  ].map(({ icon: Icon, label, action, className }, i) => (
-                                    <button
-                                      key={i}
-                                      onClick={action}
-                                      className={`flex cursor-pointer items-center px-4 py-2 text-sm ${className || 'text-gray-700'} hover:bg-gray-300 text-left`}
-                                    >
-                                      <Icon className="mr-2 h-4 w-4" />{label}
-                                    </button>
-                                  ))}
-                                </div>
-                              </div>
-                            )}
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
-              {/* Mobile Card View */}
-              <div className="md:hidden grid gap-4">
-                {currentProducts.map(product => {
-                  const productKey = `${product.product_type}-${product.id}`;
-                  return (
-                    <div key={productKey} className="bg-white rounded-lg shadow-md p-4 border border-gray-200">
-                      <div className="flex justify-between items-start">
-                        <div>
-                          <h3 className="text-sm font-semibold text-gray-900">{product.productname}</h3>
-                          <p className="text-xs text-gray-600">{capitalize(product.product_type)}</p>
-                          <p className="text-xs text-gray-600">S/N: {product.serial_number}</p>
-                        </div>
-                        <button
-                          onClick={() => setViewModalIsOpen(viewModalIsOpen === productKey ? null : productKey)}
-                          className="text-gray-500 hover:text-gray-700"
-                        >
-                          <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20"><path d="M10 6a2 2 0 110-4 2 2 0 010 4zm0 8a2 2 0 110-4 2 2 0 010 4zm0 8a2 2 0 110-4 2 2 0 010 4z" /></svg>
-                        </button>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 mobile:gap-4">
+              {currentProducts.map(product => {
+                const productKey = `${product.product_type}-${product.id}`;
+                return (
+                  <div key={productKey} className="bg-white rounded-lg shadow-md p-6 mobile:p-4 border border-gray-200">
+                    <div className="flex flex-col">
+                      <div className="mb-3">
+                        <h3 className="text-sm font-semibold text-gray-900 truncate">{product.productname}</h3>
+                        <p className="text-xs text-gray-600">{capitalize(product.product_type)}</p>
+                        <p className="text-xs text-gray-600">S/N: {product.serial_number}</p>
                       </div>
-                      {viewModalIsOpen === productKey && (
-                        <div ref={el => (menuRef.current[productKey] = el)} className="mt-2 flex flex-col gap-2">
-                          {[
-                            { icon: FaEye, label: 'View', action: () => { setSelectedProduct(product); setModalIsOpen(true); setViewModalIsOpen(null); } },
-                            { icon: FaEdit, label: 'Edit', action: () => { setSelectedProduct(product); setFormData({ productname: product.productname, serial_number: product.serial_number, price: product.price, discount: product.discount, per: product.per, description: product.description || '', images: product.images }); setEditModalIsOpen(true); setViewModalIsOpen(null); } },
-                            { icon: FaTrash, label: 'Delete', action: async () => { 
-                              try { 
-                                await fetch(`${API_BASE_URL}/api/products/${product.product_type.toLowerCase().replace(/\s+/g, '_')}/${product.id}`, { method: 'DELETE' }); 
-                                fetchProducts(); 
-                                setViewModalIsOpen(null); 
-                              } catch (err) { 
-                                setError('Failed to delete product'); 
-                              } 
-                            }, className: 'text-red-600' }
-                          ].map(({ icon: Icon, label, action, className }, i) => (
-                            <button
-                              key={i}
-                              onClick={action}
-                              className={`flex items-center px-2 py-1 text-xs ${className || 'text-gray-700'} hover:bg-gray-100 rounded`}
-                            >
-                              <Icon className="mr-1 h-4 w-4" />{label}
-                            </button>
-                          ))}
-                        </div>
-                      )}
-                      <div className="mt-3 flex flex-wrap gap-2">
-                        {product.images.length > 0 ? product.images.map((media, idx) => renderMedia(media, idx, 'h-16 w-16')) : <span className="text-xs text-gray-500">No media</span>}
+                      <div className="mb-3 flex flex-wrap gap-2 justify-center">
+                        {product.images.length > 0 ? product.images.map((media, idx) => renderMedia(media, idx, 'h-16 w-16 mobile:h-12 mobile:w-12')) : <span className="text-xs text-gray-500">No media</span>}
                       </div>
-                      <div className="mt-3 grid grid-cols-2 gap-2 text-xs">
+                      <div className="mb-4 grid grid-cols-2 gap-2 text-xs">
                         <div>
                           <span className="font-medium">Price:</span> ₹{parseFloat(product.price).toFixed(2)}
                         </div>
@@ -433,6 +318,9 @@ export default function List() {
                         </div>
                         <div>
                           <span className="font-medium">Discount:</span> {parseFloat(product.discount).toFixed(2)}%
+                        </div>
+                        <div>
+                          <span className="font-medium">Box Count:</span> {product.box_count}
                         </div>
                         <div className="flex items-center gap-2">
                           <span className="font-medium">Status:</span>
@@ -463,11 +351,31 @@ export default function List() {
                           </label>
                         </div>
                       </div>
+                      <div className="flex justify-center gap-2">
+                        <button
+                          onClick={() => { setSelectedProduct(product); setModalIsOpen(true); }}
+                          className="flex items-center px-3 py-1 text-xs sm:text-sm text-white bg-blue-600 hover:bg-blue-700 rounded-md"
+                        >
+                          <FaEye className="mr-1 h-4 w-4" /> View
+                        </button>
+                        <button
+                          onClick={() => { setSelectedProduct(product); setFormData({ productname: product.productname, serial_number: product.serial_number, price: product.price, discount: product.discount, per: product.per, description: product.description || '', box_count: product.box_count, images: product.images }); setEditModalIsOpen(true); }}
+                          className="flex items-center px-3 py-1 text-xs sm:text-sm text-white bg-green-600 hover:bg-green-700 rounded-md"
+                        >
+                          <FaEdit className="mr-1 h-4 w-4" /> Edit
+                        </button>
+                        <button
+                          onClick={() => handleDelete(product)}
+                          className="flex items-center px-3 py-1 text-xs sm:text-sm text-white bg-red-600 hover:bg-red-700 rounded-md"
+                        >
+                          <FaTrash className="mr-1 h-4 w-4" /> Delete
+                        </button>
+                      </div>
                     </div>
-                  );
-                })}
-              </div>
-            </>
+                  </div>
+                );
+              })}
+            </div>
           )}
           {totalPages > 1 && (
             <div className="mt-6 mobile:mt-4 flex justify-center items-center space-x-4 mobile:space-x-2">
@@ -504,11 +412,11 @@ export default function List() {
                     {selectedProduct.images.length > 0 ? selectedProduct.images.map((media, idx) => renderMedia(media, idx, 'h-24 w-24 mobile:h-16 mobile:w-16')) : <span className="text-gray-500 text-sm">No media</span>}
                   </div>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mobile:gap-2">
-                    {['product_type', 'serial_number', 'productname', 'price', 'per', 'discount', 'description', 'status'].map(field => (
+                    {['product_type', 'serial_number', 'productname', 'price', 'per', 'discount', 'box_count', 'description', 'status'].map(field => (
                       <div key={field} className={field === 'description' ? 'sm:col-span-2' : ''}>
                         <span className="font-medium text-gray-700 text-xs sm:text-sm">{capitalize(field.replace('_', ' '))}:</span>
                         <span className="ml-2 text-gray-900 text-xs sm:text-sm">
-                          {field === 'price' ? `₹${parseFloat(selectedProduct[field]).toFixed(2)}` : field === 'discount' ? `${parseFloat(selectedProduct[field]).toFixed(2)}%` : field === 'description' ? (selectedProduct[field] || 'No description') : capitalize(selectedProduct[field])}
+                          {field === 'price' ? `₹${parseFloat(selectedProduct[field]).toFixed(2)}` : field === 'discount' ? `${parseFloat(selectedProduct[field]).toFixed(2)}%` : field === 'description' ? (selectedProduct[field] || 'No description') : field === 'box_count' ? selectedProduct[field] : capitalize(selectedProduct[field])}
                         </span>
                       </div>
                     ))}
