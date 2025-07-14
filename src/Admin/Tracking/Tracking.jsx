@@ -11,6 +11,11 @@ export default function Tracking() {
   const [searchTerm, setSearchTerm] = useState('');
   const [error, setError] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
+  const [showPaidModal, setShowPaidModal] = useState(false);
+  const [showDetailsModal, setShowDetailsModal] = useState(false);
+  const [selectedBookingId, setSelectedBookingId] = useState(null);
+  const [paymentMethod, setPaymentMethod] = useState('cash');
+  const [transactionId, setTransactionId] = useState('');
   const ordersPerPage = 10;
 
   const fetchBookings = async () => {
@@ -18,8 +23,8 @@ export default function Tracking() {
       const response = await axios.get(`${API_BASE_URL}/api/tracking/bookings`, {
         params: {
           status: filterStatus || undefined,
-          customerType: filterCustomerType || undefined
-        }
+          customerType: filterCustomerType || undefined,
+        },
       });
       setBookings(response.data);
       setError('');
@@ -39,22 +44,63 @@ export default function Tracking() {
     fetchBookings();
   }, [filterStatus, filterCustomerType]);
 
-  const updateStatus = async (id, newStatus) => {
-    try {
-      await axios.put(`${API_BASE_URL}/api/tracking/bookings/${id}/status`, { status: newStatus });
-      setBookings(prevBookings =>
-        prevBookings.map(booking =>
-          booking.id === id ? { ...booking, status: newStatus } : booking
-        )
-      );
-      setError('');
-    } catch (err) {
-      setError('Failed to update status');
+  const handleStatusChange = (id, newStatus) => {
+    if (newStatus === 'paid') {
+      setSelectedBookingId(id);
+      setShowPaidModal(true);
+    } else {
+      updateStatus(id, newStatus);
     }
   };
 
-  // 🔍 Filter bookings with search term
-  const filteredBookings = bookings.filter(booking => {
+  const updateStatus = async (id, newStatus, paymentDetails = null) => {
+    try {
+      const payload = { status: newStatus };
+      if (paymentDetails) {
+        payload.payment_method = paymentDetails.paymentMethod;
+        payload.transaction_id = paymentDetails.transactionId || null;
+      }
+      await axios.put(`${API_BASE_URL}/api/tracking/bookings/${id}/status`, payload);
+      setBookings((prevBookings) =>
+        prevBookings.map((booking) =>
+          booking.id === id
+            ? {
+                ...booking,
+                status: newStatus,
+                payment_method: paymentDetails?.paymentMethod || null,
+                transaction_id: paymentDetails?.transactionId || null,
+              }
+            : booking
+        )
+      );
+      setError('');
+      setShowPaidModal(false);
+      setShowDetailsModal(false);
+      setPaymentMethod('cash');
+      setTransactionId('');
+    } catch (err) {
+      setError(err.response?.data?.message || 'Failed to update status');
+    }
+  };
+
+  const handleProceed = () => {
+    updateStatus(selectedBookingId, 'paid');
+  };
+
+  const handleFillDetails = () => {
+    setShowPaidModal(false);
+    setShowDetailsModal(true);
+  };
+
+  const handleDetailsSubmit = () => {
+    if (paymentMethod === 'bank' && !transactionId.trim()) {
+      setError('Transaction ID is required for bank transactions');
+      return;
+    }
+    updateStatus(selectedBookingId, 'paid', { paymentMethod, transactionId });
+  };
+
+  const filteredBookings = bookings.filter((booking) => {
     const search = searchTerm.toLowerCase();
     return (
       booking.customer_name.toLowerCase().includes(search) ||
@@ -88,7 +134,7 @@ export default function Tracking() {
           <div className="mb-6 flex justify-center flex-wrap gap-4">
             <select
               value={filterStatus}
-              onChange={e => setFilterStatus(e.target.value)}
+              onChange={(e) => setFilterStatus(e.target.value)}
               className="w-64 p-3 border-2 border-gray-300 rounded-lg bg-white shadow-md focus:outline-none focus:ring-2 focus:ring-blue-500"
             >
               <option value="">All Statuses</option>
@@ -101,7 +147,7 @@ export default function Tracking() {
 
             <select
               value={filterCustomerType}
-              onChange={e => setFilterCustomerType(e.target.value)}
+              onChange={(e) => setFilterCustomerType(e.target.value)}
               className="w-64 p-3 border-2 border-gray-300 rounded-lg bg-white shadow-md focus:outline-none focus:ring-2 focus:ring-green-500"
             >
               <option value="">All Customer Types</option>
@@ -115,7 +161,7 @@ export default function Tracking() {
               type="text"
               placeholder="Search name, order ID, total, type..."
               value={searchTerm}
-              onChange={e => setSearchTerm(e.target.value)}
+              onChange={(e) => setSearchTerm(e.target.value)}
               className="w-96 p-3 border-2 border-gray-300 rounded-lg bg-white shadow-md focus:outline-none focus:ring-2 focus:ring-purple-500"
             />
           </div>
@@ -148,7 +194,7 @@ export default function Tracking() {
                       <td className="p-4 text-center">
                         <select
                           value={booking.status}
-                          onChange={e => updateStatus(booking.id, e.target.value)}
+                          onChange={(e) => handleStatusChange(booking.id, e.target.value)}
                           className="p-2 border-2 border-gray-300 rounded-lg bg-white shadow-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                         >
                           <option value="booked">Booked</option>
@@ -180,7 +226,7 @@ export default function Tracking() {
               >
                 Previous
               </button>
-              {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
+              {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
                 <button
                   key={page}
                   onClick={() => paginate(page)}
@@ -198,6 +244,80 @@ export default function Tracking() {
               >
                 Next
               </button>
+            </div>
+          )}
+
+          {showPaidModal && (
+            <div className="fixed inset-0 bg-black/50 bg-opacity-50 flex items-center justify-center z-50">
+              <div className="bg-white p-6 rounded-lg shadow-lg w-96">
+                <h2 className="text-xl font-semibold mb-4">Update Status to Paid</h2>
+                <p className="mb-4">Do you want to proceed with the default payment or fill in payment details?</p>
+                <div className="flex justify-end space-x-4">
+                  <button
+                    onClick={handleProceed}
+                    className="px-4 py-2 cursor-pointer bg-blue-500 text-white rounded-lg hover:bg-blue-600"
+                  >
+                    Proceed
+                  </button>
+                  <button
+                    onClick={handleFillDetails}
+                    className="px-4 py-2 cursor-pointer bg-green-500 text-white rounded-lg hover:bg-green-600"
+                  >
+                    Fill Details
+                  </button>
+                  <button
+                    onClick={() => setShowPaidModal(false)}
+                    className="px-4 py-2 cursor-pointer bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {showDetailsModal && (
+            <div className="fixed inset-0 bg-black/50 bg-opacity-50 flex items-center justify-center z-50">
+              <div className="bg-white p-6 rounded-lg shadow-lg w-96">
+                <h2 className="text-xl font-semibold mb-4">Payment Details</h2>
+                <div className="mb-4">
+                  <label className="block text-gray-700 mb-2">Payment Method</label>
+                  <select
+                    value={paymentMethod}
+                    onChange={(e) => setPaymentMethod(e.target.value)}
+                    className="w-full p-2 cursor-pointer border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="cash">Cash</option>
+                    <option value="bank">Bank Transaction</option>
+                  </select>
+                </div>
+                {paymentMethod === 'bank' && (
+                  <div className="mb-4">
+                    <label className="block text-gray-700 mb-2">Transaction ID</label>
+                    <input
+                      type="text"
+                      value={transactionId}
+                      onChange={(e) => setTransactionId(e.target.value)}
+                      className="w-full p-2 border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      placeholder="Enter transaction ID"
+                    />
+                  </div>
+                )}
+                <div className="flex justify-end space-x-4">
+                  <button
+                    onClick={handleDetailsSubmit}
+                    className="px-4 py-2 cursor-pointer bg-blue-500 text-white rounded-lg hover:bg-blue-600"
+                  >
+                    Submit
+                  </button>
+                  <button
+                    onClick={() => setShowDetailsModal(false)}
+                    className="px-4 py-2 cursor-pointer bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
             </div>
           )}
         </div>
