@@ -251,14 +251,9 @@ export default function Home() {
         <div className="absolute inset-0 z-10 rounded-3xl"></div>
         {banners.map((banner, idx) => (
           <motion.div key={banner.id} className={`absolute inset-0 transition-opacity duration-1000 ease-in-out rounded-3xl overflow-hidden${currentSlide === idx ? "opacity-100 z-5" : "opacity-0 z-0"}`} style={{ transition: "transform 4s ease-in-out" }}>
-            <img src={`${API_BASE_URL}${banner.image_url}`} alt={`Banner ${banner.id}`} className="hundred:w-full hundred:h-full object-cover rounded-3xl mobile:w-[100%] mobile:h-[100%]" />
+            <img src={banner.image_url.startsWith('http') ? banner.image_url : `${API_BASE_URL}${banner.image_url}`} alt={`Banner ${banner.id}`} className="hundred:w-full hundred:h-full object-cover rounded-3xl mobile:w-[100%] mobile:h-[100%]" />
           </motion.div>
         ))}
-        <div className="absolute bottom-8 left-1/2 -translate-x-1/2 z-30 flex space-x-3 mobile:top-32">
-          {banners.map((_, i) => (
-            <button key={i} onClick={() => setCurrentSlide(i)} className={`w-3 cursor-pointer h-3 rounded-full transition-all duration-300 ${currentSlide === i ? "scale-125 shadow-lg" : ""}`} style={{ background: currentSlide === i ? "linear-gradient(135deg, rgba(56,189,248,0.9) 0%, rgba(125,211,252,0.8) 100%)" : "rgba(255,255,255,0.6)", backdropFilter: "blur(10px)", boxShadow: currentSlide === i ? "0 4px 15px rgba(56,189,248,0.4)" : "none" }} />
-          ))}
-        </div>
       </motion.div>
       <section className="py-2 px-4 sm:px-6 max-w-7xl mx-auto mt-5">
         <motion.div initial={{ opacity: 0, y: 50 }} whileInView={{ opacity: 1, y: 0 }} transition={{ duration: 1 }} viewport={{ once: true }} className="text-center mb-12"><h2 className="text-5xl font-bold text-slate-800 mb-4 mobile:text-3xl">Fast Running Products</h2><div className="w-24 h-1 mx-auto rounded-full" style={{ background: "linear-gradient(90deg, rgba(56,189,248,0.8) 0%, rgba(20,184,166,0.6) 50%, rgba(56,189,248,0.8) 100%)", boxShadow: "0 4px 15px rgba(56,189,248,0.3)" }} /></motion.div>
