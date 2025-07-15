@@ -47,7 +47,7 @@ export default function Report() {
     doc.setFontSize(12);
     const orderDetails = [
       ['Order ID', booking.order_id || 'N/A', 'Customer Name', booking.customer_name || 'N/A'],
-      ['Phone', booking.phone_number || 'N/A', 'District', booking.district || 'N/A'],
+      ['Phone', booking.mobile_number || 'N/A', 'District', booking.district || 'N/A'],
       ['State', booking.state || 'N/A', 'Date', formatDate(booking.created_at)],
     ];
 
@@ -80,29 +80,35 @@ export default function Report() {
     doc.save(`${sanitizedCustomerName}_crackers_order.pdf`);
   };
 
-const exportToExcel = () => {
-  const data = bookings.map((b, i) => ({
-    'Sl. No': i + 1,
-    'Order ID': b.order_id || '',
-    'Customer Name': b.customer_name || '',
-    'Mobile Number': b.mobile_number || '',
-    'District': b.district || '',
-    'State': b.state || '',
-    'Status': b.status || '',
-    'Date': new Date(b.created_at).toLocaleDateString('en-GB'),
-    'Address': b.address || '',
-    'Total Amount': b.total || '',
-    'Products': (b.products || []).map(p =>
-      `${p.productname} (x${p.quantity}) - Rs.${p.price} [${p.product_type}]`
-    ).join('\n'),
-  }));
+  const exportToExcel = () => {
+    const data = bookings.map((b, i) => ({
+      'Sl. No': i + 1,
+      'Order ID': b.order_id || '',
+      'Customer Name': b.customer_name || '',
+      'Mobile Number': b.mobile_number || '',
+      'District': b.district || '',
+      'State': b.state || '',
+      'Status': b.status || '',
+      'Date': new Date(b.created_at).toLocaleDateString('en-GB'),
+      'Address': b.address || '',
+      'Total Amount': b.total || '',
+      'Products': (b.products || []).map(p =>
+        `${p.productname} (x${p.quantity}) - Rs.${p.price} [${p.product_type}]`
+      ).join('\n'),
+    }));
 
-  const worksheet = XLSX.utils.json_to_sheet(data);
-  const workbook = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(workbook, worksheet, 'Bookings');
-  XLSX.writeFile(workbook, 'Bookings_Report.xlsx');
-};
+    const worksheet = XLSX.utils.json_to_sheet(data);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'Bookings');
+    XLSX.writeFile(workbook, 'Bookings_Report.xlsx');
+  };
 
+  const formatDate = (dateStr) => {
+    if (!dateStr) return 'N/A';
+    const date = new Date(dateStr);
+    if (isNaN(date)) return 'N/A';
+    return `${String(date.getDate()).padStart(2, '0')}-${String(date.getMonth() + 1).padStart(2, '0')}-${date.getFullYear()}`;
+  };
 
   return (
     <div className="flex min-h-screen bg-gray-100">
@@ -127,62 +133,39 @@ const exportToExcel = () => {
             </button>
           </div>
 
-          <div className="overflow-x-auto">
-            <table className="w-full border-collapse">
-              <thead>
-                <tr className="bg-gray-200">
-                  <th className="text-center text-gray-700 font-semibold">Sl. No</th>
-                  <th className="text-center text-gray-700 font-semibold">Order ID</th>
-                  <th className="text-center text-gray-700 font-semibold">Customer Name</th>
-                  <th className="text-center text-gray-700 font-semibold">Phone</th>
-                  <th className="text-center text-gray-700 font-semibold">District</th>
-                  <th className="text-center text-gray-700 font-semibold">State</th>
-                  <th className="text-center text-gray-700 font-semibold">Status</th>
-                  <th className="text-center text-gray-700 font-semibold">Date</th>
-                  <th className="text-center text-gray-700 font-semibold">View</th>
-                </tr>
-              </thead>
-              <tbody>
-                {bookings.length > 0 ? (
-                  bookings.map((booking, index) => {
-                    const formatDate = (dateStr) => {
-                      if (!dateStr) return 'N/A';
-                      const date = new Date(dateStr);
-                      if (isNaN(date)) return 'N/A';
-                      return `${String(date.getDate()).padStart(2, '0')}-${String(date.getMonth() + 1).padStart(2, '0')}-${date.getFullYear()}`;
-                    };
-
-                    return (
-                      <tr key={booking.id} className="border-b border-gray-300 hover:bg-gray-50">
-                        <td className="text-center text-gray-800">{index + 1}</td>
-                        <td className="p-2 text-center text-gray-800">{booking.order_id}</td>
-                        <td className="p-2 text-center text-gray-800">{booking.customer_name}</td>
-                        <td className="p-2 text-center text-gray-800">{booking.phone_number}</td>
-                        <td className="p-2 text-center text-gray-800">{booking.district}</td>
-                        <td className="p-2 text-center text-gray-800">{booking.state}</td>
-                        <td className="p-2 text-center text-gray-800">{booking.status}</td>
-                        <td className="p-2 text-center text-gray-800">{formatDate(booking.created_at)}</td>
-                        <td className="p-3 text-center">
-                          <button
-                            onClick={() => generatePDF(booking)}
-                            className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-300"
-                          >
-                            <FaDownload className="mr-2" />
-                            Download
-                          </button>
-                        </td>
-                      </tr>
-                    );
-                  })
-                ) : (
-                  <tr>
-                    <td colSpan="9" className="p-4 text-center text-gray-600">
-                      No bookings found
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+            {bookings.length > 0 ? (
+              bookings.map((booking, index) => (
+                <div
+                  key={booking.id}
+                  className="bg-white rounded-lg shadow-md p-6 hover:shadow-lg transition-shadow duration-200"
+                >
+                  <div className="flex justify-between items-center mb-4">
+                    <h2 className="text-lg font-semibold text-gray-800">Booking #{index + 1}</h2>
+                    <button
+                      onClick={() => generatePDF(booking)}
+                      className="flex items-center px-3 py-2 text-sm text-white bg-blue-600 hover:bg-blue-700 rounded-md"
+                    >
+                      <FaDownload className="mr-2" />
+                      Download PDF
+                    </button>
+                  </div>
+                  <div className="space-y-2">
+                    <p><span className="font-medium text-gray-700">Order ID:</span> {booking.order_id || 'N/A'}</p>
+                    <p><span className="font-medium text-gray-700">Customer Name:</span> {booking.customer_name || 'N/A'}</p>
+                    <p><span className="font-medium text-gray-700">Phone:</span> {booking.mobile_number || 'N/A'}</p>
+                    <p><span className="font-medium text-gray-700">District:</span> {booking.district || 'N/A'}</p>
+                    <p><span className="font-medium text-gray-700">State:</span> {booking.state || 'N/A'}</p>
+                    <p><span className="font-medium text-gray-700">Status:</span> {booking.status || 'N/A'}</p>
+                    <p><span className="font-medium text-gray-700">Date:</span> {formatDate(booking.created_at)}</p>
+                  </div>
+                </div>
+              ))
+            ) : (
+              <div className="col-span-full text-center text-gray-600 p-4 bg-white rounded-lg shadow-md">
+                No bookings found
+              </div>
+            )}
           </div>
         </div>
       </div>
