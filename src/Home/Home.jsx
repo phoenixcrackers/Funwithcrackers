@@ -7,7 +7,6 @@ import { FaInfoCircle, FaArrowLeft, FaArrowRight } from "react-icons/fa"
 import Navbar from '../Component/Navbar'
 import "../App.css"
 import { API_BASE_URL } from "../../Config"
-const API_URL = import.meta.env.VITE_API_BASE_URL;
 
 const categories = [
   { name: "Sparklers", icon: Sparkles },
@@ -193,7 +192,7 @@ export default function Home() {
 
   useEffect(() => {
     const fetchBanners = () => {
-      fetch(`${API_URL}/api/banners`)
+      fetch(`${API_BASE_URL}/api/banners`)
         .then((res) => res.json())
         .then((data) => setBanners(data.filter((b) => b.is_active)))
         .catch((err) => console.error("Error loading banners:", err))
@@ -205,7 +204,7 @@ export default function Home() {
 
   useEffect(() => {
     const fetchFastProducts = () => {
-      fetch(`${API_URL}/api/products`)
+      fetch(`${API_BASE_URL}/api/products`)
         .then((res) => res.json())
         .then((data) => setFastRunningProducts(data.filter((p) => p.fast_running === true)))
         .catch((err) => console.error("Error loading fast running products:", err))
@@ -252,7 +251,7 @@ export default function Home() {
         <div className="absolute inset-0 z-10 rounded-3xl"></div>
         {banners.map((banner, idx) => (
           <motion.div key={banner.id} className={`absolute inset-0 transition-opacity duration-1000 ease-in-out rounded-3xl overflow-hidden${currentSlide === idx ? "opacity-100 z-5" : "opacity-0 z-0"}`} style={{ transition: "transform 4s ease-in-out" }}>
-            <img src={banner.image_url.startsWith('http') ? banner.image_url : `${API_URL}${banner.image_url}`} alt={`Banner ${banner.id}`} className="hundred:w-full hundred:h-full object-cover rounded-3xl mobile:w-[100%] mobile:h-[100%]" />
+            <img src={banner.image_url.startsWith('http') ? banner.image_url : `${API_BASE_URL}${banner.image_url}`} alt={`Banner ${banner.id}`} className="hundred:w-full hundred:h-full object-cover rounded-3xl mobile:w-[100%] mobile:h-[100%]" />
           </motion.div>
         ))}
       </motion.div>
