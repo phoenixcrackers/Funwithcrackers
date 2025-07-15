@@ -7,6 +7,7 @@ import { FaInfoCircle, FaArrowLeft, FaArrowRight } from "react-icons/fa"
 import Navbar from '../Component/Navbar'
 import "../App.css"
 import { API_BASE_URL } from "../../Config"
+const API_URL = import.meta.env.VITE_API_BASE_URL;
 
 const categories = [
   { name: "Sparklers", icon: Sparkles },
@@ -192,7 +193,7 @@ export default function Home() {
 
   useEffect(() => {
     const fetchBanners = () => {
-      fetch(`${API_BASE_URL}/api/banners`)
+      fetch(`${API_URL}/api/banners`)
         .then((res) => res.json())
         .then((data) => setBanners(data.filter((b) => b.is_active)))
         .catch((err) => console.error("Error loading banners:", err))
@@ -204,7 +205,7 @@ export default function Home() {
 
   useEffect(() => {
     const fetchFastProducts = () => {
-      fetch(`${API_BASE_URL}/api/products`)
+      fetch(`${API_URL}/api/products`)
         .then((res) => res.json())
         .then((data) => setFastRunningProducts(data.filter((p) => p.fast_running === true)))
         .catch((err) => console.error("Error loading fast running products:", err))
