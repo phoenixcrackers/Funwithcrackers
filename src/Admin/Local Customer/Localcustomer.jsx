@@ -6,24 +6,9 @@ import Logout from "../Logout";
 
 export default function Localcustomer() {
   const [formData, setFormData] = useState({
-    customerName: "",
-    state: "",
-    district: "",
-    mobileNumber: "",
-    email: "",
-    address: "",
-    customerType: "Customer",
-    agentName: "",
-    agentContact: "",
-    agentEmail: "",
-    agentState: "",
-    agentDistrict: "",
-    custAgentName: "",
-    custAgentContact: "",
-    custAgentEmail: "",
-    custAgentAddress: "",
-    custAgentDistrict: "",
-    custAgentState: "",
+    customerName: "", state: "", district: "", mobileNumber: "", email: "", address: "",
+    customerType: "Customer", agentName: "", agentContact: "", agentEmail: "", agentState: "", agentDistrict: "",
+    custAgentName: "", custAgentContact: "", custAgentEmail: "", custAgentAddress: "", custAgentDistrict: "", custAgentState: ""
   });
   const [states, setStates] = useState([]);
   const [districts, setDistricts] = useState([]);
@@ -32,6 +17,25 @@ export default function Localcustomer() {
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(false);
 
+  const styles = {
+    input: { 
+      background: "linear-gradient(135deg, rgba(255,255,255,0.8), rgba(240,249,255,0.6))", 
+      backgroundDark: "linear-gradient(135deg, rgba(55,65,81,0.8), rgba(75,85,99,0.6))",
+      backdropFilter: "blur(10px)", 
+      border: "1px solid rgba(2,132,199,0.3)", 
+      borderDark: "1px solid rgba(59,130,246,0.4)"
+    },
+    button: { 
+      background: "linear-gradient(135deg, rgba(2,132,199,0.9), rgba(14,165,233,0.95))", 
+      backgroundDark: "linear-gradient(135deg, rgba(59,130,246,0.9), rgba(37,99,235,0.95))",
+      backdropFilter: "blur(15px)", 
+      border: "1px solid rgba(125,211,252,0.4)", 
+      borderDark: "1px solid rgba(147,197,253,0.4)",
+      boxShadow: "0 15px 35px rgba(2,132,199,0.3), inset 0 1px 0 rgba(255,255,255,0.2)",
+      boxShadowDark: "0 15px 35px rgba(59,130,246,0.4), inset 0 1px 0 rgba(255,255,255,0.1)"
+    }
+  };
+
   useEffect(() => {
     fetchStates();
   }, []);
@@ -39,9 +43,7 @@ export default function Localcustomer() {
   const fetchStates = async () => {
     try {
       const response = await fetch(`${API_BASE_URL}/api/locations/states`);
-      if (!response.ok) {
-        throw new Error(`HTTP error! Status: ${response.status}`);
-      }
+      if (!response.ok) throw new Error(`HTTP error! Status: ${response.status}`);
       const data = await response.json();
       setStates(data);
       if (data.length > 0 && formData.customerType !== "Customer of Selected Agent") {
@@ -49,47 +51,35 @@ export default function Localcustomer() {
         await fetchDistricts(data[0].name);
       }
     } catch (error) {
-      console.error("Error fetching states:", error);
-      setError("Failed to load states. Please ensure the backend is running and the states table exists.");
+      setError("Failed to load states. Please ensure the backend is running.");
     }
   };
 
-  const fetchDistricts = async (stateName, isAgent = false) => {
+  const fetchDistricts = async (stateName, isAgent = false, fieldPrefix = "") => {
     if (!stateName) {
       setDistricts([]);
       return;
     }
     try {
-      const response = await fetch(
-        `${API_BASE_URL}/api/locations/states/${stateName}/districts`
-      );
-      if (!response.ok) {
-        throw new Error(`HTTP error! Status: ${response.status}`);
-      }
+      const response = await fetch(`${API_BASE_URL}/api/locations/states/${stateName}/districts`);
+      if (!response.ok) throw new Error(`HTTP error! Status: ${response.status}`);
       const data = await response.json();
       setDistricts(data);
-      if (data.length > 0 && !isAgent) {
-        setFormData((prev) => ({ ...prev, district: data[0].name }));
-      } else if (data.length > 0 && isAgent) {
-        setFormData((prev) => ({ ...prev, agentDistrict: data[0].name }));
+      if (data.length > 0) {
+        setFormData((prev) => ({ ...prev, [`${fieldPrefix}district`]: data[0].name }));
       }
     } catch (error) {
-      console.error("Error fetching districts:", error);
-      setError(`Failed to load districts for ${stateName}. Check backend logs.`);
+      setError(`Failed to load districts for ${stateName}.`);
     }
   };
 
   const fetchAgents = async () => {
     try {
       const response = await fetch(`${API_BASE_URL}/api/directcust/agents`);
-      if (!response.ok) {
-        throw new Error(`HTTP error! Status: ${response.status}`);
-      }
-      const data = await response.json();
-      setAgents(data);
+      if (!response.ok) throw new Error(`HTTP error! Status: ${response.status}`);
+      setAgents(await response.json());
     } catch (error) {
-      console.error("Error fetching agents:", error);
-      setError("Failed to load agents. Please try again.");
+      setError("Failed to load agents.");
     }
   };
 
@@ -102,104 +92,39 @@ export default function Localcustomer() {
       fetchDistricts(value);
       setFormData((prev) => ({ ...prev, district: "" }));
     } else if (name === "agentState") {
-      fetchDistricts(value, true);
+      fetchDistricts(value, true, "agent");
       setFormData((prev) => ({ ...prev, agentDistrict: "" }));
     } else if (name === "custAgentState") {
-      fetchDistricts(value, true);
+      fetchDistricts(value, true, "custAgent");
       setFormData((prev) => ({ ...prev, custAgentDistrict: "" }));
     } else if (name === "customerType") {
       const newType = value.trim();
-      setFormData((prev) => ({ ...prev, customerType: newType }));
-      if (newType === "Customer of Selected Agent") {
-        fetchAgents();
-        setFormData((prev) => ({
-          ...prev,
-          customerName: "",
-          state: "",
-          district: "",
-          mobileNumber: "",
-          email: "",
-          address: "123 Main St, Apt 4B",
-          agentName: "",
-          agentContact: "",
-          agentEmail: "",
-          agentState: "",
-          agentDistrict: "",
-          custAgentName: "",
-          custAgentContact: "",
-          custAgentEmail: "",
-          custAgentAddress: "",
-          custAgentDistrict: "",
-          custAgentState: "",
-        }));
-        setSelectedAgent("");
-      } else if (newType === "Agent") {
-        setFormData((prev) => ({
-          ...prev,
-          customerName: "",
-          state: "",
-          district: "",
-          mobileNumber: "",
-          email: "",
-          address: "",
-          agentName: "",
-          agentContact: "",
-          agentEmail: "",
-          agentState: "",
-          agentDistrict: "",
-          custAgentName: "",
-          custAgentContact: "",
-          custAgentEmail: "",
-          custAgentAddress: "",
-          custAgentDistrict: "",
-          custAgentState: "",
-        }));
-        setSelectedAgent("");
-      } else {
-        setFormData((prev) => ({
-          ...prev,
-          customerName: "",
-          state: "",
-          district: "",
-          mobileNumber: "",
-          email: "",
-          address: "123 Main St, Apt 4B",
-          agentName: "",
-          agentContact: "",
-          agentEmail: "",
-          agentState: "",
-          agentDistrict: "",
-          custAgentName: "",
-          custAgentContact: "",
-          custAgentEmail: "",
-          custAgentAddress: "",
-          custAgentDistrict: "",
-          custAgentState: "",
-        }));
-        setSelectedAgent("");
-      }
+      setFormData((prev) => ({
+        ...prev, customerType: newType, customerName: "", state: "", district: "", mobileNumber: "", email: "",
+        address: newType === "Customer" ? "123 Main St, Apt 4B" : "", agentName: "", agentContact: "", agentEmail: "",
+        agentState: "", agentDistrict: "", custAgentName: "", custAgentContact: "", custAgentEmail: "", 
+        custAgentAddress: "", custAgentDistrict: "", custAgentState: ""
+      }));
+      setSelectedAgent("");
+      if (newType === "Customer of Selected Agent") fetchAgents();
     }
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-
     const requiredCheck = () => {
-      if (formData.customerType === "Customer") {
-        if (!formData.customerName.trim() || !formData.state.trim() || !formData.district.trim() ||
-            !formData.mobileNumber.trim() || !formData.address.trim()) {
-          return "Please fill all required fields for Customer.";
-        }
-      } else if (formData.customerType === "Agent") {
-        if (!formData.agentName.trim() || !formData.agentContact.trim() || !formData.agentState.trim() ||
-            !formData.agentDistrict.trim()) {
-          return "Please fill all required fields for Agent.";
-        }
-      } else if (formData.customerType === "Customer of Selected Agent") {
-        if (!selectedAgent || !formData.custAgentName.trim() || !formData.custAgentContact.trim() ||
-            !formData.custAgentState.trim() || !formData.custAgentDistrict.trim() || !formData.address.trim()) {
-          return "Please fill all required fields for Customer of Selected Agent.";
-        }
+      const { customerType, customerName, state, district, mobileNumber, address, agentName, agentContact, 
+              agentState, agentDistrict, custAgentName, custAgentContact, custAgentState, custAgentDistrict } = formData;
+      if (customerType === "Customer" && 
+          (!customerName.trim() || !state.trim() || !district.trim() || !mobileNumber.trim() || !address.trim())) {
+        return "Please fill all required fields for Customer.";
+      } else if (customerType === "Agent" && 
+                 (!agentName.trim() || !agentContact.trim() || !agentState.trim() || !agentDistrict.trim())) {
+        return "Please fill all required fields for Agent.";
+      } else if (customerType === "Customer of Selected Agent" && 
+                 (!selectedAgent || !custAgentName.trim() || !custAgentContact.trim() || 
+                  !custAgentState.trim() || !custAgentDistrict.trim() || !address.trim())) {
+        return "Please fill all required fields for Customer of Selected Agent.";
       }
       return null;
     };
@@ -212,637 +137,213 @@ export default function Localcustomer() {
 
     try {
       const payload = {
-        customer_name: formData.customerName?.trim() || "",
-        state: formData.state?.trim() || "",
-        district: formData.district?.trim() || "",
-        mobile_number: formData.mobileNumber?.trim() || "",
-        email: formData.email ? formData.email.trim() : null,
-        address: formData.address?.trim() || "",
-        customer_type: formData.customerType?.trim() || "",
+        customer_name: formData.customerName?.trim() || null,
+        state: formData.state?.trim() || null,
+        district: formData.district?.trim() || null,
+        mobile_number: formData.mobileNumber?.trim() || null,
+        email: formData.email?.trim() || null,
+        address: formData.address?.trim() || null,
+        customer_type: formData.customerType?.trim() || null,
         agent_id: selectedAgent || null,
-        agent_name: formData.agentName ? formData.agentName.trim() : null,
-        agent_contact: formData.agentContact ? formData.agentContact.trim() : null,
-        agent_email: formData.agentEmail ? formData.agentEmail.trim() : null,
-        agent_state: formData.agentState ? formData.agentState.trim() : null,
-        agent_district: formData.agentDistrict ? formData.agentDistrict.trim() : null,
-        cust_agent_name: formData.custAgentName ? formData.custAgentName.trim() : null,
-        cust_agent_contact: formData.custAgentContact ? formData.custAgentContact.trim() : null,
-        cust_agent_email: formData.custAgentEmail ? formData.custAgentEmail.trim() : null,
-        cust_agent_address: formData.custAgentAddress ? formData.custAgentAddress.trim() : null,
-        cust_agent_district: formData.custAgentDistrict ? formData.custAgentDistrict.trim() : null,
-        cust_agent_state: formData.custAgentState ? formData.custAgentState.trim() : null,
+        agent_name: formData.agentName?.trim() || null,
+        agent_contact: formData.agentContact?.trim() || null,
+        agent_email: formData.agentEmail?.trim() || null,
+        agent_state: formData.agentState?.trim() || null,
+        agent_district: formData.agentDistrict?.trim() || null,
+        cust_agent_name: formData.custAgentName?.trim() || null,
+        cust_agent_contact: formData.custAgentContact?.trim() || null,
+        cust_agent_email: formData.custAgentEmail?.trim() || null,
+        cust_agent_address: formData.custAgentAddress?.trim() || null,
+        cust_agent_district: formData.custAgentDistrict?.trim() || null,
+        cust_agent_state: formData.custAgentState?.trim() || null
       };
 
       const response = await fetch(`${API_BASE_URL}/api/directcust/customers`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
+        body: JSON.stringify(payload)
       });
-      if (!response.ok) {
-        const errorData = await response.json();
-        console.error("Backend response:", errorData);
-        throw new Error(errorData.error || `HTTP error! Status: ${response.status}`);
-      }
-      const data = await response.json();
+      if (!response.ok) throw new Error((await response.json()).error || `HTTP error! Status: ${response.status}`);
       setSuccess(true);
       setError(null);
       setFormData({
-        customerName: "",
-        state: "",
-        district: "",
-        mobileNumber: "",
-        email: "",
-        address: "",
-        customerType: "Customer",
-        agentName: "",
-        agentContact: "",
-        agentEmail: "",
-        agentState: "",
-        agentDistrict: "",
-        custAgentName: "",
-        custAgentContact: "",
-        custAgentEmail: "",
-        custAgentAddress: "",
-        custAgentDistrict: "",
-        custAgentState: "",
+        customerName: "", state: "", district: "", mobileNumber: "", email: "", address: "",
+        customerType: "Customer", agentName: "", agentContact: "", agentEmail: "", agentState: "", agentDistrict: "",
+        custAgentName: "", custAgentContact: "", custAgentEmail: "", custAgentAddress: "", custAgentDistrict: "", custAgentState: ""
       });
       setSelectedAgent("");
       setDistricts([]);
     } catch (error) {
-      console.error("Error saving customer:", error);
-      setError(error.message || "Failed to save customer. Please check the console for details.");
+      setError(error.message || "Failed to save customer.");
       setSuccess(false);
     }
   };
 
+  const renderInput = (id, name, label, type = "text", placeholder, required = false, pattern = null) => (
+    <div className="sm:col-span-3">
+      <label htmlFor={id} className="block text-sm font-medium leading-6 text-gray-900 dark:text-gray-300">{label}</label>
+      <div className="mt-2">
+        <input
+          type={type}
+          name={name}
+          id={id}
+          value={formData[name]}
+          onChange={handleChange}
+          pattern={pattern}
+          className="block w-full rounded-md bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-900 border-gray-300 dark:border-gray-600 px-3 py-1.5 text-base placeholder:text-gray-400 dark:placeholder:text-gray-500 focus:outline-2 focus:outline-indigo-600 dark:focus:outline-blue-500 sm:text-sm sm:leading-6"
+          placeholder={placeholder}
+          required={required}
+          style={{ background: styles.input.background, backgroundDark: styles.input.backgroundDark, border: styles.input.border, borderDark: styles.input.borderDark, backdropFilter: styles.input.backdropFilter }}
+        />
+      </div>
+    </div>
+  );
+
+  const renderSelect = (id, name, label, options, disabled = false, required = false, placeholder = "Select an option") => (
+    <div className="sm:col-span-3">
+      <label htmlFor={id} className="block text-sm font-medium leading-6 text-gray-900 dark:text-gray-300">{label}</label>
+      <div className="mt-2 grid grid-cols-1">
+        <select
+          id={id}
+          name={name}
+          value={name === "selectedAgent" ? selectedAgent : formData[name]}
+          onChange={name === "selectedAgent" ? (e) => setSelectedAgent(e.target.value) : handleChange}
+          disabled={disabled}
+          className="col-start-1 row-start-1 w-full appearance-none rounded-md bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-900 border-gray-300 dark:border-gray-600 py-1.5 pr-8 pl-3 text-base focus:outline-2 focus:outline-indigo-600 dark:focus:outline-blue-500 sm:text-sm sm:leading-6"
+          required={required}
+          style={{ background: styles.input.background, backgroundDark: styles.input.backgroundDark, border: styles.input.border, borderDark: styles.input.borderDark, backdropFilter: styles.input.backdropFilter }}
+        >
+          <option value="">{placeholder}</option>
+          {options.map((option) => (
+            <option key={option.id || option.name} value={option.id || option.name}>
+              {option.name || option.customer_name}
+            </option>
+          ))}
+        </select>
+        <svg className="pointer-events-none col-start-1 row-start-1 mr-2 size-5 self-center justify-self-end text-gray-500 dark:text-gray-400 sm:size-4" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+          <path fillRule="evenodd" d="M4.22 6.22a.75.75 0 0 1 1.06 0L8 8.94l2.72-2.72a.75.75 0 1 1 1.06 1.06l-3.25 3.25a.75.75 0 0 1-1.06 0L4.22 7.28a.75.75 0 0 1 0-1.06Z" clipRule="evenodd" />
+        </svg>
+      </div>
+    </div>
+  );
+
+  const renderTextarea = (id, name, label, placeholder, required = false) => (
+    <div className="col-span-full">
+      <label htmlFor={id} className="block text-sm font-medium leading-6 text-gray-900 dark:text-gray-300">{label}</label>
+      <div className="mt-2">
+        <textarea
+          name={name}
+          id={id}
+          rows="3"
+          value={formData[name]}
+          onChange={handleChange}
+          className="block w-full rounded-md bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-900 border-gray-300 dark:border-gray-600 px-3 py-1.5 text-base placeholder:text-gray-400 dark:placeholder:text-gray-500 focus:outline-2 focus:outline-indigo-600 dark:focus:outline-blue-500 sm:text-sm sm:leading-6"
+          placeholder={placeholder}
+          required={required}
+          style={{ background: styles.input.background, backgroundDark: styles.input.backgroundDark, border: styles.input.border, borderDark: styles.input.borderDark, backdropFilter: styles.input.backdropFilter }}
+        />
+      </div>
+    </div>
+  );
+
   return (
-    <div className="flex min-h-screen">
+    <div className="flex min-h-screen bg-gray-50 dark:bg-gray-900">
       <Sidebar />
       <Logout />
       <div className="flex-1 p-6 hundred:ml-[15%] onefifty:ml-[15%] mobile:ml-[0%]">
         <div className="mx-auto max-w-3xl">
-          <h1 className="text-2xl font-bold mb-6 text-gray-800 text-center">Add Customer</h1>
+          <h1 className="text-2xl font-bold mb-6 text-gray-800 dark:text-gray-100 text-center">Add Customer</h1>
           {error && (
-            <div className="mb-4 p-4 bg-red-100 border border-red-400 text-red-700 rounded-lg text-center">
+            <div className="mb-4 p-4 bg-red-100 dark:bg-red-900 border border-red-400 dark:border-red-700 text-red-700 dark:text-red-200 rounded-lg text-center">
               {error}
             </div>
           )}
           {success && (
-            <div className="mb-4 p-4 bg-green-100 border border-green-400 text-green-700 rounded-lg text-center">
+            <div className="mb-4 p-4 bg-green-100 dark:bg-green-900 border border-green-400 dark:border-green-700 text-green-700 dark:text-green-200 rounded-lg text-center">
               Data entered successfully
             </div>
           )}
-          <form onSubmit={handleSubmit}>
-            <div className="space-y-12">
-              <div className="border-b border-gray-900/10 pb-12">
-                <h2 className="text-base font-semibold leading-7 text-gray-900">Select Customer Type</h2>
-                <div className="mt-6 sm:col-span-3">
-                  <label htmlFor="customerType" className="block text-sm font-medium leading-6 text-gray-900">
-                    Customer Type
-                  </label>
-                  <div className="mt-2 grid grid-cols-1">
-                    <select
-                      id="customerType"
-                      name="customerType"
-                      value={formData.customerType}
-                      onChange={handleChange}
-                      className="col-start-1 row-start-1 w-full appearance-none rounded-md bg-white py-1.5 pr-8 pl-3 text-base text-gray-900 outline-1 -outline-offset-1 outline-gray-300 focus:outline-2 focus:-outline-offset-2 focus:outline-indigo-600 sm:text-sm sm:leading-6"
-                      required
-                    >
-                      <option value="Customer">Customer</option>
-                      <option value="Agent">Agent</option>
-                      <option value="Customer of Selected Agent">Customer of Selected Agent</option>
-                    </select>
-                    <svg
-                      className="pointer-events-none col-start-1 row-start-1 mr-2 size-5 self-center justify-self-end text-gray-500 sm:size-4"
-                      viewBox="0 0 16 16"
-                      fill="currentColor"
-                      aria-hidden="true"
-                      data-slot="icon"
-                    >
-                      <path
-                        fillRule="evenodd"
-                        d="M4.22 6.22a.75.75 0 0 1 1.06 0L8 8.94l2.72-2.72a.75.75 0 1 1 1.06 1.06l-3.25 3.25a.75.75 0 0 1-1.06 0L4.22 7.28a.75.75 0 0 1 0-1.06Z"
-                        clipRule="evenodd"
-                      />
-                    </svg>
-                  </div>
+          <div className="space-y-12">
+            <div className="border-b border-gray-200 dark:border-gray-700 pb-12">
+              <h2 className="text-base font-semibold leading-7 text-gray-900 dark:text-gray-100">Select Customer Type</h2>
+              {renderSelect("customerType", "customerType", "Customer Type", [
+                { id: "Customer", name: "Customer" },
+                { id: "Agent", name: "Agent" },
+                { id: "Customer of Selected Agent", name: "Customer of Selected Agent" }
+              ], false, true)}
+
+              {formData.customerType === "Customer" && (
+                <div className="mt-10 grid grid-cols-1 gap-x-6 gap-y-8 sm:grid-cols-6">
+                  {renderInput("customerName", "customerName", "Customer Name", "text", "Jane Smith", true)}
+                  {renderSelect("state", "state", "State", states, false, true)}
+                  {renderSelect("district", "district", "District", districts, !formData.state, true)}
+                  {renderInput("mobileNumber", "mobileNumber", "Mobile Number", "text", "1234567890", true, "\\d{10}")}
+                  {renderInput("email", "email", "Email (Optional)", "email", "jane@example.com")}
+                  {renderTextarea("address", "address", "Address", "123 Main St, Apt 4B", true)}
                 </div>
+              )}
 
-                {formData.customerType === "Customer" && (
-                  <div className="mt-10 grid grid-cols-1 gap-x-6 gap-y-8 sm:grid-cols-6">
-                    <div className="sm:col-span-4">
-                      <label htmlFor="customerName" className="block text-sm font-medium leading-6 text-gray-900">
-                        Customer Name
-                      </label>
-                      <div className="mt-2">
-                        <input
-                          type="text"
-                          name="customerName"
-                          id="customerName"
-                          value={formData.customerName}
-                          onChange={handleChange}
-                          className="block w-full rounded-md bg-white px-3 py-1.5 text-base text-gray-900 outline-1 -outline-offset-1 outline-gray-300 placeholder:text-gray-400 focus:outline-2 focus:-outline-offset-2 focus:outline-indigo-600 sm:text-sm sm:leading-6"
-                          placeholder="Jane Smith"
-                          required
-                        />
-                      </div>
-                    </div>
-                    <div className="sm:col-span-3">
-                      <label htmlFor="state" className="block text-sm font-medium leading-6 text-gray-900">
-                        State
-                      </label>
-                      <div className="mt-2 grid grid-cols-1">
-                        <select
-                          id="state"
-                          name="state"
-                          value={formData.state}
-                          onChange={handleChange}
-                          className="col-start-1 row-start-1 w-full appearance-none rounded-md bg-white py-1.5 pr-8 pl-3 text-base text-gray-900 outline-1 -outline-offset-1 outline-gray-300 focus:outline-2 focus:-outline-offset-2 focus:outline-indigo-600 sm:text-sm sm:leading-6"
-                          required
-                        >
-                          <option value="">Select a state</option>
-                          {states.map((state) => (
-                            <option key={state.name} value={state.name}>
-                              {state.name}
-                            </option>
-                          ))}
-                        </select>
-                        <svg
-                          className="pointer-events-none col-start-1 row-start-1 mr-2 size-5 self-center justify-self-end text-gray-500 sm:size-4"
-                          viewBox="0 0 16 16"
-                          fill="currentColor"
-                          aria-hidden="true"
-                          data-slot="icon"
-                        >
-                          <path
-                            fillRule="evenodd"
-                            d="M4.22 6.22a.75.75 0 0 1 1.06 0L8 8.94l2.72-2.72a.75.75 0 1 1 1.06 1.06l-3.25 3.25a.75.75 0 0 1-1.06 0L4.22 7.28a.75.75 0 0 1 0-1.06Z"
-                            clipRule="evenodd"
-                          />
-                        </svg>
-                      </div>
-                    </div>
-                    <div className="sm:col-span-3">
-                      <label htmlFor="district" className="block text-sm font-medium leading-6 text-gray-900">
-                        District
-                      </label>
-                      <div className="mt-2 grid grid-cols-1">
-                        <select
-                          id="district"
-                          name="district"
-                          value={formData.district}
-                          onChange={handleChange}
-                          disabled={!formData.state}
-                          className="col-start-1 row-start-1 w-full appearance-none rounded-md bg-white py-1.5 pr-8 pl-3 text-base text-gray-900 outline-1 -outline-offset-1 outline-gray-300 focus:outline-2 focus:-outline-offset-2 focus:outline-indigo-600 sm:text-sm sm:leading-6"
-                          required
-                        >
-                          <option value="">Select a district</option>
-                          {districts.map((district) => (
-                            <option key={district.id} value={district.name}>
-                              {district.name}
-                            </option>
-                          ))}
-                        </select>
-                        <svg
-                          className="pointer-events-none col-start-1 row-start-1 mr-2 size-5 self-center justify-self-end text-gray-500 sm:size-4"
-                          viewBox="0 0 16 16"
-                          fill="currentColor"
-                          aria-hidden="true"
-                          data-slot="icon"
-                        >
-                          <path
-                            fillRule="evenodd"
-                            d="M4.22 6.22a.75.75 0 0 1 1.06 0L8 8.94l2.72-2.72a.75.75 0 1 1 1.06 1.06l-3.25 3.25a.75.75 0 0 1-1.06 0L4.22 7.28a.75.75 0 0 1 0-1.06Z"
-                            clipRule="evenodd"
-                          />
-                        </svg>
-                      </div>
-                    </div>
-                    <div className="sm:col-span-3">
-                      <label htmlFor="mobileNumber" className="block text-sm font-medium leading-6 text-gray-900">
-                        Mobile Number
-                      </label>
-                      <div className="mt-2">
-                        <input
-                          type="text"
-                          name="mobileNumber"
-                          id="mobileNumber"
-                          value={formData.mobileNumber}
-                          onChange={handleChange}
-                          pattern="\d{10}"
-                          className="block w-full rounded-md bg-white px-3 py-1.5 text-base text-gray-900 outline-1 -outline-offset-1 outline-gray-300 placeholder:text-gray-400 focus:outline-2 focus:-outline-offset-2 focus:outline-indigo-600 sm:text-sm sm:leading-6"
-                          placeholder="1234567890"
-                          required
-                        />
-                      </div>
-                    </div>
-                    <div className="sm:col-span-3">
-                      <label htmlFor="email" className="block text-sm font-medium leading-6 text-gray-900">
-                        Email (Optional)
-                      </label>
-                      <div className="mt-2">
-                        <input
-                          type="email"
-                          name="email"
-                          id="email"
-                          value={formData.email}
-                          onChange={handleChange}
-                          className="block w-full rounded-md bg-white px-3 py-1.5 text-base text-gray-900 outline-1 -outline-offset-1 outline-gray-300 placeholder:text-gray-400 focus:outline-2 focus:-outline-offset-2 focus:outline-indigo-600 sm:text-sm sm:leading-6"
-                          placeholder="jane@example.com"
-                        />
-                      </div>
-                    </div>
-                    <div className="col-span-full">
-                      <label htmlFor="address" className="block text-sm font-medium leading-6 text-gray-900">
-                        Address
-                      </label>
-                      <div className="mt-2">
-                        <textarea
-                          name="address"
-                          id="address"
-                          rows="3"
-                          value={formData.address}
-                          onChange={handleChange}
-                          className="block w-full rounded-md bg-white px-3 py-1.5 text-base text-gray-900 outline-1 -outline-offset-1 outline-gray-300 placeholder:text-gray-400 focus:outline-2 focus:-outline-offset-2 focus:outline-indigo-600 sm:text-sm sm:leading-6"
-                          placeholder="123 Main St, Apt 4B"
-                          required
-                        ></textarea>
-                      </div>
-                    </div>
-                  </div>
-                )}
+              {formData.customerType === "Agent" && (
+                <div className="mt-10 grid grid-cols-1 gap-x-6 gap-y-8 sm:grid-cols-6">
+                  {renderInput("agentName", "agentName", "Agent Name", "text", "Agent Name", true)}
+                  {renderInput("agentContact", "agentContact", "Agent Contact", "text", "1234567890", true, "\\d{10}")}
+                  {renderInput("agentEmail", "agentEmail", "Agent Email (Optional)", "email", "agent@example.com")}
+                  {renderSelect("agentState", "agentState", "Agent State", states, false, true)}
+                  {renderSelect("agentDistrict", "agentDistrict", "Agent District", districts, !formData.agentState, true)}
+                  {renderTextarea("address", "address", "Agent Address", "123 Main St, Apt 4B", true)}
+                </div>
+              )}
 
-                {formData.customerType === "Agent" && (
-                  <div className="mt-10 grid grid-cols-1 gap-x-6 gap-y-8 sm:grid-cols-6">
-                    <div className="sm:col-span-4">
-                      <label htmlFor="agentName" className="block text-sm font-medium leading-6 text-gray-900">
-                        Agent Name
-                      </label>
-                      <div className="mt-2">
-                        <input
-                          type="text"
-                          name="agentName"
-                          id="agentName"
-                          value={formData.agentName}
-                          onChange={handleChange}
-                          className="block w-full rounded-md bg-white px-3 py-1.5 text-base text-gray-900 outline-1 -outline-offset-1 outline-gray-300 placeholder:text-gray-400 focus:outline-2 focus:-outline-offset-2 focus:outline-indigo-600 sm:text-sm sm:leading-6"
-                          placeholder="Agent Name"
-                          required
-                        />
-                      </div>
-                    </div>
-                    <div className="sm:col-span-3">
-                      <label htmlFor="agentContact" className="block text-sm font-medium leading-6 text-gray-900">
-                        Agent Contact
-                      </label>
-                      <div className="mt-2">
-                        <input
-                          type="text"
-                          name="agentContact"
-                          id="agentContact"
-                          value={formData.agentContact}
-                          onChange={handleChange}
-                          pattern="\d{10}"
-                          className="block w-full rounded-md bg-white px-3 py-1.5 text-base text-gray-900 outline-1 -outline-offset-1 outline-gray-300 placeholder:text-gray-400 focus:outline-2 focus:-outline-offset-2 focus:outline-indigo-600 sm:text-sm sm:leading-6"
-                          placeholder="1234567890"
-                          required
-                        />
-                      </div>
-                    </div>
-                    <div className="sm:col-span-3">
-                      <label htmlFor="agentEmail" className="block text-sm font-medium leading-6 text-gray-900">
-                        Agent Email (Optional)
-                      </label>
-                      <div className="mt-2">
-                        <input
-                          type="email"
-                          name="agentEmail"
-                          id="agentEmail"
-                          value={formData.agentEmail}
-                          onChange={handleChange}
-                          className="block w-full rounded-md bg-white px-3 py-1.5 text-base text-gray-900 outline-1 -outline-offset-1 outline-gray-300 placeholder:text-gray-400 focus:outline-2 focus:-outline-offset-2 focus:outline-indigo-600 sm:text-sm sm:leading-6"
-                          placeholder="agent@example.com"
-                        />
-                      </div>
-                    </div>
-                    <div className="sm:col-span-3">
-                      <label htmlFor="agentState" className="block text-sm font-medium leading-6 text-gray-900">
-                        Agent State
-                      </label>
-                      <div className="mt-2 grid grid-cols-1">
-                        <select
-                          id="agentState"
-                          name="agentState"
-                          value={formData.agentState}
-                          onChange={handleChange}
-                          className="col-start-1 row-start-1 w-full appearance-none rounded-md bg-white py-1.5 pr-8 pl-3 text-base text-gray-900 outline-1 -outline-offset-1 outline-gray-300 focus:outline-2 focus:-outline-offset-2 focus:outline-indigo-600 sm:text-sm sm:leading-6"
-                          required
-                        >
-                          <option value="">Select a state</option>
-                          {states.map((state) => (
-                            <option key={state.name} value={state.name}>
-                              {state.name}
-                            </option>
-                          ))}
-                        </select>
-                        <svg
-                          className="pointer-events-none col-start-1 row-start-1 mr-2 size-5 self-center justify-self-end text-gray-500 sm:size-4"
-                          viewBox="0 0 16 16"
-                          fill="currentColor"
-                          aria-hidden="true"
-                          data-slot="icon"
-                        >
-                          <path
-                            fillRule="evenodd"
-                            d="M4.22 6.22a.75.75 0 0 1 1.06 0L8 8.94l2.72-2.72a.75.75 0 1 1 1.06 1.06l-3.25 3.25a.75.75 0 0 1-1.06 0L4.22 7.28a.75.75 0 0 1 0-1.06Z"
-                            clipRule="evenodd"
-                          />
-                        </svg>
-                      </div>
-                    </div>
-                    <div className="sm:col-span-3">
-                      <label htmlFor="agentDistrict" className="block text-sm font-medium leading-6 text-gray-900">
-                        Agent District
-                      </label>
-                      <div className="mt-2 grid grid-cols-1">
-                        <select
-                          id="agentDistrict"
-                          name="agentDistrict"
-                          value={formData.agentDistrict}
-                          onChange={handleChange}
-                          disabled={!formData.agentState}
-                          className="col-start-1 row-start-1 w-full appearance-none rounded-md bg-white py-1.5 pr-8 pl-3 text-base text-gray-900 outline-1 -outline-offset-1 outline-gray-300 focus:outline-2 focus:-outline-offset-2 focus:outline-indigo-600 sm:text-sm sm:leading-6"
-                          required
-                        >
-                          <option value="">Select a district</option>
-                          {districts.map((district) => (
-                            <option key={district.id} value={district.name}>
-                              {district.name}
-                            </option>
-                          ))}
-                        </select>
-                        <svg
-                          className="pointer-events-none col-start-1 row-start-1 mr-2 size-5 self-center justify-self-end text-gray-500 sm:size-4"
-                          viewBox="0 0 16 16"
-                          fill="currentColor"
-                          aria-hidden="true"
-                          data-slot="icon"
-                        >
-                          <path
-                            fillRule="evenodd"
-                            d="M4.22 6.22a.75.75 0 0 1 1.06 0L8 8.94l2.72-2.72a.75.75 0 1 1 1.06 1.06l-3.25 3.25a.75.75 0 0 1-1.06 0L4.22 7.28a.75.75 0 0 1 0-1.06Z"
-                            clipRule="evenodd"
-                          />
-                        </svg>
-                      </div>
-                    </div>
-                    <div className="col-span-full">
-                      <label htmlFor="agentAddress" className="block text-sm font-medium leading-6 text-gray-900">
-                        Agent Address
-                      </label>
-                      <div className="mt-2">
-                        <textarea
-                          name="agentAddress"
-                          id="agentAddress"
-                          rows="3"
-                          value={formData.address}
-                          onChange={handleChange}
-                          className="block w-full rounded-md bg-white px-3 py-1.5 text-base text-gray-900 outline-1 -outline-offset-1 outline-gray-300 placeholder:text-gray-400 focus:outline-2 focus:-outline-offset-2 focus:outline-indigo-600 sm:text-sm sm:leading-6"
-                          placeholder="123 Main St, Apt 4B"
-                          required
-                        ></textarea>
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {formData.customerType === "Customer of Selected Agent" && (
-                  <div className="mt-10 grid grid-cols-1 gap-x-6 gap-y-8 sm:grid-cols-6">
-                    <div className="sm:col-span-3">
-                      <label htmlFor="selectedAgent" className="block text-sm font-medium leading-6 text-gray-900">
-                        Select Agent
-                      </label>
-                      <div className="mt-2 grid grid-cols-1">
-                        <select
-                          id="selectedAgent"
-                          name="selectedAgent"
-                          value={selectedAgent}
-                          onChange={(e) => {
-                            setSelectedAgent(e.target.value);
-                            setError(null);
-                          }}
-                          className="col-start-1 row-start-1 w-full appearance-none rounded-md bg-white py-1.5 pr-8 pl-3 text-base text-gray-900 outline-1 -outline-offset-1 outline-gray-300 focus:outline-2 focus:-outline-offset-2 focus:outline-indigo-600 sm:text-sm sm:leading-6"
-                          required
-                        >
-                          <option value="">Select an agent</option>
-                          {agents.map((agent) => (
-                            <option key={agent.id} value={agent.id}>
-                              {agent.customer_name}
-                            </option>
-                          ))}
-                        </select>
-                        <svg
-                          className="pointer-events-none col-start-1 row-start-1 mr-2 size-5 self-center justify-self-end text-gray-500 sm:size-4"
-                          viewBox="0 0 16 16"
-                          fill="currentColor"
-                          aria-hidden="true"
-                          data-slot="icon"
-                        >
-                          <path
-                            fillRule="evenodd"
-                            d="M4.22 6.22a.75.75 0 0 1 1.06 0L8 8.94l2.72-2.72a.75.75 0 1 1 1.06 1.06l-3.25 3.25a.75.75 0 0 1-1.06 0L4.22 7.28a.75.75 0 0 1 0-1.06Z"
-                            clipRule="evenodd"
-                          />
-                        </svg>
-                      </div>
-                    </div>
-                    <div className="sm:col-span-4">
-                      <label htmlFor="custAgentName" className="block text-sm font-medium leading-6 text-gray-900">
-                        Customer Agent Name
-                      </label>
-                      <div className="mt-2">
-                        <input
-                          type="text"
-                          name="custAgentName"
-                          id="custAgentName"
-                          value={formData.custAgentName}
-                          onChange={handleChange}
-                          className="block w-full rounded-md bg-white px-3 py-1.5 text-base text-gray-900 outline-1 -outline-offset-1 outline-gray-300 placeholder:text-gray-400 focus:outline-2 focus:-outline-offset-2 focus:outline-indigo-600 sm:text-sm sm:leading-6"
-                          placeholder="Customer Agent Name"
-                          required
-                        />
-                      </div>
-                    </div>
-                    <div className="sm:col-span-3">
-                      <label htmlFor="custAgentContact" className="block text-sm font-medium leading-6 text-gray-900">
-                        Customer Agent Contact
-                      </label>
-                      <div className="mt-2">
-                        <input
-                          type="text"
-                          name="custAgentContact"
-                          id="custAgentContact"
-                          value={formData.custAgentContact}
-                          onChange={handleChange}
-                          pattern="\d{10}"
-                          className="block w-full rounded-md bg-white px-3 py-1.5 text-base text-gray-900 outline-1 -outline-offset-1 outline-gray-300 placeholder:text-gray-400 focus:outline-2 focus:-outline-offset-2 focus:outline-indigo-600 sm:text-sm sm:leading-6"
-                          placeholder="1234567890"
-                          required
-                        />
-                      </div>
-                    </div>
-                    <div className="sm:col-span-3">
-                      <label htmlFor="custAgentEmail" className="block text-sm font-medium leading-6 text-gray-900">
-                        Customer Agent Email (Optional)
-                      </label>
-                      <div className="mt-2">
-                        <input
-                          type="email"
-                          name="custAgentEmail"
-                          id="custAgentEmail"
-                          value={formData.custAgentEmail}
-                          onChange={handleChange}
-                          className="block w-full rounded-md bg-white px-3 py-1.5 text-base text-gray-900 outline-1 -outline-offset-1 outline-gray-300 placeholder:text-gray-400 focus:outline-2 focus:-outline-offset-2 focus:outline-indigo-600 sm:text-sm sm:leading-6"
-                          placeholder="custagent@example.com"
-                        />
-                      </div>
-                    </div>
-                    <div className="sm:col-span-3">
-                      <label htmlFor="custAgentState" className="block text-sm font-medium leading-6 text-gray-900">
-                        Customer Agent State
-                      </label>
-                      <div className="mt-2 grid grid-cols-1">
-                        <select
-                          id="custAgentState"
-                          name="custAgentState"
-                          value={formData.custAgentState}
-                          onChange={handleChange}
-                          className="col-start-1 row-start-1 w-full appearance-none rounded-md bg-white py-1.5 pr-8 pl-3 text-base text-gray-900 outline-1 -outline-offset-1 outline-gray-300 focus:outline-2 focus:-outline-offset-2 focus:outline-indigo-600 sm:text-sm sm:leading-6"
-                          required
-                        >
-                          <option value="">Select a state</option>
-                          {states.map((state) => (
-                            <option key={state.name} value={state.name}>
-                              {state.name}
-                            </option>
-                          ))}
-                        </select>
-                        <svg
-                          className="pointer-events-none col-start-1 row-start-1 mr-2 size-5 self-center justify-self-end text-gray-500 sm:size-4"
-                          viewBox="0 0 16 16"
-                          fill="currentColor"
-                          aria-hidden="true"
-                          data-slot="icon"
-                        >
-                          <path
-                            fillRule="evenodd"
-                            d="M4.22 6.22a.75.75 0 0 1 1.06 0L8 8.94l2.72-2.72a.75.75 0 1 1 1.06 1.06l-3.25 3.25a.75.75 0 0 1-1.06 0L4.22 7.28a.75.75 0 0 1 0-1.06Z"
-                            clipRule="evenodd"
-                          />
-                        </svg>
-                      </div>
-                    </div>
-                    <div className="sm:col-span-3">
-                      <label htmlFor="custAgentDistrict" className="block text-sm font-medium leading-6 text-gray-900">
-                        Customer Agent District
-                      </label>
-                      <div className="mt-2 grid grid-cols-1">
-                        <select
-                          id="custAgentDistrict"
-                          name="custAgentDistrict"
-                          value={formData.custAgentDistrict}
-                          onChange={handleChange}
-                          disabled={!formData.custAgentState}
-                          className="col-start-1 row-start-1 w-full appearance-none rounded-md bg-white py-1.5 pr-8 pl-3 text-base text-gray-900 outline-1 -outline-offset-1 outline-gray-300 focus:outline-2 focus:-outline-offset-2 focus:outline-indigo-600 sm:text-sm sm:leading-6"
-                          required
-                        >
-                          <option value="">Select a district</option>
-                          {districts.map((district) => (
-                            <option key={district.id} value={district.name}>
-                              {district.name}
-                            </option>
-                          ))}
-                        </select>
-                        <svg
-                          className="pointer-events-none col-start-1 row-start-1 mr-2 size-5 self-center justify-self-end text-gray-500 sm:size-4"
-                          viewBox="0 0 16 16"
-                          fill="currentColor"
-                          aria-hidden="true"
-                          data-slot="icon"
-                        >
-                          <path
-                            fillRule="evenodd"
-                            d="M4.22 6.22a.75.75 0 0 1 1.06 0L8 8.94l2.72-2.72a.75.75 0 1 1 1.06 1.06l-3.25 3.25a.75.75 0 0 1-1.06 0L4.22 7.28a.75.75 0 0 1 0-1.06Z"
-                            clipRule="evenodd"
-                          />
-                        </svg>
-                      </div>
-                    </div>
-                    <div className="col-span-full">
-                      <label htmlFor="custAgentAddress" className="block text-sm font-medium leading-6 text-gray-900">
-                        Customer Agent Address
-                      </label>
-                      <div className="mt-2">
-                        <textarea
-                          name="custAgentAddress"
-                          id="custAgentAddress"
-                          rows="3"
-                          value={formData.custAgentAddress}
-                          onChange={handleChange}
-                          className="block w-full rounded-md bg-white px-3 py-1.5 text-base text-gray-900 outline-1 -outline-offset-1 outline-gray-300 placeholder:text-gray-400 focus:outline-2 focus:-outline-offset-2 focus:outline-indigo-600 sm:text-sm sm:leading-6"
-                          placeholder="123 Main St, Apt 4B"
-                          required
-                        ></textarea>
-                      </div>
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              <div className="mt-6 flex items-center justify-end gap-x-6">
-                <button
-                  type="button"
-                  className="text-sm font-semibold leading-6 text-gray-900"
-                  onClick={() => {
-                    setFormData({
-                      customerName: "",
-                      state: "",
-                      district: "",
-                      mobileNumber: "",
-                      email: "",
-                      address: "",
-                      customerType: "Customer",
-                      agentName: "",
-                      agentContact: "",
-                      agentEmail: "",
-                      agentState: "",
-                      agentDistrict: "",
-                      custAgentName: "",
-                      custAgentContact: "",
-                      custAgentEmail: "",
-                      custAgentAddress: "",
-                      custAgentDistrict: "",
-                      custAgentState: "",
-                    });
-                    setSelectedAgent("");
-                    setError(null);
-                    setSuccess(false);
-                  }}
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="rounded-md cursor-pointer px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-gray-800 bg-black/50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600"
-                >
-                  Save
-                </button>
-              </div>
+              {formData.customerType === "Customer of Selected Agent" && (
+                <div className="mt-10 grid grid-cols-1 gap-x-6 gap-y-8 sm:grid-cols-6">
+                  {renderSelect("selectedAgent", "selectedAgent", "Select Agent", agents, false, true, "Select an agent")}
+                  {renderInput("custAgentName", "custAgentName", "Customer Agent Name", "text", "Customer Agent Name", true)}
+                  {renderInput("custAgentContact", "custAgentContact", "Customer Agent Contact", "text", "1234567890", true, "\\d{10}")}
+                  {renderInput("custAgentEmail", "custAgentEmail", "Customer Agent Email (Optional)", "email", "custagent@example.com")}
+                  {renderSelect("custAgentState", "custAgentState", "Customer Agent State", states, false, true)}
+                  {renderSelect("custAgentDistrict", "custAgentDistrict", "Customer Agent District", districts, !formData.custAgentState, true)}
+                  {renderTextarea("custAgentAddress", "custAgentAddress", "Customer Agent Address", "123 Main St, Apt 4B", true)}
+                </div>
+              )}
             </div>
-          </form>
+
+            <div className="mt-6 flex items-center justify-end gap-x-6">
+              <button
+                type="button"
+                className="text-sm font-semibold leading-6 text-gray-900 dark:text-gray-100 hover:text-gray-700 dark:hover:text-gray-300"
+                onClick={() => {
+                  setFormData({
+                    customerName: "", state: "", district: "", mobileNumber: "", email: "", address: "",
+                    customerType: "Customer", agentName: "", agentContact: "", agentEmail: "", agentState: "", agentDistrict: "",
+                    custAgentName: "", custAgentContact: "", custAgentEmail: "", custAgentAddress: "", custAgentDistrict: "", custAgentState: ""
+                  });
+                  setSelectedAgent("");
+                  setError(null);
+                  setSuccess(false);
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleSubmit}
+                className="rounded-md px-3 py-2 text-sm font-semibold text-white dark:text-gray-100 shadow-sm hover:bg-indigo-700 dark:hover:bg-blue-600 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600 dark:focus-visible:outline-blue-500"
+                style={{ background: styles.button.background, backgroundDark: styles.button.backgroundDark, border: styles.button.border, borderDark: styles.button.borderDark, boxShadow: styles.button.boxShadow, boxShadowDark: styles.button.boxShadowDark }}
+              >
+                Save
+              </button>
+            </div>
+          </div>
         </div>
       </div>
+      <style>{`
+        [style*="backgroundDark"] { background: var(--bg, ${styles.input.background}); }
+        [style*="backgroundDark"][data-dark] { --bg: ${styles.input.backgroundDark}; }
+        [style*="borderDark"] { border: var(--border, ${styles.input.border}); }
+        [style*="borderDark"][data-dark] { --border: ${styles.input.borderDark}; }
+        [style*="boxShadowDark"] { box-shadow: var(--shadow, ${styles.button.boxShadow}); }
+        [style*="boxShadowDark"][data-dark] { --shadow: ${styles.button.boxShadowDark}; }
+      `}</style>
     </div>
   );
 }

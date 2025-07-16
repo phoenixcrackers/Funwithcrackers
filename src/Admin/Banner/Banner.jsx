@@ -10,6 +10,25 @@ export default function Banner() {
   const [previewURLs, setPreviewURLs] = useState([]);
   const [uploading, setUploading] = useState(false);
 
+  const styles = {
+    input: { 
+      background: "linear-gradient(135deg, rgba(255,255,255,0.8), rgba(240,249,255,0.6))", 
+      backgroundDark: "linear-gradient(135deg, rgba(55,65,81,0.8), rgba(75,85,99,0.6))",
+      backdropFilter: "blur(10px)", 
+      border: "1px solid rgba(2,132,199,0.3)", 
+      borderDark: "1px solid rgba(59,130,246,0.4)"
+    },
+    button: { 
+      background: "linear-gradient(135deg, rgba(2,132,199,0.9), rgba(14,165,233,0.95))", 
+      backgroundDark: "linear-gradient(135deg, rgba(59,130,246,0.9), rgba(37,99,235,0.95))",
+      backdropFilter: "blur(15px)", 
+      border: "1px solid rgba(125,211,252,0.4)", 
+      borderDark: "1px solid rgba(147,197,253,0.4)",
+      boxShadow: "0 15px 35px rgba(2,132,199,0.3), inset 0 1px 0 rgba(255,255,255,0.2)",
+      boxShadowDark: "0 15px 35px rgba(59,130,246,0.4), inset 0 1px 0 rgba(255,255,255,0.1)"
+    }
+  };
+
   useEffect(() => {
     fetchBanners();
   }, []);
@@ -76,21 +95,21 @@ export default function Banner() {
   };
 
   return (
-    <div className="flex min-h-screen bg-gray-50">
+    <div className="flex min-h-screen bg-gray-50 dark:bg-gray-900">
       <Sidebar />
       <Logout />
       <div className="p-6 w-full justify-center">
-        <h2 className="text-3xl text-center font-bold mb-6">Manage Banners</h2>
+        <h2 className="text-3xl text-center font-bold mb-6 text-gray-900 dark:text-gray-100">Manage Banners</h2>
 
         {/* Upload Section */}
-        <div className="mb-10 bg-white p-6 rounded-lg shadow mx-auto max-w-2xl onefifty:ml-[25%]">
-          <label className="block text-sm font-medium mb-2">Upload Banner Images</label>
+        <div className="mb-10 bg-white dark:bg-gray-900 p-6 rounded-lg shadow mx-auto max-w-2xl onefifty:ml-[25%]">
+          <label className="block text-sm font-medium mb-2 text-gray-700 dark:text-gray-300">Upload Banner Images</label>
           <input
             type="file"
             multiple
             accept="image/*"
             onChange={handleFileChange}
-            className="mb-4"
+            className="mb-4 text-sm text-gray-900 dark:text-gray-100 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 dark:file:bg-gray-700 file:text-indigo-600 dark:file:text-gray-200 hover:file:bg-indigo-100 dark:hover:file:bg-gray-600"
           />
           {previewURLs.length > 0 && (
             <div className="flex flex-wrap gap-4 mb-4 justify-center">
@@ -99,7 +118,7 @@ export default function Banner() {
                   key={index}
                   src={src}
                   alt={`Preview ${index}`}
-                  className="h-24 w-auto rounded border shadow"
+                  className="h-24 w-auto rounded border border-gray-300 dark:border-gray-600 shadow"
                 />
               ))}
             </div>
@@ -107,9 +126,10 @@ export default function Banner() {
           <button
             onClick={handleUpload}
             disabled={uploading}
-            className={`px-5 py-2 rounded text-white ${
-              uploading ? 'bg-gray-500 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700'
+            className={`px-5 py-2 rounded text-white dark:text-gray-100 font-semibold ${
+              uploading ? 'bg-gray-500 dark:bg-gray-700 cursor-not-allowed' : 'hover:bg-blue-700 dark:hover:bg-blue-600'
             }`}
+            style={uploading ? {} : { background: styles.button.background, backgroundDark: styles.button.backgroundDark, border: styles.button.border, borderDark: styles.button.borderDark, boxShadow: styles.button.boxShadow, boxShadowDark: styles.button.boxShadowDark }}
           >
             {uploading ? 'Uploading...' : 'Upload'}
           </button>
@@ -118,10 +138,10 @@ export default function Banner() {
         {/* Banner List */}
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6 mobile:grid-cols-1 justify-items-center mx-auto max-w-7xl onefifty:ml-[25%]">
           {banners.length === 0 ? (
-            <p className="col-span-full text-center text-gray-500">No banners uploaded yet.</p>
+            <p className="col-span-full text-center text-gray-500 dark:text-gray-400">No banners uploaded yet.</p>
           ) : (
             banners.map((banner) => (
-              <div key={banner.id} className="bg-white border rounded-lg shadow p-3">
+              <div key={banner.id} className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg shadow p-3">
                 <img
                   src={banner.image_url.startsWith('http') ? banner.image_url : `${API_BASE_URL}${banner.image_url}`}
                   alt="Banner"
@@ -131,8 +151,8 @@ export default function Banner() {
                   <span
                     className={`text-xs font-semibold px-2 py-1 rounded ${
                       banner.is_active
-                        ? 'bg-green-100 text-green-700'
-                        : 'bg-red-100 text-red-700'
+                        ? 'bg-green-100 dark:bg-green-800 text-green-700 dark:text-green-200'
+                        : 'bg-red-100 dark:bg-red-800 text-red-700 dark:text-red-200'
                     }`}
                   >
                     {banner.is_active ? 'Visible' : 'Hidden'}
@@ -140,15 +160,16 @@ export default function Banner() {
                   <div className="flex gap-2">
                     <button
                       onClick={() => toggleActive(banner.id, banner.is_active)}
-                      className={`text-xs px-3 py-1 rounded ${
-                        banner.is_active ? 'bg-red-500' : 'bg-green-500'
-                      } text-white`}
+                      className={`text-xs px-3 py-1 rounded text-white dark:text-gray-100 font-semibold ${
+                        banner.is_active ? 'bg-red-500 dark:bg-red-600' : 'bg-green-500 dark:bg-green-600'
+                      } hover:bg-opacity-80 dark:hover:bg-opacity-80`}
                     >
                       {banner.is_active ? 'Hide' : 'Show'}
                     </button>
                     <button
                       onClick={() => handleDelete(banner.id)}
-                      className="text-xs px-3 py-1 rounded bg-gray-600 text-white"
+                      className="text-xs px-3 py-1 rounded text-white dark:text-gray-100 font-semibold hover:bg-gray-700 dark:hover:bg-gray-600"
+                      style={{ background: styles.button.background, backgroundDark: styles.button.backgroundDark, border: styles.button.border, borderDark: styles.button.borderDark, boxShadow: styles.button.boxShadow, boxShadowDark: styles.button.boxShadowDark }}
                     >
                       Delete
                     </button>
@@ -159,6 +180,14 @@ export default function Banner() {
           )}
         </div>
       </div>
+      <style>{`
+        [style*="backgroundDark"] { background: var(--bg, ${styles.input.background}); }
+        [style*="backgroundDark"][data-dark] { --bg: ${styles.input.backgroundDark}; }
+        [style*="borderDark"] { border: var(--border, ${styles.input.border}); }
+        [style*="borderDark"][data-dark] { --border: ${styles.input.borderDark}; }
+        [style*="boxShadowDark"] { box-shadow: var(--shadow, ${styles.button.boxShadow}); }
+        [style*="boxShadowDark"][data-dark] { --shadow: ${styles.button.boxShadowDark}; }
+      `}</style>
     </div>
   );
 }
