@@ -103,7 +103,7 @@ export default function List() {
   useEffect(() => {
     fetchProductTypes();
     fetchProducts();
-    const intervalId = setInterval(() => { fetchProductTypes(); fetchProducts(); }, 5000);
+    const intervalId = setInterval(() => { fetchProductTypes(); fetchProducts(); }, 300000);
     return () => clearInterval(intervalId);
   }, []);
 
@@ -294,12 +294,11 @@ export default function List() {
     <div className="flex min-h-screen overflow-hidden bg-gray-100 dark:bg-gray-900">
       <Sidebar />
       <Logout />
-      <div className="flex-1 p-6 mobile:p-4 overflow-hidden">
+      <div className="flex-1 p-6 mobile:p-4 overflow-hidden justify-center">
         <div className="max-w-5xl mx-auto">
           <h2 className="text-2xl text-center font-bold text-gray-900 dark:text-gray-100 mb-6 mobile:mb-4">List Products</h2>
           {error && <div className="mb-4 mobile:mb-2 text-red-600 dark:text-red-400 text-sm text-center">{error}</div>}
-          <div className="mb-6 mobileવ
-            mobile:mb-4 flex justify-between items-center">
+          <div className="mb-6 mobile:mb-4 onefifty:mx-10 onefifty:translate-x-30 hundred:translate-x-0 hundred:mx-0 flex justify-between items-center">
             <div>
               <label htmlFor="product-type-filter" className="block text-sm font-medium text-gray-900 dark:text-gray-300">Filter by Product Type</label>
               <select
@@ -324,7 +323,7 @@ export default function List() {
           {currentProducts.length === 0 ? (
             <p className="text-lg text-center text-gray-600 dark:text-gray-300 sm:text-xl font-medium">No products found</p>
           ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 mobile:gap-4">
+            <div className="grid onefifty:grid-cols-3 hundred:translate-x-0 hundred:mx-0 onefifty:translate-x-30 onefifty:mx-10 hundred:grid-cols-3 mobile:grid-cols-1 gap-6 mobile:gap-4 justify-center">
               {currentProducts.map(product => {
                 const productKey = `${product.product_type}-${product.id}`;
                 return (
