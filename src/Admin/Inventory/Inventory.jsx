@@ -199,7 +199,7 @@ export default function Inventory() {
     if (!productType) return null;
     return (
       <>
-        <div className="sm:col-span-3">
+        <div className="mobile:col-span-3">
           <label htmlFor={`serial-num-${productType}`} className="block text-sm font-medium text-gray-900 dark:text-gray-300">
             Serial Number*
           </label>
@@ -217,7 +217,7 @@ export default function Inventory() {
             />
           </div>
         </div>
-        <div className="sm:col-span-3">
+        <div className="mobile:col-span-3">
           <label htmlFor="product-name" className="block text-sm font-medium text-gray-900 dark:text-gray-300">
             Product Name*
           </label>
@@ -235,7 +235,7 @@ export default function Inventory() {
             />
           </div>
         </div>
-        <div className="sm:col-span-3">
+        <div className="mobile:col-span-3">
           <label htmlFor="price" className="block text-sm font-medium text-gray-900 dark:text-gray-300">
             Price (INR)*
           </label>
@@ -339,7 +339,7 @@ export default function Inventory() {
     <div className="flex min-h-screen bg-gray-100 dark:bg-gray-900">
       <Sidebar />
       <Logout />
-      <div className="flex-1 md:ml-64 p-6 pt-16">
+      <div className="flex-1 p-6 pt-16">
         <div className="max-w-4xl mx-auto">
           <h2 className="text-2xl text-center font-bold text-gray-900 dark:text-gray-100 mb-6">Add Items</h2>
           {error && <div className="mb-4 text-red-600 dark:text-red-400 text-sm text-center">{error}</div>}

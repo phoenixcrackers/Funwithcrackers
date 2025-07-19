@@ -111,11 +111,9 @@ const Promocode = () => {
     <div className="flex flex-col md:flex-row bg-gray-50 dark:bg-gray-900 min-h-screen">
       <Sidebar />
       <Logout />
-      <div className="flex-1 p-4 sm:p-6 md:ml-64">
-        <h1 className="text-xl sm:text-2xl font-bold mb-6 text-center md:text-left text-gray-900 dark:text-gray-100">Promocode Management</h1>
-
-        {/* Form */}
-        <div className="bg-white dark:bg-gray-900 shadow-md rounded p-4 sm:p-6 max-w-full sm:max-w-md mx-auto md:mx-0 mb-8">
+      <div className="flex-1 p-4 mobile:p-6 hundred:ml-64">
+        <h1 className="text-xl sm:text-2xl font-bold mb-6 text-center md:text-center text-gray-900 dark:text-gray-100">Promocode Management</h1>
+        <div className="bg-white dark:bg-gray-900 shadow-md rounded p-4 mobile:p-6 max-w-full mobile:max-w-md mx-auto md:mx-0 mb-8">
           <h2 className="text-lg font-semibold mb-4 text-gray-900 dark:text-gray-100">{isEditing ? 'Edit Promocode' : 'Add New Promocode'}</h2>
           <div className="space-y-4">
             <div>

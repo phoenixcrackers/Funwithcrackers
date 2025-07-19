@@ -191,7 +191,7 @@ export default function Location() {
               </button>
             </div>
           </form>
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div className="grid mobile:grid-cols-1 hundred:grid-cols-2 gap-6">
             {states.map((state) => (
               <div key={state.name} className="bg-white dark:bg-gray-900 p-6 rounded-lg shadow-xl border border-gray-200 dark:border-gray-700">
                 <div className="flex justify-between items-center mb-4">

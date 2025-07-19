@@ -26,7 +26,7 @@ export default function Sidebar() {
     <>
       {!isOpen && (
         <button
-          className="md:hidden fixed top-4 left-4 z-50 text-white bg-gray-800 p-2 rounded-md"
+          className="hundred:hidden fixed top-4 left-4 z-50 text-white bg-gray-800 p-2 rounded-md"
           onClick={toggleSidebar}
         >
           <FaBars size={24} />
@@ -36,11 +36,11 @@ export default function Sidebar() {
       <div
         className={`fixed top-0 left-0 h-screen bg-black/80 text-white flex flex-col transition-transform duration-300 ease-in-out ${
           isOpen ? 'translate-x-0' : '-translate-x-full'
-        } md:translate-x-0 md:w-64 w-64 z-40`}
+        } hundred:translate-x-0 mobile:w-64 w-64 z-40`}
       >
         <div className="p-4 text-xl font-bold border-b border-gray-700 flex items-center justify-between">
           Admin
-          <button className="md:hidden text-white" onClick={toggleSidebar}>
+          <button className="hundred:hidden text-white" onClick={toggleSidebar}>
             <FaTimes size={20} />
           </button>
         </div>
@@ -68,7 +68,7 @@ export default function Sidebar() {
 
       {isOpen && (
         <div
-          className="fixed inset-0 bg-black/50 bg-opacity-30 z-30 md:hidden"
+          className="hundred:hidden fixed inset-0 bg-black/50 bg-opacity-30 z-30"
           onClick={toggleSidebar}
         ></div>
       )}

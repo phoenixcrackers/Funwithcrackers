@@ -323,7 +323,7 @@ export default function List() {
           {currentProducts.length === 0 ? (
             <p className="text-lg text-center text-gray-600 dark:text-gray-300 sm:text-xl font-medium">No products found</p>
           ) : (
-            <div className="grid onefifty:grid-cols-3 hundred:translate-x-0 hundred:mx-0 onefifty:translate-x-30 onefifty:mx-10 hundred:grid-cols-3 mobile:grid-cols-1 gap-6 mobile:gap-4 justify-center">
+            <div className="grid onefifty:grid-cols-3 hundred:translate-x-0 mobile:grid-cols-2 hundred:mx-0 onefifty:translate-x-30 onefifty:mx-10 hundred:grid-cols-3  gap-6 mobile:gap-4 justify-center">
               {currentProducts.map(product => {
                 const productKey = `${product.product_type}-${product.id}`;
                 return (
