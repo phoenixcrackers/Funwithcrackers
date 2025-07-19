@@ -45,7 +45,7 @@ export default function Localcustomer() {
       const response = await fetch(`${API_BASE_URL}/api/locations/states`);
       if (!response.ok) throw new Error(`HTTP error! Status: ${response.status}`);
       const data = await response.json();
-      setStates(data);
+      setStates(data); // Data includes {name, min_rate}
       if (data.length > 0 && formData.customerType !== "Customer of Selected Agent") {
         setFormData((prev) => ({ ...prev, state: data[0].name }));
         await fetchDistricts(data[0].name);
@@ -58,18 +58,20 @@ export default function Localcustomer() {
   const fetchDistricts = async (stateName, isAgent = false, fieldPrefix = "") => {
     if (!stateName) {
       setDistricts([]);
+      setFormData((prev) => ({ ...prev, [`${fieldPrefix}district`]: "" }));
       return;
     }
     try {
       const response = await fetch(`${API_BASE_URL}/api/locations/states/${stateName}/districts`);
       if (!response.ok) throw new Error(`HTTP error! Status: ${response.status}`);
       const data = await response.json();
-      setDistricts(data);
+      setDistricts(data); // Data includes {id, name}
       if (data.length > 0) {
-        setFormData((prev) => ({ ...prev, [`${fieldPrefix}district`]: data[0].name }));
+        setFormData((prev) => ({ ...prev, [`${fieldPrefix}district`]: data[0].id }));
       }
     } catch (error) {
       setError(`Failed to load districts for ${stateName}.`);
+      setDistricts([]);
     }
   };
 
@@ -139,7 +141,7 @@ export default function Localcustomer() {
       const payload = {
         customer_name: formData.customerName?.trim() || null,
         state: formData.state?.trim() || null,
-        district: formData.district?.trim() || null,
+        district: formData.district?.trim() || null, // Sending ID, backend converts to name
         mobile_number: formData.mobileNumber?.trim() || null,
         email: formData.email?.trim() || null,
         address: formData.address?.trim() || null,
@@ -149,12 +151,12 @@ export default function Localcustomer() {
         agent_contact: formData.agentContact?.trim() || null,
         agent_email: formData.agentEmail?.trim() || null,
         agent_state: formData.agentState?.trim() || null,
-        agent_district: formData.agentDistrict?.trim() || null,
+        agent_district: formData.agentDistrict?.trim() || null, // Sending ID
         cust_agent_name: formData.custAgentName?.trim() || null,
         cust_agent_contact: formData.custAgentContact?.trim() || null,
         cust_agent_email: formData.custAgentEmail?.trim() || null,
         cust_agent_address: formData.custAgentAddress?.trim() || null,
-        cust_agent_district: formData.custAgentDistrict?.trim() || null,
+        cust_agent_district: formData.custAgentDistrict?.trim() || null, // Sending ID
         cust_agent_state: formData.custAgentState?.trim() || null
       };
 
@@ -215,8 +217,8 @@ export default function Localcustomer() {
         >
           <option value="">{placeholder}</option>
           {options.map((option) => (
-            <option key={option.id || option.name} value={option.id || option.name}>
-              {option.name || option.customer_name}
+            <option key={option.id} value={option.id}>
+              {option.name}
             </option>
           ))}
         </select>
@@ -275,7 +277,7 @@ export default function Localcustomer() {
               {formData.customerType === "Customer" && (
                 <div className="mt-10 grid grid-cols-1 gap-x-6 gap-y-8 sm:grid-cols-6">
                   {renderInput("customerName", "customerName", "Customer Name", "text", "Jane Smith", true)}
-                  {renderSelect("state", "state", "State", states, false, true)}
+                  {renderSelect("state", "state", "State", states.map(s => ({ id: s.name, name: s.name })), false, true)}
                   {renderSelect("district", "district", "District", districts, !formData.state, true)}
                   {renderInput("mobileNumber", "mobileNumber", "Mobile Number", "text", "1234567890", true, "\\d{10}")}
                   {renderInput("email", "email", "Email (Optional)", "email", "jane@example.com")}
@@ -288,7 +290,7 @@ export default function Localcustomer() {
                   {renderInput("agentName", "agentName", "Agent Name", "text", "Agent Name", true)}
                   {renderInput("agentContact", "agentContact", "Agent Contact", "text", "1234567890", true, "\\d{10}")}
                   {renderInput("agentEmail", "agentEmail", "Agent Email (Optional)", "email", "agent@example.com")}
-                  {renderSelect("agentState", "agentState", "Agent State", states, false, true)}
+                  {renderSelect("agentState", "agentState", "Agent State", states.map(s => ({ id: s.name, name: s.name })), false, true)}
                   {renderSelect("agentDistrict", "agentDistrict", "Agent District", districts, !formData.agentState, true)}
                   {renderTextarea("address", "address", "Agent Address", "123 Main St, Apt 4B", true)}
                 </div>
@@ -300,7 +302,7 @@ export default function Localcustomer() {
                   {renderInput("custAgentName", "custAgentName", "Customer Agent Name", "text", "Customer Agent Name", true)}
                   {renderInput("custAgentContact", "custAgentContact", "Customer Agent Contact", "text", "1234567890", true, "\\d{10}")}
                   {renderInput("custAgentEmail", "custAgentEmail", "Customer Agent Email (Optional)", "email", "custagent@example.com")}
-                  {renderSelect("custAgentState", "custAgentState", "Customer Agent State", states, false, true)}
+                  {renderSelect("custAgentState", "custAgentState", "Customer Agent State", states.map(s => ({ id: s.name, name: s.name })), false, true)}
                   {renderSelect("custAgentDistrict", "custAgentDistrict", "Customer Agent District", districts, !formData.custAgentState, true)}
                   {renderTextarea("custAgentAddress", "custAgentAddress", "Customer Agent Address", "123 Main St, Apt 4B", true)}
                 </div>
