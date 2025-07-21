@@ -5,7 +5,7 @@ import Logout from '../Logout';
 
 const Promocode = () => {
   const [promocodes, setPromocodes] = useState([]);
-  const [form, setForm] = useState({ code: '', discount: '' });
+  const [form, setForm] = useState({ code: '', discount: '', min_amount: '', end_date: '' });
   const [isEditing, setIsEditing] = useState(false);
   const [editingId, setEditingId] = useState(null);
 
@@ -51,14 +51,18 @@ const Promocode = () => {
     if (!form.code || !form.discount) return;
 
     try {
+      const payload = {
+        code: form.code,
+        discount: parseInt(form.discount, 10),
+        min_amount: form.min_amount ? parseFloat(form.min_amount) : null,
+        end_date: form.end_date || null,
+      };
+
       if (isEditing) {
         const res = await fetch(`${API_BASE_URL}/api/promocodes/${editingId}`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            code: form.code,
-            discount: parseInt(form.discount, 10),
-          }),
+          body: JSON.stringify(payload),
         });
         const updated = await res.json();
         setPromocodes((prev) =>
@@ -68,16 +72,13 @@ const Promocode = () => {
         const res = await fetch(`${API_BASE_URL}/api/promocodes`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            code: form.code,
-            discount: parseInt(form.discount, 10),
-          }),
+          body: JSON.stringify(payload),
         });
         const newPromo = await res.json();
         setPromocodes([...promocodes, newPromo]);
       }
 
-      setForm({ code: '', discount: '' });
+      setForm({ code: '', discount: '', min_amount: '', end_date: '' });
       setIsEditing(false);
       setEditingId(null);
     } catch (err) {
@@ -94,7 +95,7 @@ const Promocode = () => {
       if (editingId === id) {
         setIsEditing(false);
         setEditingId(null);
-        setForm({ code: '', discount: '' });
+        setForm({ code: '', discount: '', min_amount: '', end_date: '' });
       }
     } catch (err) {
       console.error('Error deleting promocode:', err);
@@ -102,7 +103,12 @@ const Promocode = () => {
   };
 
   const handleEdit = (promo) => {
-    setForm({ code: promo.code, discount: promo.discount });
+    setForm({
+      code: promo.code,
+      discount: promo.discount,
+      min_amount: promo.min_amount || '',
+      end_date: promo.end_date ? promo.end_date.split('T')[0] : '',
+    });
     setIsEditing(true);
     setEditingId(promo.id);
   };
@@ -142,6 +148,30 @@ const Promocode = () => {
                 max="100"
               />
             </div>
+            <div>
+              <label className="block mb-1 font-medium text-gray-700 dark:text-gray-300">Minimum Amount (Optional)</label>
+              <input
+                type="number"
+                name="min_amount"
+                value={form.min_amount}
+                onChange={handleChange}
+                className="w-full rounded-md bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-900 border border-gray-300 dark:border-gray-600 px-3 py-2 focus:border-indigo-600 dark:focus:border-blue-500 focus:ring-indigo-600 dark:focus:ring-blue-500"
+                style={{ background: styles.input.background, backgroundDark: styles.input.backgroundDark, border: styles.input.border, borderDark: styles.input.borderDark, backdropFilter: styles.input.backdropFilter }}
+                min="0"
+                placeholder="Enter minimum amount"
+              />
+            </div>
+            <div>
+              <label className="block mb-1 font-medium text-gray-700 dark:text-gray-300">End Date (Optional)</label>
+              <input
+                type="date"
+                name="end_date"
+                value={form.end_date}
+                onChange={handleChange}
+                className="w-full rounded-md bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-900 border border-gray-300 dark:border-gray-600 px-3 py-2 focus:border-indigo-600 dark:focus:border-blue-500 focus:ring-indigo-600 dark:focus:ring-blue-500"
+                style={{ background: styles.input.background, backgroundDark: styles.input.backgroundDark, border: styles.input.border, borderDark: styles.input.borderDark, backdropFilter: styles.input.backdropFilter }}
+              />
+            </div>
             <div className="flex flex-wrap gap-2">
               <button
                 type="button"
@@ -157,7 +187,7 @@ const Promocode = () => {
                   onClick={() => {
                     setIsEditing(false);
                     setEditingId(null);
-                    setForm({ code: '', discount: '' });
+                    setForm({ code: '', discount: '', min_amount: '', end_date: '' });
                   }}
                   className="px-4 py-2 rounded-md text-white dark:text-gray-100 font-semibold hover:bg-gray-700 dark:hover:bg-gray-600"
                   style={{ background: styles.button.background, backgroundDark: styles.button.backgroundDark, border: styles.button.border, borderDark: styles.button.borderDark, boxShadow: styles.button.boxShadow, boxShadowDark: styles.button.boxShadowDark }}
@@ -176,13 +206,15 @@ const Promocode = () => {
               <tr>
                 <th className="px-4 py-2">Code</th>
                 <th className="px-4 py-2">Discount (%)</th>
+                <th className="px-4 py-2">Min Amount</th>
+                <th className="px-4 py-2">End Date</th>
                 <th className="px-4 py-2">Actions</th>
               </tr>
             </thead>
             <tbody>
               {promocodes.length === 0 ? (
                 <tr>
-                  <td colSpan="3" className="text-center p-4 text-gray-500 dark:text-gray-400">
+                  <td colSpan="5" className="text-center p-4 text-gray-500 dark:text-gray-400">
                     No promocodes added yet.
                   </td>
                 </tr>
@@ -191,6 +223,8 @@ const Promocode = () => {
                   <tr key={promo.id} className="border-t border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800">
                     <td className="px-4 py-2 text-gray-900 dark:text-gray-100">{promo.code}</td>
                     <td className="px-4 py-2 text-gray-900 dark:text-gray-100">{promo.discount}%</td>
+                    <td className="px-4 py-2 text-gray-900 dark:text-gray-100">{promo.min_amount ? `₹${promo.min_amount}` : '-'}</td>
+                    <td className="px-4 py-2 text-gray-900 dark:text-gray-100">{promo.end_date ? new Date(promo.end_date).toLocaleDateString() : '-'}</td>
                     <td className="px-4 py-2 space-x-5">
                       <button
                         onClick={() => handleEdit(promo)}

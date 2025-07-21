@@ -42,7 +42,6 @@ const Carousel = ({ media }) => {
   const [currentIndex, setCurrentIndex] = useState(0)
   const [isDragging, setIsDragging] = useState(false)
   const [startX, setStartX] = useState(0)
-  const dragRef = useRef(null)
 
   const mediaItems = useMemo(() => {
     const items = media && typeof media === 'string' ? JSON.parse(media) : (Array.isArray(media) ? media : [])
@@ -55,20 +54,11 @@ const Carousel = ({ media }) => {
       const isBGif = bStr.startsWith('data:image/gif') || bStr.toLowerCase().endsWith('.gif')
       const isAImage = aStr.startsWith('data:image/') && !isAGif
       const isBImage = bStr.startsWith('data:image/') && !isBGif
-
-      const getPriority = (isImage, isGif, isVideo) => {
-        if (isImage) return 0
-        if (isGif) return 1
-        if (isVideo) return 2
-        return 3
-      }
-
-      return getPriority(isAImage, isAGif, isAVideo) - getPriority(isBImage, isBGif, isBVideo)
+      return (isAImage ? 0 : isAGif ? 1 : isAVideo ? 2 : 3) - (isBImage ? 0 : isBGif ? 1 : isBVideo ? 2 : 3)
     })
   }, [media])
 
   const isVideo = (item) => typeof item === 'string' && item.startsWith('data:video/')
-  const getVideoPreview = () => '/video-preview-placeholder.png'
 
   const handlePrev = () => setCurrentIndex((prev) => (prev === 0 ? mediaItems.length - 1 : prev - 1))
   const handleNext = () => setCurrentIndex((prev) => (prev === mediaItems.length - 1 ? 0 : prev + 1))
@@ -87,13 +77,8 @@ const Carousel = ({ media }) => {
     setIsDragging(false)
     const endX = e.changedTouches[0].clientX
     const diffX = startX - endX
-    const threshold = 50
-
-    if (diffX > threshold) {
-      setCurrentIndex((prev) => (prev === mediaItems.length - 1 ? 0 : prev + 1))
-    } else if (diffX < -threshold) {
-      setCurrentIndex((prev) => (prev === 0 ? mediaItems.length - 1 : prev - 1))
-    }
+    if (diffX > 50) setCurrentIndex((prev) => (prev === mediaItems.length - 1 ? 0 : prev + 1))
+    else if (diffX < -50) setCurrentIndex((prev) => (prev === 0 ? mediaItems.length - 1 : prev - 1))
   }
 
   if (!mediaItems || mediaItems.length === 0) {
@@ -107,16 +92,9 @@ const Carousel = ({ media }) => {
       onTouchStart={handleTouchStart}
       onTouchMove={handleTouchMove}
       onTouchEnd={handleTouchEnd}
-      ref={dragRef}
     >
       {isVideo(mediaItems[currentIndex]) ? (
-        <video
-          src={mediaItems[currentIndex]}
-          autoPlay
-          muted
-          loop
-          className="w-full h-full object-contain p-2"
-        />
+        <video src={mediaItems[currentIndex]} autoPlay muted loop className="w-full h-full object-contain p-2" />
       ) : (
         <img src={mediaItems[currentIndex] || "/placeholder.svg"} alt="Product" className="w-full h-full object-contain p-2" />
       )}
@@ -124,7 +102,7 @@ const Carousel = ({ media }) => {
         <>
           <button
             onClick={handlePrev}
-            className="mobile:hidden sm:flex absolute left-2 top-1/2 transform -translate-y-1/2 w-8 h-8 rounded-full bg-white/80 text-sky-700 flex items-center justify-center text-lg opacity-100 z-10 hover:bg-sky-700 hover:text-white cursor-pointer"
+            className="mobile:hidden sm:flex absolute left-2 top-1/2 transform -translate-y-1/2 w-8 h-8 rounded-full bg-white/80 text-sky-700 flex items-center justify-center text-lg z-10 hover:bg-sky-700 hover:text-white cursor-pointer"
             style={{ boxShadow: "0 4px 10px rgba(0,0,0,0.2)" }}
             aria-label="Previous media"
           >
@@ -132,18 +110,15 @@ const Carousel = ({ media }) => {
           </button>
           <button
             onClick={handleNext}
-            className="mobile:hidden sm:flex absolute right-2 top-1/2 transform -translate-y-1/2 w-8 h-8 rounded-full bg-white/80 text-sky-700 flex items-center justify-center text-lg opacity-100 z-10 hover:bg-sky-700 hover:text-white cursor-pointer"
+            className="mobile:hidden sm:flex absolute right-2 top-1/2 transform -translate-y-1/2 w-8 h-8 rounded-full bg-white/80 text-sky-700 flex items-center justify-center text-lg z-10 hover:bg-sky-700 hover:text-white cursor-pointer"
             style={{ boxShadow: "0 4px 10px rgba(0,0,0,0.2)" }}
             aria-label="Next media"
           >
             <FaArrowRight />
           </button>
           <div className="absolute bottom-2 left-1/2 transform -translate-x-1/2 flex gap-1 z-10">
-            {mediaItems.map((item, index) => (
-              <div
-                key={index}
-                className={`w-2 h-2 rounded-full ${index === currentIndex ? 'bg-sky-700' : 'bg-gray-300'}`}
-              />
+            {mediaItems.map((_, index) => (
+              <div key={index} className={`w-2 h-2 rounded-full ${index === currentIndex ? 'bg-sky-700' : 'bg-gray-300'}`} />
             ))}
           </div>
         </>
@@ -158,8 +133,8 @@ const Pricelist = () => {
   const [isCartOpen, setIsCartOpen] = useState(false)
   const [showModal, setShowModal] = useState(false)
   const [showSuccess, setShowSuccess] = useState(false)
-  const [showMinOrderModal, setShowMinOrderModal] = useState(false)
-  const [minOrderMessage, setMinOrderMessage] = useState("")
+  const [showErrorModal, setShowErrorModal] = useState(false)
+  const [errorMessage, setErrorMessage] = useState("")
   const [customerDetails, setCustomerDetails] = useState({ customer_name: "", address: "", district: "", state: "", mobile_number: "", email: "", customer_type: "User" })
   const [selectedType, setSelectedType] = useState("All")
   const [searchTerm, setSearchTerm] = useState("")
@@ -169,6 +144,9 @@ const Pricelist = () => {
   const [districts, setDistricts] = useState([])
   const [selectedProduct, setSelectedProduct] = useState(null)
   const [showDetailsModal, setShowDetailsModal] = useState(false)
+  const [promocodes, setPromocodes] = useState([])
+  const [originalTotal, setOriginalTotal] = useState(0)
+  const debounceTimeout = useRef(null)
 
   const styles = { 
     card: { background: "linear-gradient(135deg, rgba(255,255,255,0.4), rgba(224,242,254,0.3), rgba(186,230,253,0.2))", backdropFilter: "blur(20px)", border: "1px solid rgba(2,132,199,0.3)", boxShadow: "0 25px 45px rgba(2,132,199,0.1), inset 0 1px 0 rgba(255,255,255,0.4), inset 0 -1px 0 rgba(2,132,199,0.1)" }, 
@@ -185,48 +163,25 @@ const Pricelist = () => {
   useEffect(() => { 
     const savedCart = localStorage.getItem("firecracker-cart")
     if (savedCart) setCart(JSON.parse(savedCart))
-    fetch(`${API_BASE_URL}/api/locations/states`)
-      .then(res => res.json())
-      .then(setStates)
-      .catch(err => console.error("Error fetching states:", err))
-    fetch(`${API_BASE_URL}/api/products`)
-      .then(res => res.json())
-      .then(data => {
-        setProducts(data.filter(p => p.status === "on"))
-      })
-      .catch(err => console.error("Error loading products:", err))
+    fetch(`${API_BASE_URL}/api/locations/states`).then(res => res.json()).then(setStates).catch(err => console.error("Error fetching states:", err))
+    fetch(`${API_BASE_URL}/api/products`).then(res => res.json()).then(data => setProducts(data.filter(p => p.status === "on"))).catch(err => console.error("Error loading products:", err))
+    fetch(`${API_BASE_URL}/api/promocodes`).then(res => res.json()).then(setPromocodes).catch(err => console.error("Error fetching promocodes:", err))
   }, [])
 
   useEffect(() => { 
     if (customerDetails.state) 
-      fetch(`${API_BASE_URL}/api/locations/states/${customerDetails.state}/districts`)
-        .then(res => res.json())
-        .then(setDistricts)
-        .catch(err => console.error("Error fetching districts:", err)) 
+      fetch(`${API_BASE_URL}/api/locations/states/${customerDetails.state}/districts`).then(res => res.json()).then(setDistricts).catch(err => console.error("Error fetching districts:", err)) 
   }, [customerDetails.state])
 
   useEffect(() => localStorage.setItem("firecracker-cart", JSON.stringify(cart)), [cart])
 
   const addToCart = useCallback((product) => {
-    if (!product || !product.serial_number) {
-      console.error("Invalid product or missing serial_number:", product)
-      return
-    }
-    try {
-      setCart(prev => {
-        const newCart = { ...prev, [product.serial_number]: (prev[product.serial_number] || 0) + 1 }
-        return newCart
-      })
-    } catch (error) {
-      console.error("Error in addToCart:", error)
-    }
+    if (!product?.serial_number) return console.error("Invalid product or missing serial_number:", product)
+    setCart(prev => ({ ...prev, [product.serial_number]: (prev[product.serial_number] || 0) + 1 }))
   }, [])
 
   const removeFromCart = useCallback(product => {
-    if (!product || !product.serial_number) {
-      console.error("Invalid product or missing serial_number:", product)
-      return
-    }
+    if (!product?.serial_number) return console.error("Invalid product or missing serial_number:", product)
     setCart(prev => { 
       const count = (prev[product.serial_number] || 1) - 1
       const updated = { ...prev }
@@ -246,7 +201,7 @@ const Pricelist = () => {
     const selectedState = customerDetails.state?.trim()
     if (!selectedState) return showError("Please select a state.")
     const minOrder = states.find(s => s.name === selectedState)?.min_rate
-    if (minOrder && parseFloat(totals.total) < minOrder) return showError(`Minimum order for ${selectedState} is ₹${minOrder}. Your total is ₹${totals.total}.`)
+    if (minOrder && parseFloat(originalTotal) < minOrder) return showError(`Minimum order for ${selectedState} is ₹${minOrder}. Your total is ₹${originalTotal}.`)
     try {
       const response = await fetch(`${API_BASE_URL}/api/direct/bookings`, { 
         method: "POST", 
@@ -260,6 +215,9 @@ const Pricelist = () => {
         setIsCartOpen(false)
         setShowModal(false)
         setCustomerDetails({ customer_name: "", address: "", district: "", state: "", mobile_number: "", email: "", customer_type: "User" }) 
+        setAppliedPromo(null)
+        setPromocode("")
+        setOriginalTotal(0)
       } else { 
         const data = await response.json()
         showError(data.message || "Booking failed.") 
@@ -271,9 +229,9 @@ const Pricelist = () => {
   }
 
   const showError = message => { 
-    setMinOrderMessage(message)
-    setShowMinOrderModal(true)
-    setTimeout(() => setShowMinOrderModal(false), 5000) 
+    setErrorMessage(message)
+    setShowErrorModal(true)
+    setTimeout(() => setShowErrorModal(false), 5000) 
   }
 
   const handleCheckoutClick = () => { 
@@ -295,42 +253,65 @@ const Pricelist = () => {
   const totals = useMemo(() => {
     let net = 0, save = 0, total = 0
     for (const serial in cart) { 
-      const qty = cart[serial], 
-            product = products.find(p => p.serial_number === serial)
+      const qty = cart[serial], product = products.find(p => p.serial_number === serial)
       if (!product) continue
-      const originalPrice = Number.parseFloat(product.price), 
-            discount = originalPrice * (product.discount / 100), 
-            priceAfterDiscount = originalPrice - discount
+      const originalPrice = Number.parseFloat(product.price), discount = originalPrice * (product.discount / 100), priceAfterDiscount = originalPrice - discount
       net += originalPrice * qty
       save += discount * qty
       total += priceAfterDiscount * qty 
     }
+    setOriginalTotal(total)
     if (appliedPromo) { 
       const promoDiscount = (total * appliedPromo.discount) / 100
       total -= promoDiscount
       save += promoDiscount 
     }
-    return { 
-      net: formatPrice(net), 
-      save: formatPrice(save), 
-      total: formatPrice(total) 
-    }
+    return { net: formatPrice(net), save: formatPrice(save), total: formatPrice(total) }
   }, [cart, products, appliedPromo])
 
-  const handleApplyPromo = async () => {
-    if (!promocode) return showError("Enter a promocode.")
+  const handleApplyPromo = useCallback(async (code) => {
+    if (!code) return setAppliedPromo(null)
     try { 
       const res = await fetch(`${API_BASE_URL}/api/promocodes`)
       const promos = await res.json()
-      const found = promos.find(p => p.code.toLowerCase() === promocode.toLowerCase())
-      found ? setAppliedPromo(found) : (showError("Invalid promocode."), setAppliedPromo(null)) 
+      const found = promos.find(p => p.code.toLowerCase() === code.toLowerCase())
+      if (!found) {
+        showError("Invalid promocode.")
+        setAppliedPromo(null)
+        return
+      }
+      if (found.min_amount && parseFloat(originalTotal) < found.min_amount) {
+        showError(`Minimum order amount for this promocode is ₹${found.min_amount}. Your total is ₹${originalTotal}.`)
+        setAppliedPromo(null)
+        return
+      }
+      if (found.end_date && new Date(found.end_date) < new Date()) {
+        showError("This promocode has expired.")
+        setAppliedPromo(null)
+        return
+      }
+      setAppliedPromo(found)
     } catch (err) { 
       console.error("Promo apply error:", err)
       showError("Could not validate promocode.") 
+      setAppliedPromo(null)
     }
-  }
+  }, [originalTotal])
 
-  const productTypes = useMemo(() => ["All", ...new Set(products.map(p => (p.product_type || "Others").replace(/_/g, " ")).sort())], [products])
+  useEffect(() => {
+    if (debounceTimeout.current) clearTimeout(debounceTimeout.current)
+    debounceTimeout.current = setTimeout(() => {
+      if (promocode && promocode !== "custom") handleApplyPromo(promocode)
+      else setAppliedPromo(null)
+    }, 500)
+    return () => clearTimeout(debounceTimeout.current)
+  }, [promocode, handleApplyPromo])
+
+  const productTypes = useMemo(() => {
+    const types = [...new Set(products.map(p => (p.product_type || "Others").replace(/_/g, " ")))]
+    return ["All", ...types.sort()]
+  }, [products])
+
   const grouped = useMemo(() => products.filter(p => p.product_type !== "gift_box_dealers" && (selectedType === "All" || p.product_type === selectedType.replace(/ /g, "_")) && (!searchTerm || p.productname.toLowerCase().includes(searchTerm.toLowerCase()) || p.serial_number.toLowerCase().includes(searchTerm.toLowerCase()))).reduce((acc, p) => { const key = p.product_type || "Others"; acc[key] = acc[key] || []; acc[key].push(p); return acc }, {}), [products, selectedType, searchTerm])
 
   return (
@@ -345,19 +326,14 @@ const Pricelist = () => {
           </motion.div>
         </motion.div>
       )}
-      {showMinOrderModal && (
+      {showErrorModal && (
         <motion.div className="fixed inset-0 flex items-center justify-center z-60 pointer-events-none" initial={{ opacity: 0, scale: 0.8 }} animate={{ opacity: 1, scale: 1 }} transition={{ duration: 0.5 }}>
-          <div className="bg-red-200 text-red-400 border-2 text-lg font-semibold rounded-xl p-6 max-w-md mx-4 text-center shadow-lg">{minOrderMessage}</div>
+          <div className="bg-red-200 text-red-400 border-2 text-lg font-semibold rounded-xl p-6 max-w-md mx-4 text-center shadow-lg">{errorMessage}</div>
         </motion.div>
       )}
       {showDetailsModal && selectedProduct && (
         <div className="fixed inset-0 bg-black/50 z-55 flex items-center justify-center details-modal">
-          <motion.div 
-            initial={{ scale: 0.9, opacity: 0 }} 
-            animate={{ scale: 1, opacity: 1 }} 
-            className="relative rounded-3xl shadow-lg max-w-md w-full mx-4 overflow-hidden" 
-            style={styles.modal}
-          >
+          <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="relative rounded-3xl shadow-lg max-w-md w-full mx-4 overflow-hidden" style={styles.modal}>
             <div className="p-6">
               <div className="flex justify-between items-center mb-4">
                 <h2 className="text-2xl font-bold text-sky-700 drop-shadow-sm">{selectedProduct.productname}</h2>
@@ -398,13 +374,7 @@ const Pricelist = () => {
                     {product.discount > 0 && (
                       <div className="absolute left-2 top-2 bg-red-500 text-white text-md font-bold px-2 py-1 rounded-br-lg rounded-tl-lg mobile:text-[10px] mobile:px-1.5 mobile:py-0.5">{product.discount}%</div>
                     )}
-                    <motion.button 
-                      onClick={() => handleShowDetails(product)} 
-                      className="absolute cursor-pointer right-2 top-2 bg-sky-500 text-white mobile:text-md hundred:text-2xl font-bold hundred:w-8 hundred:h-8 mobile:w-6 mobile:h-6 rounded-full flex items-center justify-center hover:bg-sky-700 transition-all duration-300 z-20 pointer-events-auto" 
-                      whileHover={{ scale: 1.1 }} 
-                      whileTap={{ scale: 0.9 }} 
-                      aria-label="View product details"
-                    >
+                    <motion.button onClick={() => handleShowDetails(product)} className="absolute cursor-pointer right-2 top-2 bg-sky-500 text-white mobile:text-md hundred:text-2xl font-bold hundred:w-8 hundred:h-8 mobile:w-6 mobile:h-6 rounded-full flex items-center justify-center hover:bg-sky-700 transition-all duration-300 z-20 pointer-events-auto" whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }} aria-label="View product details">
                       <FaInfoCircle />
                     </motion.button>
                     <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-700 z-10" style={{ background: "linear-gradient(135deg, rgba(2,132,199,0.3), transparent 50%, rgba(14,165,233,0.2))" }} />
@@ -466,35 +436,93 @@ const Pricelist = () => {
         🛒{Object.keys(cart).length > 0 && <motion.span initial={{ scale: 0 }} animate={{ scale: 1 }} className="absolute -top-2 -right-2 bg-red-500 text-white text-xs w-6 h-6 flex items-center justify-center rounded-full font-bold">{Object.values(cart).reduce((a, b) => a + b, 0)}</motion.span>}
       </motion.button>
       <motion.aside initial={false} animate={{ x: isCartOpen ? 0 : 320 }} transition={{ duration: 0.4, ease: "easeInOut" }} className="fixed top-0 right-0 w-80 h-full shadow-xl border-l z-50" style={styles.modal}>
-        <div className="flex justify-between items-center p-4 border-b border-sky-200"><h3 className="text-lg font-bold text-sky-800">Your Cart</h3><button onClick={() => setIsCartOpen(false)} className="text-gray-600 hover:text-red-500 text-xl cursor-pointer">×</button></div>
-        <div className="p-4 overflow-y-auto h-[calc(100%-200px)] space-y-4">
-          {Object.keys(cart).length === 0 ? <p className="text-gray-500 text-sm">Your cart is empty.</p> : Object.entries(cart).map(([serial, qty]) => {
-            const product = products.find(p => p.serial_number === serial)
-            if (!product) return null
-            const discount = (product.price * product.discount) / 100, 
-                  priceAfterDiscount = formatPrice(product.price - discount)
-            const imageSrc = (product.image && typeof product.image === 'string' ? JSON.parse(product.image) : (Array.isArray(product.image) ? product.image : [])).filter(item => !item.startsWith('data:video/') && !item.startsWith('data:image/gif') && !item.toLowerCase().endsWith('.gif'))[0] || "/placeholder.svg"
-            return (
-              <motion.div key={serial} initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} className="flex items-center gap-3 border-b pb-3 border-sky-100">
-                <div className="w-16 h-16">
-                  <img src={imageSrc} alt={product.productname} className="w-full h-full object-contain rounded-lg" />
-                </div>
-                <div className="flex-1"><p className="text-sm font-semibold text-slate-800">{product.productname}</p><p className="text-sm text-sky-700 font-bold">₹{priceAfterDiscount} x {qty}</p>
-                  <div className="flex items-center gap-2 mt-2"><button onClick={() => removeFromCart(product)} className="w-7 h-7 text-sm text-white cursor-pointer rounded-full flex items-center justify-center transition-all duration-300" style={{ background: styles.button.background }}><FaMinus /></button><span className="text-sm font-medium px-2">{qty}</span><button onClick={() => addToCart(product)} className="w-7 h-7 text-sm text-white cursor-pointer rounded-full flex items-center justify-center transition-all duration-300" style={{ background: styles.button.background }}><FaPlus /></button></div>
-                </div>
-              </motion.div>
-            )
-          })}
+        <div className="flex justify-between items-center p-4 border-b border-sky-200">
+          <h3 className="text-lg font-bold text-sky-800">Your Cart</h3>
+          <button onClick={() => setIsCartOpen(false)} className="text-gray-600 hover:text-red-500 text-xl cursor-pointer">×</button>
         </div>
-        <div className="p-4 border-t border-sky-200 sticky bottom-0 space-y-4" style={styles.modal}>
+        <div className="overflow-y-auto h-[calc(100%-280px)] p-4 space-y-4">
+          {Object.keys(cart).length === 0 ? (
+            <p className="text-gray-500 text-sm">Your cart is empty.</p>
+          ) : (
+            Object.entries(cart).map(([serial, qty]) => {
+              const product = products.find(p => p.serial_number === serial)
+              if (!product) return null
+              const discount = (product.price * product.discount) / 100
+              const priceAfterDiscount = formatPrice(product.price - discount)
+              const imageSrc = (product.image && typeof product.image === 'string' ? JSON.parse(product.image) : (Array.isArray(product.image) ? product.image : [])).filter(item => !item.startsWith('data:video/') && !item.startsWith('data:image/gif') && !item.toLowerCase().endsWith('.gif'))[0] || "/placeholder.svg"
+              return (
+                <motion.div key={serial} initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} className="flex items-center gap-3 border-b pb-3 border-sky-100">
+                  <div className="w-16 h-16">
+                    <img src={imageSrc} alt={product.productname} className="w-full h-full object-contain rounded-lg" />
+                  </div>
+                  <div className="flex-1">
+                    <p className="text-sm font-semibold text-slate-800">{product.productname}</p>
+                    <p className="text-sm text-sky-700 font-bold">₹{priceAfterDiscount} x {qty}</p>
+                    <div className="flex items-center gap-2 mt-2">
+                      <button onClick={() => removeFromCart(product)} className="w-7 h-7 text-sm text-white cursor-pointer rounded-full flex items-center justify-center transition-all duration-300" style={styles.button}><FaMinus /></button>
+                      <span className="text-sm font-medium px-2">{qty}</span>
+                      <button onClick={() => addToCart(product)} className="w-7 h-7 text-sm text-white cursor-pointer rounded-full flex items-center justify-center transition-all duration-300" style={styles.button}><FaPlus /></button>
+                    </div>
+                  </div>
+                </motion.div>
+              )
+            })
+          )}
+        </div>
+        <div className="p-4 border-t border-sky-200 absolute bottom-0 w-full space-y-4" style={styles.modal}>
           <div className="overflow-hidden whitespace-nowrap border border-blue-300 bg-blue-50 rounded-xl py-2 px-3 text-sky-900 font-medium text-sm relative">
-            <div className="flex justify-center mb-2"><p className="text-center border-b w-1/2 border-blue-300 flex justify-center">Minimum Purchase Rate</p></div>
-            <div className="animate-marquee inline-block">🚚 {states.map(s => `${s.name}: ₹${s.min_rate}`).join(" • ")}</div>
-            <style jsx>{`.animate-marquee { display: inline-block; white-space: nowrap; animation: marquee 10s linear infinite; } @keyframes marquee { 0% { transform: translateX(100%); } 100% { transform: translateX(-100%); } }`}</style>
+            <div className="flex justify-center mb-2">
+              <p className="text-center border-b w-1/2 border-blue-300 flex justify-center">Minimum Purchase Rate</p>
+            </div>
+            <div className="animate-marquee inline-block">
+              🚚 {states.map(s => `${s.name}: ₹${s.min_rate}`).join(" • ")}
+            </div>
+            <style jsx>{`
+              .animate-marquee { display: inline-block; white-space: nowrap; animation: marquee 10s linear infinite; }
+              @keyframes marquee { 0% { transform: translateX(100%); } 100% { transform: translateX(-100%); } }
+            `}</style>
           </div>
-          <div><label className="block text-sm font-medium text-slate-700 mb-1">Promocode</label><div className="flex gap-2"><input type="text" value={promocode} onChange={e => setPromocode(e.target.value)} placeholder="Enter code" className="flex-1 px-3 py-2 rounded-xl border border-sky-300 text-sm focus:ring-2 focus:ring-sky-400" /><button onClick={handleApplyPromo} className="px-4 py-2 rounded-xl text-sm font-semibold text-white cursor-pointer" style={{ background: "linear-gradient(135deg, rgba(34,197,94,0.9), rgba(22,163,74,0.9))", boxShadow: "0 4px 10px rgba(34,197,94,0.3)" }}>Apply</button></div>{appliedPromo && <p className="text-green-600 text-xs mt-1">Applied: {appliedPromo.code} ({appliedPromo.discount}% OFF)</p>}</div>
-          <div className="text-sm text-slate-700 space-y-1"><p>Net: ₹{totals.net}</p><p>You Save: ₹{totals.save}</p><p className="font-bold text-sky-800 text-lg">Total: ₹{totals.total}</p></div>
-          <div className="flex gap-2"><button onClick={() => setCart({})} className="flex-1 text-white text-sm font-semibold py-3 rounded-xl transition-all duration-300 cursor-pointer" style={{ background: "linear-gradient(135deg, rgba(239,68,68,0.9), rgba(220,38,38,0.9))", boxShadow: "0 5px 15px rgba(239,68,68,0.3)" }}>Clear Cart</button><button onClick={handleCheckoutClick} className="flex-1 text-white text-sm font-semibold py-3 rounded-xl transition-all duration-300 cursor-pointer" style={{ background: styles.button.background, boxShadow: "0 5px 15px rgba(2,132,199,0.3)" }}>Checkout</button></div>
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-1">Promocode</label>
+            <select
+              value={promocode}
+              onChange={e => setPromocode(e.target.value)}
+              className="w-full px-3 py-2 rounded-xl border border-sky-300 text-sm focus:ring-2 focus:ring-sky-400 transition-all duration-300"
+              style={styles.input}
+            >
+              <option value="">Select Promocode</option>
+              {promocodes.map(promo => (
+                <option key={promo.id} value={promo.code}>{promo.code} ({promo.discount}% OFF{promo.min_amount ? `, Min: ₹${promo.min_amount}` : ''}{promo.end_date ? `, Exp: ${new Date(promo.end_date).toLocaleDateString()}` : ''})</option>
+              ))}
+              <option value="custom">Enter custom code</option>
+            </select>
+            {promocode === "custom" && (
+              <input
+                type="text"
+                value={promocode === "custom" ? "" : promocode}
+                onChange={e => setPromocode(e.target.value)}
+                placeholder="Enter custom code"
+                className="w-full px-3 py-2 mt-2 rounded-xl border border-sky-300 text-sm focus:ring-2 focus:ring-sky-400 transition-all duration-300"
+                style={styles.input}
+              />
+            )}
+            {appliedPromo && (
+              <p className="text-green-600 text-xs mt-1">
+                Applied: {appliedPromo.code} ({appliedPromo.discount}% OFF)
+                {appliedPromo.min_amount && `, Min: ₹${appliedPromo.min_amount}`}
+                {appliedPromo.end_date && `, Expires: ${new Date(appliedPromo.end_date).toLocaleDateString()}`}
+              </p>
+            )}
+          </div>
+          <div className="text-sm text-slate-700 space-y-1">
+            <p>Net: ₹{totals.net}</p>
+            <p>You Save: ₹{totals.save}</p>
+            <p className="font-bold text-sky-800 text-lg">Total: ₹{totals.total}</p>
+          </div>
+          <div className="flex gap-2">
+            <button onClick={() => setCart({})} className="flex-1 text-white text-sm font-semibold py-3 rounded-xl transition-all duration-300 cursor-pointer" style={{ background: "linear-gradient(135deg, rgba(239,68,68,0.9), rgba(220,38,38,0.9))", boxShadow: "0 5px 15px rgba(239,68,68,0.3)" }}>Clear Cart</button>
+            <button onClick={handleCheckoutClick} className="flex-1 text-white text-sm font-semibold py-3 rounded-xl transition-all duration-300 cursor-pointer" style={{ background: styles.button.background, boxShadow: "0 5px 15px rgba(2,132,199,0.3)" }}>Checkout</button>
+          </div>
         </div>
       </motion.aside>
       <style jsx>{`
