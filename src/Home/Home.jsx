@@ -172,7 +172,7 @@ const PromoBurst = ({ promoCodes }) => {
   const [isOpen, setIsOpen] = useState(false)
   const [hasBursted, setHasBursted] = useState(false)
   const [showPromoCard, setShowPromoCard] = useState(false)
-  const [copied, setCopied] = useState("")
+  const [copied, setCopied] = useState('')
   const [isHovering, setIsHovering] = useState(false)
   const navigate = useNavigate()
   const rocketRef = useRef(null)
@@ -193,10 +193,20 @@ const PromoBurst = ({ promoCodes }) => {
     try {
       await navigator.clipboard.writeText(code)
       setCopied(code)
-      setTimeout(() => setCopied(""), 2000)
+      setTimeout(() => setCopied(''), 2000)
     } catch (err) {
-      console.error("Failed to copy:", err)
+      console.error('Failed to copy:', err)
     }
+  }
+
+  // Format date if it exists
+  const formatDate = (dateString) => {
+    if (!dateString) return null
+    return new Date(dateString).toLocaleDateString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric'
+    })
   }
 
   return (
@@ -207,8 +217,8 @@ const PromoBurst = ({ promoCodes }) => {
             <motion.div
               key="rocket"
               initial={{ opacity: 0, scale: 0.8 }}
-              animate={{ opacity: 1, scale: 1, transition: { duration: 0.6, ease: "easeOut" } }}
-              exit={{ y: "-100vh", opacity: 0, scale: 0.3, rotate: 15, transition: { duration: 1.2, ease: "easeInOut" } }}
+              animate={{ opacity: 1, scale: 1, transition: { duration: 0.6, ease: 'easeOut' } }}
+              exit={{ y: '-100vh', opacity: 0, scale: 0.3, rotate: 15, transition: { duration: 1.2, ease: 'easeInOut' } }}
               className="relative cursor-pointer"
               onClick={handleClick}
               onMouseEnter={() => setIsHovering(true)}
@@ -219,7 +229,7 @@ const PromoBurst = ({ promoCodes }) => {
               <motion.div
                 ref={rocketRef}
                 className="w-14 h-20 bg-gradient-to-b from-red-500 via-red-600 to-orange-600 rounded-t-full rounded-b-md relative shadow-lg"
-                animate={{ y: [-3, 3], rotate: [-1, 1], transition: { repeat: Infinity, duration: 3, ease: "easeInOut" } }}
+                animate={{ y: [-3, 3], rotate: [-1, 1], transition: { repeat: Infinity, duration: 3, ease: 'easeInOut' } }}
               >
                 <div className="absolute bottom-0 left-0 w-0 h-0 border-l-[8px] border-r-[8px] border-b-[10px] border-l-transparent border-r-transparent border-b-red-800" />
                 <div className="absolute bottom-0 left-[-6px] w-6 h-6 bg-red-800 rounded-bl-full" />
@@ -228,18 +238,18 @@ const PromoBurst = ({ promoCodes }) => {
                 <motion.div
                   className="absolute bottom-[-4px] left-1/2 -translate-x-1/2 w-3 h-3 bg-yellow-400 rounded-full"
                   animate={{ opacity: [0.7, 1, 0.7], y: [0, -25, -15], scale: [0.8, 1.2, 0.8], x: [-2, 2, -1] }}
-                  transition={{ duration: 0.6, repeat: Infinity, ease: "easeInOut" }}
+                  transition={{ duration: 0.6, repeat: Infinity, ease: 'easeInOut' }}
                 />
                 <motion.div
                   className="absolute bottom-[-8px] left-1/2 -translate-x-1/2 w-2 h-2 bg-orange-500 rounded-full"
                   animate={{ opacity: [0.5, 0.9, 0.5], y: [0, -30, -20], scale: [0.6, 1, 0.6], x: [1, -1, 2] }}
-                  transition={{ duration: 0.8, repeat: Infinity, ease: "easeInOut", delay: 0.2 }}
+                  transition={{ duration: 0.8, repeat: Infinity, ease: 'easeInOut', delay: 0.2 }}
                 />
               </motion.div>
               <motion.div
                 className="absolute top-20 left-1/2 -translate-x-1/2 w-1 h-12 bg-gray-500 cursor-pointer rounded-full"
-                style={{ touchAction: "none" }}
-                animate={{ rotateZ: [-3, 3], transition: { repeat: Infinity, duration: 4, ease: "easeInOut" } }}
+                style={{ touchAction: 'none' }}
+                animate={{ rotateZ: [-3, 3], transition: { repeat: Infinity, duration: 4, ease: 'easeInOut' } }}
                 whileHover={{ scale: 1.1 }}
               >
                 <div className="absolute bottom-0 w-4 h-4 bg-gray-600 rounded-full -translate-x-[7px] shadow-md" />
@@ -277,66 +287,72 @@ const PromoBurst = ({ promoCodes }) => {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              className="fixed inset-0 z-45"
-              style={{ background: "radial-gradient(circle at 50% 50%, transparent 20%, rgba(0,0,0,0.7) 60%)" }}
+              className="fixed inset-0 z-30"
+              style={{ background: 'radial-gradient(circle at 50% 50%, transparent 20%, rgba(0,0,0,0.7) 60%)' }}
             />
             <motion.div
               initial={{ opacity: 0, scale: 0 }}
-              animate={{ opacity: [0, 0.8, 0.6], scale: [0, 1.2, 1], transition: { duration: 1, ease: "easeOut" } }}
-              className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-96 h-96 rounded-full z-45"
-              style={{ background: "radial-gradient(circle, rgba(255,255,255,0.3) 0%, rgba(135,206,235,0.2) 30%, transparent 70%)", boxShadow: "0 0 200px rgba(135,206,235,0.4), inset 0 0 100px rgba(255,255,255,0.2)" }}
+              animate={{ opacity: [0, 0.8, 0.6], scale: [0, 1.2, 1], transition: { duration: 1, ease: 'easeOut' } }}
+              exit={{ opacity: 0, scale: 0 }}
+              className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-96 h-96 rounded-full z-40"
+              style={{ background: 'radial-gradient(circle, rgba(255,255,255,0.3) 0%, rgba(135,206,235,0.2) 30%, transparent 70%)', boxShadow: '0 0 200px rgba(135,206,235,0.4), inset 0 0 100px rgba(255,255,255,0.2)' }}
             />
             <motion.div
               key="promo-card"
               initial={{ scale: 0, opacity: 0, y: 50 }}
-              animate={{ scale: 1, opacity: 1, y: 0, transition: { type: "spring", stiffness: 200, damping: 15, duration: 0.8 } }}
+              animate={{ scale: 1, opacity: 1, y: 0, transition: { type: 'spring', stiffness: 200, damping: 15, duration: 0.8 } }}
               exit={{ scale: 0, opacity: 0, y: -50 }}
               className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-50"
               whileHover={{ scale: 1.02 }}
             >
-              <div className="relative w-80 md:w-96 mobile:w-96 rounded-3xl p-2 overflow-hidden bg-white shadow-2xl border border-sky-200" style={{ boxShadow: "0 25px 50px rgba(135,206,235,0.3), 0 0 0 1px rgba(135,206,235,0.2)" }}>
+              <div className="relative w-80 md:w-96 mobile:w-96 rounded-3xl p-4 overflow-hidden bg-white shadow-2xl border border-sky-200" style={{ boxShadow: '0 25px 50px rgba(135,206,235,0.3), 0 0 0 1px rgba(135,206,235,0.2)' }}>
                 <div className="absolute inset-0 opacity-5" style={{ backgroundImage: `radial-gradient(circle at 25% 25%, rgba(135,206,235,0.3) 0%, transparent 50%), radial-gradient(circle at 75% 75%, rgba(135,206,235,0.2) 0%, transparent 50%)` }} />
                 <motion.h3
-                  animate={{ scale: [1, 1.05, 1], color: ["rgb(14, 165, 233)", "rgb(2, 132, 199)", "rgb(14, 165, 233)"] }}
+                  animate={{ scale: [1, 1.05, 1], color: ['rgb(14, 165, 233)', 'rgb(2, 132, 199)', 'rgb(14, 165, 233)'] }}
                   transition={{ duration: 3, repeat: Infinity }}
                   className="text-2xl font-bold text-center mb-4 drop-shadow-sm"
-                  style={{ color: "rgb(14, 165, 233)" }}
+                  style={{ color: 'rgb(14, 165, 233)' }}
                 >
                   ✨ EXCLUSIVE DEALS ✨
                 </motion.h3>
-                <div className="max-h-64 overflow-y-auto scrollbar-thin scrollbar-thumb-sky-300 scrollbar-track-sky-100">
+                <div className="max-h-80 overflow-y-auto scrollbar-thin scrollbar-thumb-sky-300 scrollbar-track-sky-100 pr-4">
                   {promoCodes.map((promo, i) => (
                     <motion.div
                       key={promo.id}
                       initial={{ x: 100, opacity: 0 }}
                       animate={{ x: 0, opacity: 1 }}
-                      transition={{ delay: i * 0.15, type: "spring", stiffness: 100 }}
+                      transition={{ delay: i * 0.15, type: 'spring', stiffness: 100 }}
                       whileHover={{ scale: 1.02, x: 5 }}
-                      className="bg-gradient-to-r from-sky-50 to-blue-50 rounded-xl p-4 border border-sky-200 hover:border-sky-300 transition-all duration-300"
-                      style={{ boxShadow: "0 4px 15px rgba(135,206,235,0.1)" }}
+                      className="bg-gradient-to-r from-sky-50 to-blue-50 rounded-xl p-4 border border-sky-200 hover:border-sky-300 transition-all duration-300 mb-4"
+                      style={{ boxShadow: '0 4px 15px rgba(135,206,235,0.1)' }}
                     >
-                      <div className="flex items-center justify-between w-8">
+                      <div className="flex items-center justify-between gap-4">
                         <div className="flex-1">
                           <div className="flex items-center gap-3 mb-2">
                             <motion.span className="bg-sky-500 text-white text-sm px-3 py-1 rounded-full font-bold shadow-md" whileHover={{ scale: 1.1 }}>{promo.discount}%</motion.span>
                             <span className="text-sky-700 font-mono text-lg font-semibold">{promo.code}</span>
                           </div>
-                          <p className="text-sky-600 text-sm">Minimum order: ₹{promo.min_amount}</p>
+                          {promo.min_amount && (
+                            <p className="text-sky-600 text-sm">Minimum order: ₹{promo.min_amount}</p>
+                          )}
+                          {promo.end_date && (
+                            <p className="text-sky-600 text-sm">Expires: {formatDate(promo.end_date)}</p>
+                          )}
                         </div>
-                        <div className="flex gap-5 translate-x-15">
+                        <div className="flex gap-2 shrink-0">
                           <motion.button
                             onClick={() => handleCopy(promo.code)}
                             whileHover={{ scale: 1.1 }}
                             whileTap={{ scale: 0.9 }}
-                            className="p-2 bg-sky-100 rounded-full text-sky-600 hover:bg-sky-200 transition-colors duration-200 shadow-md"
+                            className="p-2 bg-sky-100 rounded-full text-sky-600 hover:bg-sky-200 transition-colors duration-200 shadow-md z-60"
                           >
                             {copied === promo.code ? <Check className="w-4 h-4 text-green-600" /> : <Copy className="w-4 h-4" />}
                           </motion.button>
                           <motion.button
-                            onClick={() => navigate("/price-list")}
+                            onClick={() => navigate('/price-list')}
                             whileHover={{ scale: 1.05 }}
                             whileTap={{ scale: 0.95 }}
-                            className="w-30 bg-sky-500 text-white rounded-full text-sm font-bold hover:bg-sky-600 transition-colors duration-200 shadow-md"
+                            className="px-4 py-2 bg-sky-500 text-white rounded-full text-sm font-bold hover:bg-sky-600 transition-colors duration-200 shadow-md z-60"
                           >
                             USE NOW
                           </motion.button>
@@ -349,7 +365,7 @@ const PromoBurst = ({ promoCodes }) => {
                   onClick={() => (setIsOpen(false), setHasBursted(false), setShowPromoCard(false))}
                   whileHover={{ scale: 1.1, rotate: 90 }}
                   whileTap={{ scale: 0.9 }}
-                  className="absolute top-3 right-3 w-8 h-8 bg-sky-100 rounded-full flex items-center justify-center text-sky-600 hover:bg-sky-200 transition-colors duration-200 shadow-md font-black"
+                  className="absolute top-3 right-3 w-8 h-8 bg-sky-100 rounded-full flex items-center justify-center text-sky-600 hover:bg-sky-200 transition-colors duration-200 shadow-md font-black z-60"
                 >
                   ×
                 </motion.button>
