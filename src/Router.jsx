@@ -14,7 +14,6 @@ import Banner from './Admin/Banner/Banner';
 import Safety from './Home/Safety';
 import About from './Home/About';
 import Contact from './Home/Contact';
-import Booking from './Home/Booking';
 import Pricelist from './Home/Pricelist';
 import Promocode from './Admin/Promo/Promocode'
 
@@ -24,7 +23,6 @@ const AllRoutes = () => {
       <Route path="/" element={<Home />} />
       <Route path="/admin" element={<Login />} />
       <Route path="/safety-tips" element={<Safety />} />
-      <Route path="/booking" element={<Booking />} />
       <Route path="/about-us" element={<About />} />
       <Route path="/contact-us" element={<Contact />} />
       <Route path="/price-list" element={<Pricelist />} />

@@ -1,14 +1,14 @@
-import { useState, useEffect, useMemo, useCallback, useRef } from "react"
-import { motion, AnimatePresence } from "framer-motion"
-import { FaPlus, FaMinus, FaArrowLeft, FaArrowRight, FaInfoCircle } from "react-icons/fa"
-import Navbar from "../Component/Navbar"
-import { API_BASE_URL } from "../../Config"
-import '../App.css'
+import { useState, useEffect, useMemo, useCallback, useRef } from "react";
+import { motion, AnimatePresence } from "framer-motion";
+import { FaPlus, FaMinus, FaArrowLeft, FaArrowRight, FaInfoCircle } from "react-icons/fa";
+import Navbar from "../Component/Navbar";
+import { API_BASE_URL } from "../../Config";
+import '../App.css';
 
 const BigFireworkAnimation = ({ delay = 0 }) => {
-  const screenWidth = typeof window !== "undefined" ? window.innerWidth : 1920
-  const screenHeight = typeof window !== "undefined" ? window.innerHeight : 1080
-  const burstPosition = { x: screenWidth * 0.5, y: screenHeight * 0.5 }
+  const screenWidth = typeof window !== "undefined" ? window.innerWidth : 1920;
+  const screenHeight = typeof window !== "undefined" ? window.innerHeight : 1080;
+  const burstPosition = { x: screenWidth * 0.5, y: screenHeight * 0.5 };
   return (
     <div className="fixed inset-0 pointer-events-none overflow-hidden z-50">
       <motion.div className="absolute" style={{ left: burstPosition.x, top: burstPosition.y, transform: "translate(-50%, -50%)" }}>
@@ -35,54 +35,54 @@ const BigFireworkAnimation = ({ delay = 0 }) => {
         />
       </motion.div>
     </div>
-  )
-}
+  );
+};
 
 const Carousel = ({ media }) => {
-  const [currentIndex, setCurrentIndex] = useState(0)
-  const [isDragging, setIsDragging] = useState(false)
-  const [startX, setStartX] = useState(0)
+  const [currentIndex, setCurrentIndex] = useState(0);
+  const [isDragging, setIsDragging] = useState(false);
+  const [startX, setStartX] = useState(0);
 
   const mediaItems = useMemo(() => {
-    const items = media && typeof media === 'string' ? JSON.parse(media) : (Array.isArray(media) ? media : [])
+    const items = media && typeof media === 'string' ? JSON.parse(media) : (Array.isArray(media) ? media : []);
     return items.sort((a, b) => {
-      const aStr = typeof a === 'string' ? a : ''
-      const bStr = typeof b === 'string' ? b : ''
-      const isAVideo = aStr.startsWith('data:video/')
-      const isBVideo = bStr.startsWith('data:video/')
-      const isAGif = aStr.startsWith('data:image/gif') || aStr.toLowerCase().endsWith('.gif')
-      const isBGif = bStr.startsWith('data:image/gif') || bStr.toLowerCase().endsWith('.gif')
-      const isAImage = aStr.startsWith('data:image/') && !isAGif
-      const isBImage = bStr.startsWith('data:image/') && !isBGif
-      return (isAImage ? 0 : isAGif ? 1 : isAVideo ? 2 : 3) - (isBImage ? 0 : isBGif ? 1 : isBVideo ? 2 : 3)
-    })
-  }, [media])
+      const aStr = typeof a === 'string' ? a : '';
+      const bStr = typeof b === 'string' ? b : '';
+      const isAVideo = aStr.startsWith('data:video/');
+      const isBVideo = bStr.startsWith('data:video/');
+      const isAGif = aStr.startsWith('data:image/gif') || aStr.toLowerCase().endsWith('.gif');
+      const isBGif = bStr.startsWith('data:image/gif') || bStr.toLowerCase().endsWith('.gif');
+      const isAImage = aStr.startsWith('data:image/') && !isAGif;
+      const isBImage = bStr.startsWith('data:image/') && !isBGif;
+      return (isAImage ? 0 : isAGif ? 1 : isAVideo ? 2 : 3) - (isBImage ? 0 : isBGif ? 1 : isBVideo ? 2 : 3);
+    });
+  }, [media]);
 
-  const isVideo = (item) => typeof item === 'string' && item.startsWith('data:video/')
+  const isVideo = (item) => typeof item === 'string' && item.startsWith('data:video/');
 
-  const handlePrev = () => setCurrentIndex((prev) => (prev === 0 ? mediaItems.length - 1 : prev - 1))
-  const handleNext = () => setCurrentIndex((prev) => (prev === mediaItems.length - 1 ? 0 : prev + 1))
+  const handlePrev = () => setCurrentIndex(prev => (prev === 0 ? mediaItems.length - 1 : prev - 1));
+  const handleNext = () => setCurrentIndex(prev => (prev === mediaItems.length - 1 ? 0 : prev + 1));
 
   const handleTouchStart = (e) => {
-    setIsDragging(true)
-    setStartX(e.touches[0].clientX)
-  }
+    setIsDragging(true);
+    setStartX(e.touches[0].clientX);
+  };
 
   const handleTouchMove = (e) => {
-    if (!isDragging) return
-  }
+    if (!isDragging) return;
+  };
 
   const handleTouchEnd = (e) => {
-    if (!isDragging) return
-    setIsDragging(false)
-    const endX = e.changedTouches[0].clientX
-    const diffX = startX - endX
-    if (diffX > 50) setCurrentIndex((prev) => (prev === mediaItems.length - 1 ? 0 : prev + 1))
-    else if (diffX < -50) setCurrentIndex((prev) => (prev === 0 ? mediaItems.length - 1 : prev - 1))
-  }
+    if (!isDragging) return;
+    setIsDragging(false);
+    const endX = e.changedTouches[0].clientX;
+    const diffX = startX - endX;
+    if (diffX > 50) handleNext();
+    else if (diffX < -50) handlePrev();
+  };
 
   if (!mediaItems || mediaItems.length === 0) {
-    return <div className="w-full h-30 rounded-2xl mb-4 overflow-hidden bg-gray-200 flex items-center justify-center">No media available</div>
+    return <div className="w-full h-30 rounded-2xl mb-4 overflow-hidden bg-gray-200 flex items-center justify-center">No media available</div>;
   }
 
   return (
@@ -124,195 +124,289 @@ const Carousel = ({ media }) => {
         </>
       )}
     </div>
-  )
-}
+  );
+};
 
 const Pricelist = () => {
-  const [products, setProducts] = useState([])
-  const [cart, setCart] = useState({})
-  const [isCartOpen, setIsCartOpen] = useState(false)
-  const [showModal, setShowModal] = useState(false)
-  const [showSuccess, setShowSuccess] = useState(false)
-  const [showErrorModal, setShowErrorModal] = useState(false)
-  const [errorMessage, setErrorMessage] = useState("")
-  const [customerDetails, setCustomerDetails] = useState({ customer_name: "", address: "", district: "", state: "", mobile_number: "", email: "", customer_type: "User" })
-  const [selectedType, setSelectedType] = useState("All")
-  const [searchTerm, setSearchTerm] = useState("")
-  const [promocode, setPromocode] = useState("")
-  const [appliedPromo, setAppliedPromo] = useState(null)
-  const [states, setStates] = useState([])
-  const [districts, setDistricts] = useState([])
-  const [selectedProduct, setSelectedProduct] = useState(null)
-  const [showDetailsModal, setShowDetailsModal] = useState(false)
-  const [promocodes, setPromocodes] = useState([])
-  const [originalTotal, setOriginalTotal] = useState(0)
-  const debounceTimeout = useRef(null)
+  const [products, setProducts] = useState([]);
+  const [cart, setCart] = useState({});
+  const [isCartOpen, setIsCartOpen] = useState(false);
+  const [showModal, setShowModal] = useState(false);
+  const [showSuccess, setShowSuccess] = useState(false);
+  const [showErrorModal, setShowErrorModal] = useState(false);
+  const [errorMessage, setErrorMessage] = useState("");
+  const [customerDetails, setCustomerDetails] = useState({
+    customer_name: "",
+    address: "",
+    district: "",
+    state: "",
+    mobile_number: "",
+    email: "",
+    customer_type: "User"
+  });
+  const [selectedType, setSelectedType] = useState("All");
+  const [searchTerm, setSearchTerm] = useState("");
+  const [promocode, setPromocode] = useState("");
+  const [appliedPromo, setAppliedPromo] = useState(null);
+  const [states, setStates] = useState([]);
+  const [districts, setDistricts] = useState([]);
+  const [selectedProduct, setSelectedProduct] = useState(null);
+  const [showDetailsModal, setShowDetailsModal] = useState(false);
+  const [promocodes, setPromocodes] = useState([]);
+  const [originalTotal, setOriginalTotal] = useState(0);
+  const [totalDiscount, setTotalDiscount] = useState(0);
+  const debounceTimeout = useRef(null);
 
-  const styles = { 
-    card: { background: "linear-gradient(135deg, rgba(255,255,255,0.4), rgba(224,242,254,0.3), rgba(186,230,253,0.2))", backdropFilter: "blur(20px)", border: "1px solid rgba(2,132,199,0.3)", boxShadow: "0 25px 45px rgba(2,132,199,0.1), inset 0 1px 0 rgba(255,255,255,0.4), inset 0 -1px 0 rgba(2,132,199,0.1)" }, 
-    button: { background: "linear-gradient(135deg, rgba(2,132,199,0.9), rgba(14,165,233,0.95))", backdropFilter: "blur(15px)", border: "1px solid rgba(125,211,252,0.4)", boxShadow: "0 15px 35px rgba(2,132,199,0.3), inset 0 1px 0 rgba(255,255,255,0.2)" }, 
-    input: { background: "linear-gradient(135deg, rgba(255,255,255,0.8), rgba(240,249,255,0.6))", backdropFilter: "blur(10px)", border: "1px solid rgba(2,132,199,0.3)" }, 
-    modal: { background: "linear-gradient(135deg, rgba(255,255,255,0.95), rgba(240,249,255,0.9))", backdropFilter: "blur(20px)", border: "1px solid rgba(2,132,199,0.3)", boxShadow: "0 25px 45px rgba(2,132,199,0.2)" } 
-  }
+  const styles = {
+    card: { background: "linear-gradient(135deg, rgba(255,255,255,0.4), rgba(224,242,254,0.3), rgba(186,230,253,0.2))", backdropFilter: "blur(20px)", border: "1px solid rgba(2,132,199,0.3)", boxShadow: "0 25px 45px rgba(2,132,199,0.1), inset 0 1px 0 rgba(255,255,255,0.4), inset 0 -1px 0 rgba(2,132,199,0.1)" },
+    button: { background: "linear-gradient(135deg, rgba(2,132,199,0.9), rgba(14,165,233,0.95))", backdropFilter: "blur(15px)", border: "1px solid rgba(125,211,252,0.4)", boxShadow: "0 15px 35px rgba(2,132,199,0.3), inset 0 1px 0 rgba(255,255,255,0.2)" },
+    input: { background: "linear-gradient(135deg, rgba(255,255,255,0.8), rgba(240,249,255,0.6))", backdropFilter: "blur(10px)", border: "1px solid rgba(2,132,199,0.3)" },
+    modal: { background: "linear-gradient(135deg, rgba(255,255,255,0.95), rgba(240,249,255,0.9))", backdropFilter: "blur(20px)", border: "1px solid rgba(2,132,199,0.3)", boxShadow: "0 25px 45px rgba(2,132,199,0.2)" }
+  };
 
   const formatPrice = (price) => {
-    const num = Number.parseFloat(price)
-    return Number.isInteger(num) ? num.toString() : num.toFixed(2)
-  }
-
-  useEffect(() => { 
-    const savedCart = localStorage.getItem("firecracker-cart")
-    if (savedCart) setCart(JSON.parse(savedCart))
-    fetch(`${API_BASE_URL}/api/locations/states`).then(res => res.json()).then(setStates).catch(err => console.error("Error fetching states:", err))
-    fetch(`${API_BASE_URL}/api/products`).then(res => res.json()).then(data => setProducts(data.filter(p => p.status === "on"))).catch(err => console.error("Error loading products:", err))
-    fetch(`${API_BASE_URL}/api/promocodes`).then(res => res.json()).then(setPromocodes).catch(err => console.error("Error fetching promocodes:", err))
-  }, [])
-
-  useEffect(() => { 
-    if (customerDetails.state) 
-      fetch(`${API_BASE_URL}/api/locations/states/${customerDetails.state}/districts`).then(res => res.json()).then(setDistricts).catch(err => console.error("Error fetching districts:", err)) 
-  }, [customerDetails.state])
-
-  useEffect(() => localStorage.setItem("firecracker-cart", JSON.stringify(cart)), [cart])
-
-  const addToCart = useCallback((product) => {
-    if (!product?.serial_number) return console.error("Invalid product or missing serial_number:", product)
-    setCart(prev => ({ ...prev, [product.serial_number]: (prev[product.serial_number] || 0) + 1 }))
-  }, [])
-
-  const removeFromCart = useCallback(product => {
-    if (!product?.serial_number) return console.error("Invalid product or missing serial_number:", product)
-    setCart(prev => { 
-      const count = (prev[product.serial_number] || 1) - 1
-      const updated = { ...prev }
-      if (count <= 0) delete updated[product.serial_number]
-      else updated[product.serial_number] = count
-      return updated 
-    })
-  }, [])
-
-  const handleFinalCheckout = async () => {
-    const order_id = `ORD-${Date.now()}`, 
-          selectedProducts = Object.entries(cart).map(([serial, qty]) => { 
-            const product = products.find(p => p.serial_number === serial)
-            return { id: product.id, product_type: product.product_type, quantity: qty, per: product.per, image: product.image, price: product.price, discount: product.discount, serial_number: product.serial_number, productname: product.productname, status: product.status } 
-          })
-    if (!selectedProducts.length) return showError("Your cart is empty.")
-    const selectedState = customerDetails.state?.trim()
-    if (!selectedState) return showError("Please select a state.")
-    const minOrder = states.find(s => s.name === selectedState)?.min_rate
-    if (minOrder && parseFloat(originalTotal) < minOrder) return showError(`Minimum order for ${selectedState} is ₹${minOrder}. Your total is ₹${originalTotal}.`)
-    try {
-      const response = await fetch(`${API_BASE_URL}/api/direct/bookings`, { 
-        method: "POST", 
-        headers: { "Content-Type": "application/json" }, 
-        body: JSON.stringify({ order_id, products: selectedProducts, total: Number.parseFloat(totals.total), customer_type: "User", ...customerDetails }) 
-      })
-      if (response.ok) { 
-        setShowSuccess(true)
-        setTimeout(() => setShowSuccess(false), 4000)
-        setCart({})
-        setIsCartOpen(false)
-        setShowModal(false)
-        setCustomerDetails({ customer_name: "", address: "", district: "", state: "", mobile_number: "", email: "", customer_type: "User" }) 
-        setAppliedPromo(null)
-        setPromocode("")
-        setOriginalTotal(0)
-      } else { 
-        const data = await response.json()
-        showError(data.message || "Booking failed.") 
-      }
-    } catch (err) { 
-      console.error("Checkout error:", err)
-      showError("Something went wrong during checkout.") 
-    }
-  }
-
-  const showError = message => { 
-    setErrorMessage(message)
-    setShowErrorModal(true)
-    setTimeout(() => setShowErrorModal(false), 5000) 
-  }
-
-  const handleCheckoutClick = () => { 
-    Object.keys(cart).length ? (setShowModal(true), setIsCartOpen(false)) : showError("Your cart is empty.") 
-  }
-
-  const handleInputChange = e => setCustomerDetails(prev => ({ ...prev, [e.target.name]: e.target.value }))
-
-  const handleShowDetails = useCallback((product) => {
-    setSelectedProduct(product)
-    setShowDetailsModal(true)
-  }, [])
-
-  const handleCloseDetails = useCallback(() => {
-    setSelectedProduct(null)
-    setShowDetailsModal(false)
-  }, [])
-
-  const totals = useMemo(() => {
-    let net = 0, save = 0, total = 0
-    for (const serial in cart) { 
-      const qty = cart[serial], product = products.find(p => p.serial_number === serial)
-      if (!product) continue
-      const originalPrice = Number.parseFloat(product.price), discount = originalPrice * (product.discount / 100), priceAfterDiscount = originalPrice - discount
-      net += originalPrice * qty
-      save += discount * qty
-      total += priceAfterDiscount * qty 
-    }
-    setOriginalTotal(total)
-    if (appliedPromo) { 
-      const promoDiscount = (total * appliedPromo.discount) / 100
-      total -= promoDiscount
-      save += promoDiscount 
-    }
-    return { net: formatPrice(net), save: formatPrice(save), total: formatPrice(total) }
-  }, [cart, products, appliedPromo])
-
-  const handleApplyPromo = useCallback(async (code) => {
-    if (!code) return setAppliedPromo(null)
-    try { 
-      const res = await fetch(`${API_BASE_URL}/api/promocodes`)
-      const promos = await res.json()
-      const found = promos.find(p => p.code.toLowerCase() === code.toLowerCase())
-      if (!found) {
-        showError("Invalid promocode.")
-        setAppliedPromo(null)
-        return
-      }
-      if (found.min_amount && parseFloat(originalTotal) < found.min_amount) {
-        showError(`Minimum order amount for this promocode is ₹${found.min_amount}. Your total is ₹${originalTotal}.`)
-        setAppliedPromo(null)
-        return
-      }
-      if (found.end_date && new Date(found.end_date) < new Date()) {
-        showError("This promocode has expired.")
-        setAppliedPromo(null)
-        return
-      }
-      setAppliedPromo(found)
-    } catch (err) { 
-      console.error("Promo apply error:", err)
-      showError("Could not validate promocode.") 
-      setAppliedPromo(null)
-    }
-  }, [originalTotal])
+    const num = Number.parseFloat(price);
+    return Number.isInteger(num) ? num.toString() : num.toFixed(2);
+  };
 
   useEffect(() => {
-    if (debounceTimeout.current) clearTimeout(debounceTimeout.current)
+    const savedCart = localStorage.getItem("firecracker-cart");
+    if (savedCart) setCart(JSON.parse(savedCart));
+    fetch(`${API_BASE_URL}/api/locations/states`)
+      .then(res => res.json())
+      .then(data => setStates(Array.isArray(data) ? data : []))
+      .catch(err => console.error("Error fetching states:", err));
+    fetch(`${API_BASE_URL}/api/products`)
+      .then(res => res.json())
+      .then(data => setProducts(data.filter(p => p.status === "on")))
+      .catch(err => console.error("Error loading products:", err));
+    fetch(`${API_BASE_URL}/api/promocodes`)
+      .then(res => res.json())
+      .then(data => setPromocodes(Array.isArray(data) ? data : []))
+      .catch(err => console.error("Error fetching promocodes:", err));
+  }, []);
+
+  useEffect(() => {
+    if (customerDetails.state) {
+      fetch(`${API_BASE_URL}/api/locations/states/${customerDetails.state}/districts`)
+        .then(res => res.json())
+        .then(data => setDistricts(Array.isArray(data) ? data : []))
+        .catch(err => console.error("Error fetching districts:", err));
+    }
+  }, [customerDetails.state]);
+
+  useEffect(() => localStorage.setItem("firecracker-cart", JSON.stringify(cart)), [cart]);
+
+  const addToCart = useCallback((product) => {
+    if (!product?.serial_number) return console.error("Invalid product or missing serial_number:", product);
+    setCart(prev => ({ ...prev, [product.serial_number]: (prev[product.serial_number] || 0) + 1 }));
+  }, []);
+
+  const removeFromCart = useCallback(product => {
+    if (!product?.serial_number) return console.error("Invalid product or missing serial_number:", product);
+    setCart(prev => {
+      const count = (prev[product.serial_number] || 1) - 1;
+      const updated = { ...prev };
+      if (count <= 0) delete updated[product.serial_number];
+      else updated[product.serial_number] = count;
+      return updated;
+    });
+  }, []);
+
+  const updateCartQuantity = useCallback((product, quantity) => {
+    if (!product?.serial_number) return console.error("Invalid product or missing serial_number:", product);
+    if (quantity < 0) quantity = 0;
+    setCart(prev => {
+      const updated = { ...prev };
+      if (quantity === 0) delete updated[product.serial_number];
+      else updated[product.serial_number] = quantity;
+      return updated;
+    });
+  }, []);
+
+  const handleFinalCheckout = async () => {
+    const order_id = `ORD-${Date.now()}`;
+    const selectedProducts = Object.entries(cart).map(([serial, qty]) => {
+      const product = products.find(p => p.serial_number === serial);
+      return {
+        id: product.id,
+        product_type: product.product_type,
+        quantity: qty,
+        per: product.per,
+        image: product.image,
+        price: product.price,
+        discount: product.discount,
+        serial_number: product.serial_number,
+        productname: product.productname,
+        status: product.status
+      };
+    });
+    if (!selectedProducts.length) return showError("Your cart is empty.");
+    if (!customerDetails.customer_name) return showError("Customer name is required.");
+    if (!customerDetails.address) return showError("Address is required.");
+    if (!customerDetails.district) return showError("District is required.");
+    if (!customerDetails.state) return showError("Please select a state.");
+    if (!customerDetails.mobile_number) return showError("Mobile number is required.");
+    const mobile = customerDetails.mobile_number.replace(/\D/g, '').slice(-10);
+    if (mobile.length !== 10) return showError("Mobile number must be 10 digits.");
+    const selectedState = customerDetails.state?.trim();
+    const minOrder = states.find(s => s.name === selectedState)?.min_rate;
+    if (minOrder && parseFloat(originalTotal) < minOrder) return showError(`Minimum order for ${selectedState} is ₹${minOrder}. Your total is ₹${originalTotal}.`);
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/direct/bookings`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          order_id,
+          products: selectedProducts,
+          net_rate: parseFloat(totals.net),
+          you_save: parseFloat(totals.save),
+          total: parseFloat(totals.total),
+          promo_discount: parseFloat(totals.promo_discount || '0.00'), // Always send a valid number, default to 0.00 if undefined
+          customer_type: customerDetails.customer_type,
+          customer_name: customerDetails.customer_name,
+          address: customerDetails.address,
+          mobile_number: mobile,
+          email: customerDetails.email,
+          district: customerDetails.district,
+          state: customerDetails.state,
+          promocode: appliedPromo?.code || null
+        })
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setShowSuccess(true);
+        setTimeout(() => setShowSuccess(false), 4000);
+        setCart({});
+        setIsCartOpen(false);
+        setShowModal(false);
+        setCustomerDetails({ customer_name: "", address: "", district: "", state: "", mobile_number: "", email: "", customer_type: "User" });
+        setAppliedPromo(null);
+        setPromocode("");
+        setOriginalTotal(0);
+        setTotalDiscount(0);
+
+        // Download PDF
+        const pdfResponse = await fetch(`${API_BASE_URL}/api/direct/invoice/${data.order_id}`, { responseType: 'blob' });
+        const blob = await pdfResponse.blob();
+        const url = window.URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        const safeCustomerName = (customerDetails.customer_name || 'unknown').toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '');
+        link.setAttribute('download', `${safeCustomerName}-${data.order_id}.pdf`);
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        window.URL.revokeObjectURL(url);
+      } else {
+        const data = await response.json();
+        showError(data.message || "Booking failed.");
+      }
+    } catch (err) {
+      console.error("Checkout error:", err);
+      showError("Something went wrong during checkout.");
+    }
+  };
+
+  const showError = message => {
+    setErrorMessage(message);
+    setShowErrorModal(true);
+    setTimeout(() => setShowErrorModal(false), 5000);
+  };
+
+  const handleCheckoutClick = () => {
+    Object.keys(cart).length ? (setShowModal(true), setIsCartOpen(false)) : showError("Your cart is empty.");
+  };
+
+  const handleInputChange = e => {
+    const { name, value } = e.target;
+    if (name === 'mobile_number') {
+      const cleaned = value.replace(/\D/g, '').slice(-10);
+      setCustomerDetails(prev => ({ ...prev, [name]: cleaned }));
+    } else {
+      setCustomerDetails(prev => ({ ...prev, [name]: value }));
+    }
+  };
+
+  const handleShowDetails = useCallback((product) => {
+    setSelectedProduct(product);
+    setShowDetailsModal(true);
+  }, []);
+
+  const handleCloseDetails = useCallback(() => {
+    setSelectedProduct(null);
+    setShowDetailsModal(false);
+  }, []);
+
+  const totals = useMemo(() => {
+    let net = 0, save = 0, total = 0;
+    for (const serial in cart) {
+      const qty = cart[serial], product = products.find(p => p.serial_number === serial);
+      if (!product) continue;
+      const originalPrice = Number.parseFloat(product.price), discount = originalPrice * (product.discount / 100), priceAfterDiscount = originalPrice - discount;
+      net += originalPrice * qty;
+      save += discount * qty;
+      total += priceAfterDiscount * qty;
+    }
+    setOriginalTotal(total);
+    setTotalDiscount(save);
+    if (appliedPromo) {
+      const promoDiscount = (total * appliedPromo.discount) / 100;
+      total -= promoDiscount;
+      save += promoDiscount;
+    }
+    return { net: formatPrice(net), save: formatPrice(save), total: formatPrice(total), promo_discount: appliedPromo ? formatPrice((originalTotal * appliedPromo.discount) / 100) : '0.00' };
+  }, [cart, products, appliedPromo]);
+
+  const handleApplyPromo = useCallback(async (code) => {
+    if (!code) return setAppliedPromo(null);
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/promocodes`);
+      const promos = await res.json();
+      const found = promos.find(p => p.code.toLowerCase() === code.toLowerCase());
+      if (!found) {
+        showError("Invalid promocode.");
+        setAppliedPromo(null);
+        return;
+      }
+      if (found.min_amount && parseFloat(originalTotal) < found.min_amount) {
+        showError(`Minimum order amount for this promocode is ₹${found.min_amount}. Your total is ₹${originalTotal}.`);
+        setAppliedPromo(null);
+        return;
+      }
+      if (found.end_date && new Date(found.end_date) < new Date()) {
+        showError("This promocode has expired.");
+        setAppliedPromo(null);
+        return;
+      }
+      setAppliedPromo(found);
+    } catch (err) {
+      console.error("Promo apply error:", err);
+      showError("Could not validate promocode.");
+      setAppliedPromo(null);
+    }
+  }, [originalTotal]);
+
+  useEffect(() => {
+    if (debounceTimeout.current) clearTimeout(debounceTimeout.current);
     debounceTimeout.current = setTimeout(() => {
-      if (promocode && promocode !== "custom") handleApplyPromo(promocode)
-      else setAppliedPromo(null)
-    }, 500)
-    return () => clearTimeout(debounceTimeout.current)
-  }, [promocode, handleApplyPromo])
+      if (promocode && promocode !== "custom") handleApplyPromo(promocode);
+      else setAppliedPromo(null);
+    }, 500);
+    return () => clearTimeout(debounceTimeout.current);
+  }, [promocode, handleApplyPromo]);
 
   const productTypes = useMemo(() => {
-    const types = [...new Set(products.map(p => (p.product_type || "Others").replace(/_/g, " ")))]
-    return ["All", ...types.sort()]
-  }, [products])
+    const types = [...new Set(products.map(p => (p.product_type || "Others").replace(/_/g, " ")))];
+    return ["All", ...types.sort()];
+  }, [products]);
 
-  const grouped = useMemo(() => products.filter(p => p.product_type !== "gift_box_dealers" && (selectedType === "All" || p.product_type === selectedType.replace(/ /g, "_")) && (!searchTerm || p.productname.toLowerCase().includes(searchTerm.toLowerCase()) || p.serial_number.toLowerCase().includes(searchTerm.toLowerCase()))).reduce((acc, p) => { const key = p.product_type || "Others"; acc[key] = acc[key] || []; acc[key].push(p); return acc }, {}), [products, selectedType, searchTerm])
+  const grouped = useMemo(() => products.filter(p => p.product_type !== "gift_box_dealers" && (selectedType === "All" || p.product_type === selectedType.replace(/ /g, "_")) && (!searchTerm || p.productname.toLowerCase().includes(searchTerm.toLowerCase()) || p.serial_number.toLowerCase().includes(searchTerm.toLowerCase()))).reduce((acc, p) => {
+    const key = p.product_type || "Others";
+    acc[key] = acc[key] || [];
+    acc[key].push(p);
+    return acc;
+  }, {}), [products, selectedType, searchTerm]);
 
   return (
     <>
@@ -353,7 +447,10 @@ const Pricelist = () => {
       )}
       <main className={`relative pt-28 px-4 sm:px-8 max-w-7xl mx-auto transition-all duration-300 ${isCartOpen ? "mr-80" : ""}`}>
         <section className="rounded-xl px-4 py-3 shadow-inner flex justify-between flex-wrap gap-4 text-sm sm:text-base border border-sky-300 bg-gradient-to-br from-sky-400/80 to-sky-600/90 text-white font-semibold">
-          <div>Net Total: ₹{totals.net}</div><div>You Save: ₹{totals.save}</div><div className="font-bold">Total: ₹{totals.total}</div>
+          <div>Net Rate: ₹{totals.net}</div>
+          <div>You Save: ₹{totals.save}</div>
+          {appliedPromo && <div>Promocode ({appliedPromo.code}): -₹{totals.promo_discount}</div>}
+          <div className="font-bold">Total: ₹{totals.total}</div>
         </section>
         <div className="flex justify-center gap-4 mb-8 mt-8">
           <select value={selectedType} onChange={e => setSelectedType(e.target.value)} className="px-4 py-3 rounded-xl text-sm text-slate-800 font-medium focus:ring-2 focus:ring-sky-400 focus:border-transparent transition-all duration-300" style={styles.input}>{productTypes.map(type => <option key={type} value={type}>{type}</option>)}</select>
@@ -364,11 +461,11 @@ const Pricelist = () => {
             <h2 className="text-3xl text-sky-800 mb-5 font-semibold capitalize border-b-4 border-sky-500 pb-2">{type.replace(/_/g, " ")}</h2>
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-6">
               {items.map(product => {
-                if (!product) return null
-                const originalPrice = Number.parseFloat(product.price)
-                const discount = originalPrice * (product.discount / 100)
-                const finalPrice = product.discount > 0 ? formatPrice(originalPrice - discount) : formatPrice(originalPrice)
-                const count = cart[product.serial_number] || 0
+                if (!product) return null;
+                const originalPrice = Number.parseFloat(product.price);
+                const discount = originalPrice * (product.discount / 100);
+                const finalPrice = product.discount > 0 ? formatPrice(originalPrice - discount) : formatPrice(originalPrice);
+                const count = cart[product.serial_number] || 0;
                 return (
                   <motion.div key={product.serial_number} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} whileHover={{ y: -8, scale: 1.02 }} className="group relative rounded-3xl p-6 overflow-hidden cursor-pointer transition-all duration-500" style={styles.card}>
                     {product.discount > 0 && (
@@ -396,7 +493,14 @@ const Pricelist = () => {
                           {count > 0 ? (
                             <motion.div key="quantity-controls" initial={{ scale: 0.8, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.8, opacity: 0 }} transition={{ duration: 0.3, ease: "easeOut" }} className="flex items-center justify-between w-full rounded-full p-2" style={styles.button}>
                               <motion.button onClick={() => removeFromCart(product)} whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }} className="w-8 h-8 cursor-pointer rounded-full bg-white/20 text-white font-bold text-lg flex items-center justify-center transition-all duration-300"><FaMinus /></motion.button>
-                              <motion.span key={count} initial={{ scale: 1.5, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.5, opacity: 0 }} transition={{ duration: 0.2, ease: "easeOut" }} className="text-white font-bold text-lg px-4 drop-shadow-lg">{count}</motion.span>
+                              <motion.input
+                                key={count}
+                                type="number"
+                                value={count}
+                                onChange={(e) => updateCartQuantity(product, parseInt(e.target.value) || 0)}
+                                min="0"
+                                className="text-white font-bold text-lg px-4 drop-shadow-lg w-16 text-center bg-transparent border-none focus:outline-none"
+                              />
                               <motion.button onClick={() => addToCart(product)} whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }} className="w-8 h-8 cursor-pointer rounded-full bg-white/20 text-white font-bold text-lg flex items-center justify-center transition-all duration-300"><FaPlus /></motion.button>
                             </motion.div>
                           ) : (
@@ -409,7 +513,7 @@ const Pricelist = () => {
                     </div>
                     <div className="absolute bottom-0 left-0 right-0 h-px opacity-60" style={{ background: "linear-gradient(90deg, transparent, rgba(2,132,199,0.6), transparent)" }} />
                   </motion.div>
-                )
+                );
               })}
             </div>
           </div>
@@ -420,9 +524,62 @@ const Pricelist = () => {
           <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="relative rounded-3xl shadow-lg max-w-md w-full mx-4 overflow-hidden" style={styles.modal}>
             <div className="p-6">
               <h2 className="text-2xl font-bold mb-6 text-sky-700 drop-shadow-sm">Enter Customer Details</h2>
-              <div className="space-y-4">{["customer_name", "address", "mobile_number", "email"].map(field => <input key={field} name={field} type={field === "email" ? "email" : "text"} placeholder={field.replace(/_/g, " ").toUpperCase()} value={customerDetails[field]} onChange={handleInputChange} className="w-full border border-sky-200 px-4 py-3 rounded-xl text-sm focus:ring-2 focus:ring-sky-400 focus:border-transparent transition-all duration-300" style={styles.input} required />)}
+              <div className="space-y-4">
+                {["customer_name", "address", "mobile_number", "email"].map(field => (
+                  <input
+                    key={field}
+                    name={field}
+                    type={field === "email" ? "email" : "text"}
+                    placeholder={field.replace(/_/g, " ").toUpperCase()}
+                    value={customerDetails[field]}
+                    onChange={handleInputChange}
+                    className="w-full border border-sky-200 px-4 py-3 rounded-xl text-sm focus:ring-2 focus:ring-sky-400 focus:border-transparent transition-all duration-300"
+                    style={styles.input}
+                    required={field !== "email"}
+                  />
+                ))}
                 <select name="state" value={customerDetails.state} onChange={e => setCustomerDetails(prev => ({ ...prev, state: e.target.value, district: "" }))} className="w-full border border-sky-200 px-4 py-3 rounded-xl text-sm focus:ring-2 focus:ring-sky-400 focus:border-transparent transition-all duration-300" style={styles.input} required><option value="">Select State</option>{states.map(s => <option key={s.name} value={s.name}>{s.name}</option>)}</select>
                 {customerDetails.state && <select name="district" value={customerDetails.district} onChange={handleInputChange} className="w-full border border-sky-200 px-4 py-3 rounded-xl text-sm focus:ring-2 focus:ring-sky-400 focus:border-transparent transition-all duration-300" style={styles.input} required><option value="">Select District</option>{districts.map(d => <option key={d.id} value={d.name}>{d.name}</option>)}</select>}
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">Promocode</label>
+                  <select
+                    value={promocode}
+                    onChange={e => setPromocode(e.target.value)}
+                    className="w-full px-3 py-2 rounded-xl border border-sky-300 text-sm focus:ring-2 focus:ring-sky-400 transition-all duration-300"
+                    style={styles.input}
+                  >
+                    <option value="">Select Promocode</option>
+                    {promocodes.map(promo => (
+                      <option key={promo.id} value={promo.code}>
+                        {promo.code} ({promo.discount}% OFF{promo.min_amount ? `, Min: ₹${promo.min_amount}` : ''}{promo.end_date ? `, Exp: ${new Date(promo.end_date).toLocaleDateString()}` : ''})
+                      </option>
+                    ))}
+                    <option value="custom">Enter custom code</option>
+                  </select>
+                  {promocode === "custom" && (
+                    <input
+                      type="text"
+                      value={promocode === "custom" ? "" : promocode}
+                      onChange={e => setPromocode(e.target.value)}
+                      placeholder="Enter custom code"
+                      className="w-full px-3 py-2 mt-2 rounded-xl border border-sky-300 text-sm focus:ring-2 focus:ring-sky-400 transition-all duration-300"
+                      style={styles.input}
+                    />
+                  )}
+                  {appliedPromo && (
+                    <p className="text-green-600 text-xs mt-1">
+                      Applied: {appliedPromo.code} ({appliedPromo.discount}% OFF)
+                      {appliedPromo.min_amount && `, Min: ₹${appliedPromo.min_amount}`}
+                      {appliedPromo.end_date && `, Expires: ${new Date(appliedPromo.end_date).toLocaleDateString()}`}
+                    </p>
+                  )}
+                </div>
+                <div className="text-sm text-slate-700 space-y-1">
+                  <p>Net Rate: ₹{totals.net}</p>
+                  <p>You Save: ₹{totals.save}</p>
+                  {appliedPromo && <p>Promocode ({appliedPromo.code}): -₹{totals.promo_discount}</p>}
+                  <p className="font-bold text-sky-800 text-lg">Total: ₹{totals.total}</p>
+                </div>
               </div>
               <div className="mt-6 flex justify-end gap-3">
                 <button onClick={() => setShowModal(false)} className="px-6 py-3 text-sm font-semibold rounded-xl transition-all duration-300 cursor-pointer" style={{ background: "linear-gradient(135deg, rgba(156,163,175,0.8), rgba(107,114,128,0.9))", color: "white" }}>Cancel</button>
@@ -445,11 +602,11 @@ const Pricelist = () => {
             <p className="text-gray-500 text-sm">Your cart is empty.</p>
           ) : (
             Object.entries(cart).map(([serial, qty]) => {
-              const product = products.find(p => p.serial_number === serial)
-              if (!product) return null
-              const discount = (product.price * product.discount) / 100
-              const priceAfterDiscount = formatPrice(product.price - discount)
-              const imageSrc = (product.image && typeof product.image === 'string' ? JSON.parse(product.image) : (Array.isArray(product.image) ? product.image : [])).filter(item => !item.startsWith('data:video/') && !item.startsWith('data:image/gif') && !item.toLowerCase().endsWith('.gif'))[0] || "/placeholder.svg"
+              const product = products.find(p => p.serial_number === serial);
+              if (!product) return null;
+              const discount = (product.price * product.discount) / 100;
+              const priceAfterDiscount = formatPrice(product.price - discount);
+              const imageSrc = (product.image && typeof product.image === 'string' ? JSON.parse(product.image) : (Array.isArray(product.image) ? product.image : [])).filter(item => !item.startsWith('data:video/') && !item.startsWith('data:image/gif') && !item.toLowerCase().endsWith('.gif'))[0] || "/placeholder.svg";
               return (
                 <motion.div key={serial} initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} className="flex items-center gap-3 border-b pb-3 border-sky-100">
                   <div className="w-16 h-16">
@@ -460,12 +617,18 @@ const Pricelist = () => {
                     <p className="text-sm text-sky-700 font-bold">₹{priceAfterDiscount} x {qty}</p>
                     <div className="flex items-center gap-2 mt-2">
                       <button onClick={() => removeFromCart(product)} className="w-7 h-7 text-sm text-white cursor-pointer rounded-full flex items-center justify-center transition-all duration-300" style={styles.button}><FaMinus /></button>
-                      <span className="text-sm font-medium px-2">{qty}</span>
+                      <input
+                        type="number"
+                        value={qty}
+                        onChange={(e) => updateCartQuantity(product, parseInt(e.target.value) || 0)}
+                        min="0"
+                        className="text-sm font-medium px-2 w-16 text-center bg-transparent border-none focus:outline-none"
+                      />
                       <button onClick={() => addToCart(product)} className="w-7 h-7 text-sm text-white cursor-pointer rounded-full flex items-center justify-center transition-all duration-300" style={styles.button}><FaPlus /></button>
                     </div>
                   </div>
                 </motion.div>
-              )
+              );
             })
           )}
         </div>
@@ -492,7 +655,9 @@ const Pricelist = () => {
             >
               <option value="">Select Promocode</option>
               {promocodes.map(promo => (
-                <option key={promo.id} value={promo.code}>{promo.code} ({promo.discount}% OFF{promo.min_amount ? `, Min: ₹${promo.min_amount}` : ''}{promo.end_date ? `, Exp: ${new Date(promo.end_date).toLocaleDateString()}` : ''})</option>
+                <option key={promo.id} value={promo.code}>
+                  {promo.code} ({promo.discount}% OFF{promo.min_amount ? `, Min: ₹${promo.min_amount}` : ''}{promo.end_date ? `, Exp: ${new Date(promo.end_date).toLocaleDateString()}` : ''})
+                </option>
               ))}
               <option value="custom">Enter custom code</option>
             </select>
@@ -515,8 +680,9 @@ const Pricelist = () => {
             )}
           </div>
           <div className="text-sm text-slate-700 space-y-1">
-            <p>Net: ₹{totals.net}</p>
+            <p>Net Rate: ₹{totals.net}</p>
             <p>You Save: ₹{totals.save}</p>
+            {appliedPromo && <p>Promocode ({appliedPromo.code}): -₹{totals.promo_discount}</p>}
             <p className="font-bold text-sky-800 text-lg">Total: ₹{totals.total}</p>
           </div>
           <div className="flex gap-2">
@@ -530,7 +696,7 @@ const Pricelist = () => {
         .details-modal { display: flex !important; visibility: visible !important; opacity: 1 !important; }
       `}</style>
     </>
-  )
-}
+  );
+};
 
-export default Pricelist
+export default Pricelist;
