@@ -37,23 +37,28 @@ export default function Tracking() {
     }
   };
 
-  useEffect(() => {
-    const fetchBookings = async () => {
-      try {
-        const response = await axios.get(`${API_BASE_URL}/api/tracking/bookings`, {
-          params: { status: filterStatus || undefined, customerType: filterCustomerType || undefined }
-        });
-        setBookings(response.data);
-        setError('');
-        setCurrentPage(1);
-      } catch {
-        setError('Failed to fetch bookings');
-      }
-    };
-    fetchBookings();
-    const interval = setInterval(fetchBookings, 10000);
-    return () => clearInterval(interval);
-  }, [filterStatus, filterCustomerType]);
+useEffect(() => {
+  const fetchBookings = async () => {
+    try {
+      const response = await axios.get(`${API_BASE_URL}/api/tracking/bookings`, {
+        params: { status: filterStatus || undefined, customerType: filterCustomerType || undefined }
+      });
+      setBookings(response.data);
+      setError('');
+    } catch {
+      setError('Failed to fetch bookings');
+    }
+  };
+
+  fetchBookings();
+  const interval = setInterval(fetchBookings, 10000);
+  return () => clearInterval(interval);
+}, [filterStatus, filterCustomerType]);
+
+// Reset page only when filters change
+useEffect(() => {
+  setCurrentPage(1);
+}, [filterStatus, filterCustomerType]);
 
   const handleStatusChange = (id, newStatus) => {
     if (newStatus === 'paid') {

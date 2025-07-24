@@ -98,7 +98,7 @@ export default function Inventory() {
     setProductType(event.target.value);
     setValues({});
     setFocused({});
-    setImages(null);
+    setImages([]); // Changed from setImages(null) to setImages([])
     setError('');
     setSuccess('');
   };
@@ -145,7 +145,7 @@ export default function Inventory() {
     }
 
     let imageBase64Array = [];
-    if (images.length > 0) {
+    if (images && images.length > 0) { // Added null check
       for (const file of images) {
         const base64 = await new Promise((resolve, reject) => {
           const reader = new FileReader();

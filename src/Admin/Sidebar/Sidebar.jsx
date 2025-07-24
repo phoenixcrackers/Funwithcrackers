@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { NavLink } from 'react-router-dom';
-import { FaBox, FaList, FaChartBar, FaUsers, FaMapMarkerAlt, FaBars, FaTimes, FaLocationArrow, FaShoppingCart, FaTruck, FaImage, FaTag } from 'react-icons/fa';
+import { FaBox, FaList, FaChartBar, FaUsers, FaMapMarkerAlt, FaBars, FaTimes, FaLocationArrow, FaShoppingCart, FaTruck, FaImage, FaTag, FaAddressBook } from 'react-icons/fa';
 
 export default function Sidebar() {
   const [isOpen, setIsOpen] = useState(false);
@@ -16,6 +16,7 @@ export default function Sidebar() {
     { name: 'Tracking', path: '/tracking', icon: <FaMapMarkerAlt className="mr-2" /> },
     { name: 'Dispatch Customers', path: '/dispatch-customers', icon: <FaTruck className="mr-2" /> },
     { name: 'Report', path: '/report', icon: <FaChartBar className="mr-2" /> },
+    { name: 'Sales Analysis', path: '/sales-analysis', icon: <FaAddressBook className="mr-2" /> },
   ];
 
   const toggleSidebar = () => {

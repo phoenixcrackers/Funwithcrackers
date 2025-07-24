@@ -3,7 +3,9 @@ import { motion, AnimatePresence } from "framer-motion";
 import { FaPlus, FaMinus, FaArrowLeft, FaArrowRight, FaInfoCircle } from "react-icons/fa";
 import Navbar from "../Component/Navbar";
 import { API_BASE_URL } from "../../Config";
-import '../App.css';
+import { toast, ToastContainer } from "react-toastify";
+import "react-toastify/dist/ReactToastify.css";
+import "../App.css";
 
 const BigFireworkAnimation = ({ delay = 0 }) => {
   const screenWidth = typeof window !== "undefined" ? window.innerWidth : 1920;
@@ -253,6 +255,22 @@ const Pricelist = () => {
     const minOrder = states.find(s => s.name === selectedState)?.min_rate;
     if (minOrder && parseFloat(originalTotal) < minOrder) return showError(`Minimum order for ${selectedState} is ₹${minOrder}. Your total is ₹${originalTotal}.`);
     try {
+      console.log('Sending booking request:', {
+        order_id,
+        products: selectedProducts,
+        net_rate: parseFloat(totals.net),
+        you_save: parseFloat(totals.save),
+        total: parseFloat(totals.total),
+        promo_discount: parseFloat(totals.promo_discount || '0.00'),
+        customer_type: customerDetails.customer_type,
+        customer_name: customerDetails.customer_name,
+        address: customerDetails.address,
+        mobile_number: mobile,
+        email: customerDetails.email,
+        district: customerDetails.district,
+        state: customerDetails.state,
+        promocode: appliedPromo?.code || null
+      });
       const response = await fetch(`${API_BASE_URL}/api/direct/bookings`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -262,7 +280,7 @@ const Pricelist = () => {
           net_rate: parseFloat(totals.net),
           you_save: parseFloat(totals.save),
           total: parseFloat(totals.total),
-          promo_discount: parseFloat(totals.promo_discount || '0.00'), // Always send a valid number, default to 0.00 if undefined
+          promo_discount: parseFloat(totals.promo_discount || '0.00'),
           customer_type: customerDetails.customer_type,
           customer_name: customerDetails.customer_name,
           address: customerDetails.address,
@@ -273,8 +291,9 @@ const Pricelist = () => {
           promocode: appliedPromo?.code || null
         })
       });
+      const data = await response.json();
       if (response.ok) {
-        const data = await response.json();
+        console.log('Booking response:', data);
         setShowSuccess(true);
         setTimeout(() => setShowSuccess(false), 4000);
         setCart({});
@@ -298,13 +317,24 @@ const Pricelist = () => {
         link.click();
         document.body.removeChild(link);
         window.URL.revokeObjectURL(url);
+
+        // Show toast notification
+        toast.success("Downloaded estimate bill, check downloads", {
+          position: "top-center",
+          autoClose: 5000,
+          hideProgressBar: false,
+          closeOnClick: true,
+          pauseOnHover: true,
+          draggable: true,
+          progress: undefined,
+        });
       } else {
-        const data = await response.json();
-        showError(data.message || "Booking failed.");
+        console.error('Booking failed:', data);
+        showError(data.message || "Booking failed. Please try again.");
       }
     } catch (err) {
       console.error("Checkout error:", err);
-      showError("Something went wrong during checkout.");
+      showError("Something went wrong during checkout. Please try again.");
     }
   };
 
@@ -411,6 +441,7 @@ const Pricelist = () => {
   return (
     <>
       <Navbar />
+      <ToastContainer /> {/* Add ToastContainer to render toasts */}
       {isCartOpen && <div className="fixed inset-0 bg-black/40 z-30" onClick={() => setIsCartOpen(false)} />}
       {showSuccess && (
         <motion.div className="fixed inset-0 flex items-center justify-center z-60 pointer-events-none" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.5 }}>
