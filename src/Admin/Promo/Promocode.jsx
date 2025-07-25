@@ -52,9 +52,12 @@ const Promocode = () => {
       const res = await fetch(`${API_BASE_URL}/api/product-types`);
       if (!res.ok) throw new Error('Failed to fetch product types');
       const data = await res.json();
-      // Expect array of strings, filter out 'gift_box_dealers' as safeguard
-      const types = Array.isArray(data) ? data.filter(type => type !== 'gift_box_dealers') : [];
-      console.log('Fetched Product Types:', types); // Debugging
+      // Expect array of objects with product_type property, map to strings and filter out 'gift_box_dealers'
+      const types = Array.isArray(data)
+        ? data
+            .map(item => item.product_type)
+            .filter(type => type && type !== 'gift_box_dealers')
+        : [];
       setProductTypes(types);
     } catch (err) {
       console.error('Error fetching product types:', err);
@@ -167,7 +170,7 @@ const Promocode = () => {
                 name="code"
                 value={form.code}
                 onChange={handleChange}
-                className="w-full rounded-md bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 border border-gray-300 dark:border-gray-600 px-3 py-2 focus:border-indigo-600 dark:focus:border-blue-500 focus:ring-indigo-600 dark:focus:ring-blue-500"
+                className="w-full rounded-md bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-800 border border-gray-300 dark:border-gray-600 px-3 py-2 focus:border-indigo-600 dark:focus:border-blue-500 focus:ring-indigo-600 dark:focus:ring-blue-500"
                 style={{ background: styles.input.background, backgroundDark: styles.input.backgroundDark, border: styles.input.border, borderDark: styles.input.borderDark, backdropFilter: styles.input.backdropFilter }}
                 required
               />
@@ -179,7 +182,7 @@ const Promocode = () => {
                 name="discount"
                 value={form.discount}
                 onChange={handleChange}
-                className="w-full rounded-md bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 border border-gray-300 dark:border-gray-600 px-3 py-2 focus:border-indigo-600 dark:focus:border-blue-500 focus:ring-indigo-600 dark:focus:ring-blue-500"
+                className="w-full rounded-md bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-800 border border-gray-300 dark:border-gray-600 px-3 py-2 focus:border-indigo-600 dark:focus:border-blue-500 focus:ring-indigo-600 dark:focus:ring-blue-500"
                 style={{ background: styles.input.background, backgroundDark: styles.input.backgroundDark, border: styles.input.border, borderDark: styles.input.borderDark, backdropFilter: styles.input.backdropFilter }}
                 required
                 min="1"
@@ -193,7 +196,7 @@ const Promocode = () => {
                 name="min_amount"
                 value={form.min_amount}
                 onChange={handleChange}
-                className="w-full rounded-md bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 border border-gray-300 dark:border-gray-600 px-3 py-2 focus:border-indigo-600 dark:focus:border-blue-500 focus:ring-indigo-600 dark:focus:ring-blue-500"
+                className="w-full rounded-md bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-800 border border-gray-300 dark:border-gray-600 px-3 py-2 focus:border-indigo-600 dark:focus:border-blue-500 focus:ring-indigo-600 dark:focus:ring-blue-500"
                 style={{ background: styles.input.background, backgroundDark: styles.input.backgroundDark, border: styles.input.border, borderDark: styles.input.borderDark, backdropFilter: styles.input.backdropFilter }}
                 min="0"
                 placeholder="Enter minimum amount"
@@ -206,7 +209,7 @@ const Promocode = () => {
                 name="end_date"
                 value={form.end_date}
                 onChange={handleChange}
-                className="w-full rounded-md bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 border border-gray-300 dark:border-gray-600 px-3 py-2 focus:border-indigo-600 dark:focus:border-blue-500 focus:ring-indigo-600 dark:focus:ring-blue-500"
+                className="w-full rounded-md bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-800 border border-gray-300 dark:border-gray-600 px-3 py-2 focus:border-indigo-600 dark:focus:border-blue-500 focus:ring-indigo-600 dark:focus:ring-blue-500"
                 style={{ background: styles.input.background, backgroundDark: styles.input.backgroundDark, border: styles.input.border, borderDark: styles.input.borderDark, backdropFilter: styles.input.backdropFilter }}
               />
             </div>
@@ -216,7 +219,7 @@ const Promocode = () => {
                 name="product_type"
                 value={form.product_type}
                 onChange={handleChange}
-                className="w-full rounded-md bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 border border-gray-300 dark:border-gray-600 px-3 py-2 focus:border-indigo-600 dark:focus:border-blue-500 focus:ring-indigo-600 dark:focus:ring-blue-500"
+                className="w-full rounded-md bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-800 border border-gray-300 dark:border-gray-600 px-3 py-2 focus:border-indigo-600 dark:focus:border-blue-500 focus:ring-indigo-600 dark:focus:ring-blue-500"
                 style={{ background: styles.input.background, backgroundDark: styles.input.backgroundDark, border: styles.input.border, borderDark: styles.input.borderDark, backdropFilter: styles.input.backdropFilter }}
               >
                 <option value="">Select a product type (or none for all products)</option>
