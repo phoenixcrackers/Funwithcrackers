@@ -5,9 +5,11 @@ import Logout from '../Logout';
 
 const Promocode = () => {
   const [promocodes, setPromocodes] = useState([]);
-  const [form, setForm] = useState({ code: '', discount: '', min_amount: '', end_date: '' });
+  const [productTypes, setProductTypes] = useState([]);
+  const [form, setForm] = useState({ code: '', discount: '', min_amount: '', end_date: '', product_type: '' });
   const [isEditing, setIsEditing] = useState(false);
   const [editingId, setEditingId] = useState(null);
+  const [error, setError] = useState('');
 
   const styles = {
     input: { 
@@ -30,15 +32,33 @@ const Promocode = () => {
 
   useEffect(() => {
     fetchPromocodes();
+    fetchProductTypes();
   }, []);
 
   const fetchPromocodes = async () => {
     try {
       const res = await fetch(`${API_BASE_URL}/api/promocodes`);
+      if (!res.ok) throw new Error('Failed to fetch promocodes');
       const data = await res.json();
       setPromocodes(data);
     } catch (err) {
       console.error('Error fetching promocodes:', err);
+      setError('Failed to load promocodes. Please try again.');
+    }
+  };
+
+  const fetchProductTypes = async () => {
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/product-types`);
+      if (!res.ok) throw new Error('Failed to fetch product types');
+      const data = await res.json();
+      // Expect array of strings, filter out 'gift_box_dealers' as safeguard
+      const types = Array.isArray(data) ? data.filter(type => type !== 'gift_box_dealers') : [];
+      console.log('Fetched Product Types:', types); // Debugging
+      setProductTypes(types);
+    } catch (err) {
+      console.error('Error fetching product types:', err);
+      setError('Failed to load product types. Please try again.');
     }
   };
 
@@ -48,7 +68,10 @@ const Promocode = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!form.code || !form.discount) return;
+    if (!form.code || !form.discount) {
+      setError('Code and discount are required.');
+      return;
+    }
 
     try {
       const payload = {
@@ -56,6 +79,7 @@ const Promocode = () => {
         discount: parseInt(form.discount, 10),
         min_amount: form.min_amount ? parseFloat(form.min_amount) : null,
         end_date: form.end_date || null,
+        product_type: form.product_type || null,
       };
 
       if (isEditing) {
@@ -64,6 +88,7 @@ const Promocode = () => {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(payload),
         });
+        if (!res.ok) throw new Error('Failed to update promocode');
         const updated = await res.json();
         setPromocodes((prev) =>
           prev.map((promo) => (promo.id === editingId ? updated : promo))
@@ -74,54 +99,67 @@ const Promocode = () => {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(payload),
         });
+        if (!res.ok) throw new Error('Failed to create promocode');
         const newPromo = await res.json();
         setPromocodes([...promocodes, newPromo]);
       }
 
-      setForm({ code: '', discount: '', min_amount: '', end_date: '' });
+      setForm({ code: '', discount: '', min_amount: '', end_date: '', product_type: '' });
       setIsEditing(false);
       setEditingId(null);
+      setError('');
     } catch (err) {
       console.error('Error submitting promocode:', err);
+      setError('Failed to save promocode. Please try again.');
     }
   };
 
   const handleDelete = async (id) => {
     try {
-      await fetch(`${API_BASE_URL}/api/promocodes/${id}`, {
+      const res = await fetch(`${API_BASE_URL}/api/promocodes/${id}`, {
         method: 'DELETE',
       });
+      if (!res.ok) throw new Error('Failed to delete promocode');
       setPromocodes(promocodes.filter((promo) => promo.id !== id));
       if (editingId === id) {
         setIsEditing(false);
         setEditingId(null);
-        setForm({ code: '', discount: '', min_amount: '', end_date: '' });
+        setForm({ code: '', discount: '', min_amount: '', end_date: '', product_type: '' });
       }
+      setError('');
     } catch (err) {
       console.error('Error deleting promocode:', err);
+      setError('Failed to delete promocode. Please try again.');
     }
   };
 
   const handleEdit = (promo) => {
     setForm({
       code: promo.code,
-      discount: promo.discount,
-      min_amount: promo.min_amount || '',
+      discount: promo.discount.toString(),
+      min_amount: promo.min_amount ? promo.min_amount.toString() : '',
       end_date: promo.end_date ? promo.end_date.split('T')[0] : '',
+      product_type: promo.product_type || '',
     });
     setIsEditing(true);
     setEditingId(promo.id);
+    setError('');
   };
 
   return (
     <div className="flex flex-col md:flex-row bg-gray-50 dark:bg-gray-900 min-h-screen">
       <Sidebar />
       <Logout />
-      <div className="flex-1 p-4 mobile:p-6 hundred:ml-64">
-        <h1 className="text-xl sm:text-2xl font-bold mb-6 text-center md:text-center text-gray-900 dark:text-gray-100">Promocode Management</h1>
-        <div className="bg-white dark:bg-gray-900 shadow-md rounded p-4 mobile:p-6 max-w-full mobile:max-w-md mx-auto md:mx-0 mb-8">
+      <div className="flex-1 p-4 mobile:p-6 md:ml-64">
+        <h1 className="text-xl sm:text-2xl font-bold mb-6 text-center text-gray-900 dark:text-gray-100">Promocode Management</h1>
+        {error && (
+          <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-2 rounded-lg mb-4 text-center">
+            {error}
+          </div>
+        )}
+        <div className="bg-white dark:bg-gray-900 shadow-md rounded p-4 mobile:p-6 max-w-full mobile:max-w-md mx-auto mb-8">
           <h2 className="text-lg font-semibold mb-4 text-gray-900 dark:text-gray-100">{isEditing ? 'Edit Promocode' : 'Add New Promocode'}</h2>
-          <div className="space-y-4">
+          <form onSubmit={handleSubmit} className="space-y-4">
             <div>
               <label className="block mb-1 font-medium text-gray-700 dark:text-gray-300">Code</label>
               <input
@@ -129,7 +167,7 @@ const Promocode = () => {
                 name="code"
                 value={form.code}
                 onChange={handleChange}
-                className="w-full rounded-md bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-900 border border-gray-300 dark:border-gray-600 px-3 py-2 focus:border-indigo-600 dark:focus:border-blue-500 focus:ring-indigo-600 dark:focus:ring-blue-500"
+                className="w-full rounded-md bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 border border-gray-300 dark:border-gray-600 px-3 py-2 focus:border-indigo-600 dark:focus:border-blue-500 focus:ring-indigo-600 dark:focus:ring-blue-500"
                 style={{ background: styles.input.background, backgroundDark: styles.input.backgroundDark, border: styles.input.border, borderDark: styles.input.borderDark, backdropFilter: styles.input.backdropFilter }}
                 required
               />
@@ -141,7 +179,7 @@ const Promocode = () => {
                 name="discount"
                 value={form.discount}
                 onChange={handleChange}
-                className="w-full rounded-md bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-900 border border-gray-300 dark:border-gray-600 px-3 py-2 focus:border-indigo-600 dark:focus:border-blue-500 focus:ring-indigo-600 dark:focus:ring-blue-500"
+                className="w-full rounded-md bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 border border-gray-300 dark:border-gray-600 px-3 py-2 focus:border-indigo-600 dark:focus:border-blue-500 focus:ring-indigo-600 dark:focus:ring-blue-500"
                 style={{ background: styles.input.background, backgroundDark: styles.input.backgroundDark, border: styles.input.border, borderDark: styles.input.borderDark, backdropFilter: styles.input.backdropFilter }}
                 required
                 min="1"
@@ -155,7 +193,7 @@ const Promocode = () => {
                 name="min_amount"
                 value={form.min_amount}
                 onChange={handleChange}
-                className="w-full rounded-md bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-900 border border-gray-300 dark:border-gray-600 px-3 py-2 focus:border-indigo-600 dark:focus:border-blue-500 focus:ring-indigo-600 dark:focus:ring-blue-500"
+                className="w-full rounded-md bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 border border-gray-300 dark:border-gray-600 px-3 py-2 focus:border-indigo-600 dark:focus:border-blue-500 focus:ring-indigo-600 dark:focus:ring-blue-500"
                 style={{ background: styles.input.background, backgroundDark: styles.input.backgroundDark, border: styles.input.border, borderDark: styles.input.borderDark, backdropFilter: styles.input.backdropFilter }}
                 min="0"
                 placeholder="Enter minimum amount"
@@ -168,14 +206,34 @@ const Promocode = () => {
                 name="end_date"
                 value={form.end_date}
                 onChange={handleChange}
-                className="w-full rounded-md bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-900 border border-gray-300 dark:border-gray-600 px-3 py-2 focus:border-indigo-600 dark:focus:border-blue-500 focus:ring-indigo-600 dark:focus:ring-blue-500"
+                className="w-full rounded-md bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 border border-gray-300 dark:border-gray-600 px-3 py-2 focus:border-indigo-600 dark:focus:border-blue-500 focus:ring-indigo-600 dark:focus:ring-blue-500"
                 style={{ background: styles.input.background, backgroundDark: styles.input.backgroundDark, border: styles.input.border, borderDark: styles.input.borderDark, backdropFilter: styles.input.backdropFilter }}
               />
             </div>
+            <div>
+              <label className="block mb-1 font-medium text-gray-700 dark:text-gray-300">Product Type (Optional)</label>
+              <select
+                name="product_type"
+                value={form.product_type}
+                onChange={handleChange}
+                className="w-full rounded-md bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 border border-gray-300 dark:border-gray-600 px-3 py-2 focus:border-indigo-600 dark:focus:border-blue-500 focus:ring-indigo-600 dark:focus:ring-blue-500"
+                style={{ background: styles.input.background, backgroundDark: styles.input.backgroundDark, border: styles.input.border, borderDark: styles.input.borderDark, backdropFilter: styles.input.backdropFilter }}
+              >
+                <option value="">Select a product type (or none for all products)</option>
+                {productTypes.length === 0 ? (
+                  <option disabled>No product types available</option>
+                ) : (
+                  productTypes.map((type) => (
+                    <option key={type} value={type}>
+                      {type}
+                    </option>
+                  ))
+                )}
+              </select>
+            </div>
             <div className="flex flex-wrap gap-2">
               <button
-                type="button"
-                onClick={handleSubmit}
+                type="submit"
                 className="px-4 py-2 rounded-md text-white dark:text-gray-100 font-semibold hover:bg-blue-700 dark:hover:bg-blue-600"
                 style={{ background: styles.button.background, backgroundDark: styles.button.backgroundDark, border: styles.button.border, borderDark: styles.button.borderDark, boxShadow: styles.button.boxShadow, boxShadowDark: styles.button.boxShadowDark }}
               >
@@ -187,7 +245,8 @@ const Promocode = () => {
                   onClick={() => {
                     setIsEditing(false);
                     setEditingId(null);
-                    setForm({ code: '', discount: '', min_amount: '', end_date: '' });
+                    setForm({ code: '', discount: '', min_amount: '', end_date: '', product_type: '' });
+                    setError('');
                   }}
                   className="px-4 py-2 rounded-md text-white dark:text-gray-100 font-semibold hover:bg-gray-700 dark:hover:bg-gray-600"
                   style={{ background: styles.button.background, backgroundDark: styles.button.backgroundDark, border: styles.button.border, borderDark: styles.button.borderDark, boxShadow: styles.button.boxShadow, boxShadowDark: styles.button.boxShadowDark }}
@@ -196,7 +255,7 @@ const Promocode = () => {
                 </button>
               )}
             </div>
-          </div>
+          </form>
         </div>
 
         {/* Table */}
@@ -208,13 +267,14 @@ const Promocode = () => {
                 <th className="px-4 py-2">Discount (%)</th>
                 <th className="px-4 py-2">Min Amount</th>
                 <th className="px-4 py-2">End Date</th>
+                <th className="px-4 py-2">Product Type</th>
                 <th className="px-4 py-2">Actions</th>
               </tr>
             </thead>
             <tbody>
               {promocodes.length === 0 ? (
                 <tr>
-                  <td colSpan="5" className="text-center p-4 text-gray-500 dark:text-gray-400">
+                  <td colSpan="6" className="text-center p-4 text-gray-500 dark:text-gray-400">
                     No promocodes added yet.
                   </td>
                 </tr>
@@ -225,6 +285,7 @@ const Promocode = () => {
                     <td className="px-4 py-2 text-gray-900 dark:text-gray-100">{promo.discount}%</td>
                     <td className="px-4 py-2 text-gray-900 dark:text-gray-100">{promo.min_amount ? `₹${promo.min_amount}` : '-'}</td>
                     <td className="px-4 py-2 text-gray-900 dark:text-gray-100">{promo.end_date ? new Date(promo.end_date).toLocaleDateString() : '-'}</td>
+                    <td className="px-4 py-2 text-gray-900 dark:text-gray-100">{promo.product_type || 'All Products'}</td>
                     <td className="px-4 py-2 space-x-5">
                       <button
                         onClick={() => handleEdit(promo)}

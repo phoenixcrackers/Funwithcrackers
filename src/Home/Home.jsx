@@ -169,45 +169,45 @@ const StatCard = ({ icon: Icon, value, label, delay }) => {
 }
 
 const PromoBurst = ({ promoCodes }) => {
-  const [isOpen, setIsOpen] = useState(false)
-  const [hasBursted, setHasBursted] = useState(false)
-  const [showPromoCard, setShowPromoCard] = useState(false)
-  const [copied, setCopied] = useState('')
-  const [isHovering, setIsHovering] = useState(false)
-  const navigate = useNavigate()
-  const rocketRef = useRef(null)
-  const [hasRocketBeenUsed, setHasRocketBeenUsed] = useState(false)
+  const [isOpen, setIsOpen] = useState(false);
+  const [hasBursted, setHasBursted] = useState(false);
+  const [showPromoCard, setShowPromoCard] = useState(false);
+  const [copied, setCopied] = useState('');
+  const [isHovering, setIsHovering] = useState(false);
+  const navigate = useNavigate();
+  const rocketRef = useRef(null);
+  const [hasRocketBeenUsed, setHasRocketBeenUsed] = useState(false);
 
   const handleClick = () => {
     if (!hasBursted && !hasRocketBeenUsed) {
-      setHasRocketBeenUsed(true)
-      setIsOpen(true)
+      setHasRocketBeenUsed(true);
+      setIsOpen(true);
       setTimeout(() => {
-        setHasBursted(true)
-        setTimeout(() => setShowPromoCard(true), 2500)
-      }, 1200)
+        setHasBursted(true);
+        setTimeout(() => setShowPromoCard(true), 2500);
+      }, 1200);
     }
-  }
+  };
 
   const handleCopy = async (code) => {
     try {
-      await navigator.clipboard.writeText(code)
-      setCopied(code)
-      setTimeout(() => setCopied(''), 2000)
+      await navigator.clipboard.writeText(code);
+      setCopied(code);
+      setTimeout(() => setCopied(''), 2000);
     } catch (err) {
-      console.error('Failed to copy:', err)
+      console.error('Failed to copy:', err);
     }
-  }
+  };
 
   // Format date if it exists
   const formatDate = (dateString) => {
-    if (!dateString) return null
+    if (!dateString) return null;
     return new Date(dateString).toLocaleDateString('en-US', {
       month: 'short',
       day: 'numeric',
-      year: 'numeric'
-    })
-  }
+      year: 'numeric',
+    });
+  };
 
   return (
     <>
@@ -302,10 +302,10 @@ const PromoBurst = ({ promoCodes }) => {
               initial={{ scale: 0, opacity: 0, y: 50 }}
               animate={{ scale: 1, opacity: 1, y: 0, transition: { type: 'spring', stiffness: 200, damping: 15, duration: 0.8 } }}
               exit={{ scale: 0, opacity: 0, y: -50 }}
-              className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-50"
+              className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-50 w-[20%] max-w-md mobile:max-w-[90%] max-h-[80vh] overflow-y-auto scrollbar-thin scrollbar-thumb-sky-300 scrollbar-track-sky-100"
               whileHover={{ scale: 1.02 }}
             >
-              <div className="relative w-80 md:w-96 mobile:w-96 rounded-3xl p-4 overflow-hidden bg-white shadow-2xl border border-sky-200" style={{ boxShadow: '0 25px 50px rgba(135,206,235,0.3), 0 0 0 1px rgba(135,206,235,0.2)' }}>
+              <div className="relative rounded-3xl p-6 bg-white shadow-2xl border border-sky-200" style={{ boxShadow: '0 25px 50px rgba(135,206,235,0.3), 0 0 0 1px rgba(135,206,235,0.2)' }}>
                 <div className="absolute inset-0 opacity-5" style={{ backgroundImage: `radial-gradient(circle at 25% 25%, rgba(135,206,235,0.3) 0%, transparent 50%), radial-gradient(circle at 75% 75%, rgba(135,206,235,0.2) 0%, transparent 50%)` }} />
                 <motion.h3
                   animate={{ scale: [1, 1.05, 1], color: ['rgb(14, 165, 233)', 'rgb(2, 132, 199)', 'rgb(14, 165, 233)'] }}
@@ -315,7 +315,7 @@ const PromoBurst = ({ promoCodes }) => {
                 >
                   ✨ EXCLUSIVE DEALS ✨
                 </motion.h3>
-                <div className="max-h-80 overflow-y-auto scrollbar-thin scrollbar-thumb-sky-300 scrollbar-track-sky-100 pr-4">
+                <div className="space-y-4">
                   {promoCodes.map((promo, i) => (
                     <motion.div
                       key={promo.id}
@@ -323,7 +323,7 @@ const PromoBurst = ({ promoCodes }) => {
                       animate={{ x: 0, opacity: 1 }}
                       transition={{ delay: i * 0.15, type: 'spring', stiffness: 100 }}
                       whileHover={{ scale: 1.02, x: 5 }}
-                      className="bg-gradient-to-r from-sky-50 to-blue-50 rounded-xl p-4 border border-sky-200 hover:border-sky-300 transition-all duration-300 mb-4"
+                      className="bg-gradient-to-r from-sky-50 to-blue-50 rounded-xl p-4 border border-sky-200 hover:border-sky-300 transition-all duration-300"
                       style={{ boxShadow: '0 4px 15px rgba(135,206,235,0.1)' }}
                     >
                       <div className="flex items-center justify-between gap-4">
@@ -338,6 +338,7 @@ const PromoBurst = ({ promoCodes }) => {
                           {promo.end_date && (
                             <p className="text-sky-600 text-sm">Expires: {formatDate(promo.end_date)}</p>
                           )}
+                          <p className="text-sky-600 text-sm">Valid for: {promo.product_type || 'All Products'}</p>
                         </div>
                         <div className="flex gap-2 shrink-0">
                           <motion.button
@@ -377,8 +378,8 @@ const PromoBurst = ({ promoCodes }) => {
         )}
       </AnimatePresence>
     </>
-  )
-}
+  );
+};
 
 const BigFireworkAnimation = ({ delay = 0 }) => {
   const screenWidth = typeof window !== "undefined" ? window.innerWidth : 1920
