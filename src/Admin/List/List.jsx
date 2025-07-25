@@ -3,7 +3,7 @@ import Modal from 'react-modal';
 import Sidebar from '../Sidebar/Sidebar';
 import '../../App.css';
 import { API_BASE_URL } from '../../../Config';
-import { FaEye, FaEdit, FaTrash, FaArrowLeft, FaArrowRight } from 'react-icons/fa';
+import { FaEye, FaEdit, FaTrash, FaArrowLeft, FaArrowRight, FaExclamationTriangle } from 'react-icons/fa';
 import Logout from '../Logout';
 
 Modal.setAppElement('#root');
@@ -16,8 +16,11 @@ export default function List() {
   const [modalIsOpen, setModalIsOpen] = useState(false);
   const [editModalIsOpen, setEditModalIsOpen] = useState(false);
   const [addModalIsOpen, setAddModalIsOpen] = useState(false);
+  const [deleteModalIsOpen, setDeleteModalIsOpen] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState(null);
+  const [productToDelete, setProductToDelete] = useState(null);
   const [error, setError] = useState('');
+  const [discountWarning, setDiscountWarning] = useState('');
   const [toggleStates, setToggleStates] = useState({});
   const [currentPage, setCurrentPage] = useState(1);
   const [formData, setFormData] = useState({
@@ -76,7 +79,8 @@ export default function List() {
         ...product,
         images: product.image ? (Array.isArray(JSON.parse(product.image)) ? JSON.parse(product.image) : [product.image]) : [],
         box_count: product.box_count || 1
-      }));
+      }))
+      .sort((a, b) => a.serial_number.localeCompare(b.serial_number));
     setProducts(normalizedData);
     setFilteredProducts(filterType === 'all' ? normalizedData : normalizedData.filter(p => p.product_type === filterType));
     setToggleStates(normalizedData.reduce((acc, p) => ({
@@ -113,7 +117,7 @@ export default function List() {
   }, [filterType, products]);
 
   const handleImageChange = (e, isEdit) => {
-    const files = Array.from(e.target.files).slice(0, 3);
+    const files = Array.from(e.target.files).slice(0, 5);
     const allowedTypes = ['image/png', 'image/jpeg', 'image/jpg', 'image/gif', 'video/mp4', 'video/webm', 'video/ogg'];
     const maxSize = 5 * 1024 * 1024;
     if (files.some(file => !allowedTypes.includes(file.type))) return setError('Only JPG, PNG, GIF, MP4, WebM, or Ogg files allowed');
@@ -129,10 +133,34 @@ export default function List() {
     }).catch(() => setError('Failed to read files'));
   };
 
+  const handleInputChange = (e) => {
+    const { name, value } = e.target;
+    if (name === 'discount') {
+      const numValue = parseFloat(value);
+      if (value === '') {
+        setDiscountWarning('');
+        setFormData(prev => ({ ...prev, [name]: value }));
+      } else if (isNaN(numValue) || numValue < 0 || numValue > 100) {
+        setDiscountWarning('Discount must be between 0 and 100%');
+        setFormData(prev => ({ ...prev, [name]: numValue < 0 ? '0' : '100' }));
+      } else {
+        setDiscountWarning('');
+        setFormData(prev => ({ ...prev, [name]: value }));
+      }
+    } else {
+      setFormData(prev => ({ ...prev, [name]: value }));
+    }
+  };
+
   const handleSubmit = async (e, isEdit) => {
     e.preventDefault();
+    setDiscountWarning('');
     if (formData.product_type === 'gift_box_dealers') {
       setError('Product type "gift_box_dealers" is not allowed');
+      return;
+    }
+    if (!formData.productname || !formData.serial_number || !formData.price || !formData.per || !formData.discount || !formData.product_type) {
+      setError('Please fill in all required fields');
       return;
     }
     const url = isEdit
@@ -157,17 +185,27 @@ export default function List() {
     try {
       await fetch(`${API_BASE_URL}/api/products/${product.product_type.toLowerCase().replace(/\s+/g, '_')}/${product.id}`, { method: 'DELETE' });
       fetchProducts();
+      setDeleteModalIsOpen(false);
+      setProductToDelete(null);
     } catch (err) {
       setError('Failed to delete product');
     }
+  };
+
+  const openDeleteModal = (product) => {
+    setProductToDelete(product);
+    setDeleteModalIsOpen(true);
   };
 
   const closeModal = () => {
     setModalIsOpen(false);
     setEditModalIsOpen(false);
     setAddModalIsOpen(false);
+    setDeleteModalIsOpen(false);
     setSelectedProduct(null);
+    setProductToDelete(null);
     setError('');
+    setDiscountWarning('');
     setFormData({ productname: '', serial_number: '', price: '', discount: '', per: '', product_type: '', description: '', box_count: 1, images: [] });
   };
 
@@ -194,7 +232,7 @@ export default function List() {
               type="text"
               name="product_type"
               value={formData.product_type}
-              onChange={e => setFormData(prev => ({ ...prev, [e.target.name]: e.target.value }))}
+              onChange={handleInputChange}
               className="mt-1 mobile:mt-0.5 block w-full rounded-md bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-900 border-gray-300 dark:border-gray-600 shadow-sm focus:border-indigo-600 dark:focus:border-blue-500 focus:ring-indigo-600 dark:focus:ring-blue-500 sm:text-sm"
               style={{ background: styles.input.background, backgroundDark: styles.input.backgroundDark, border: styles.input.border, borderDark: styles.input.borderDark, backdropFilter: styles.input.backdropFilter }}
               required
@@ -202,19 +240,23 @@ export default function List() {
           </div>
         )}
         {['productname', 'serial_number', 'price', 'discount', 'box_count'].map(field => (
-          <div key={field}>
+          <div key={field} className='mb-5'>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">{capitalize(field.replace('_', ' '))}</label>
             <input
               type={field === 'price' || field === 'discount' || field === 'box_count' ? 'number' : 'text'}
               name={field}
               value={formData[field]}
-              onChange={e => setFormData(prev => ({ ...prev, [e.target.name]: e.target.value }))}
-              className="mt-1 mobile:mt-0.5 block w-full rounded-md bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-900 border-gray-300 dark:border-gray-600 shadow-sm focus:border-indigo-600 dark:focus:border-blue-500 focus:ring-indigo-600 dark:focus:ring-blue-500 sm:text-sm"
+              onChange={handleInputChange}
+              className="mt-1 px-2 h-8 mobile:mt-0.5 block w-full rounded-md bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-900 border-gray-300 dark:border-gray-600 shadow-sm focus:border-indigo-600 dark:focus:border-blue-500 focus:ring-indigo-600 dark:focus:ring-blue-500 sm:text-sm"
               style={{ background: styles.input.background, backgroundDark: styles.input.backgroundDark, border: styles.input.border, borderDark: styles.input.borderDark, backdropFilter: styles.input.backdropFilter }}
               required
               step={field === 'price' || field === 'discount' ? '0.01' : undefined}
-              min={field === 'box_count' ? '1' : undefined}
+              min={field === 'box_count' ? '1' : field === 'discount' ? '0' : undefined}
+              max={field === 'discount' ? '100' : undefined}
             />
+            {field === 'discount' && discountWarning && (
+              <p className="mt-1 text-sm text-red-600 dark:text-red-400">{discountWarning}</p>
+            )}
           </div>
         ))}
         <div>
@@ -222,8 +264,8 @@ export default function List() {
           <select
             name="per"
             value={formData.per}
-            onChange={e => setFormData(prev => ({ ...prev, per: e.target.value }))}
-            className="mt-1 mobile:mt-0.5 block w-full rounded-md bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-900 border-gray-300 dark:border-gray-600 shadow-sm focus:border-indigo-600 dark:focus:border-blue-500 focus:ring-indigo-600 dark:focus:ring-blue-500 sm:text-sm"
+            onChange={handleInputChange}
+            className="mt-1 h-8 text-2xl mobile:mt-0.5 block w-full rounded-md bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-900 border-gray-300 dark:border-gray-600 shadow-sm focus:border-indigo-600 dark:focus:border-blue-500 focus:ring-indigo-600 dark:focus:ring-blue-500 sm:text-sm"
             style={{ background: styles.input.background, backgroundDark: styles.input.backgroundDark, border: styles.input.border, borderDark: styles.input.borderDark, backdropFilter: styles.input.backdropFilter }}
             required
           >
@@ -238,7 +280,7 @@ export default function List() {
           <textarea
             name="description"
             value={formData.description}
-            onChange={e => setFormData(prev => ({ ...prev, description: e.target.value }))}
+            onChange={handleInputChange}
             className="mt-1 mobile:mt-0.5 block w-full rounded-md bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-900 border-gray-300 dark:border-gray-600 shadow-sm focus:border-indigo-600 dark:focus:border-blue-500 focus:ring-indigo-600 dark:focus:ring-blue-500 sm:text-sm"
             style={{ background: styles.input.background, backgroundDark: styles.input.backgroundDark, border: styles.input.border, borderDark: styles.input.borderDark, backdropFilter: styles.input.backdropFilter }}
             rows="3"
@@ -298,7 +340,7 @@ export default function List() {
         <div className="max-w-5xl mx-auto">
           <h2 className="text-2xl text-center font-bold text-gray-900 dark:text-gray-100 mb-6 mobile:mb-4">List Products</h2>
           {error && <div className="mb-4 mobile:mb-2 text-red-600 dark:text-red-400 text-sm text-center">{error}</div>}
-          <div className="mb-6 mobile:mb-4 onefifty:mx-10 onefifty:translate-x-30 hundred:translate-x-0 hundred:mx-0 flex justify-between items-center">
+          <div className="mb-6 mobile:mb-4 hundred:mx-0 flex justify-between items-center">
             <div>
               <label htmlFor="product-type-filter" className="block text-sm font-medium text-gray-900 dark:text-gray-300">Filter by Product Type</label>
               <select
@@ -323,7 +365,7 @@ export default function List() {
           {currentProducts.length === 0 ? (
             <p className="text-lg text-center text-gray-600 dark:text-gray-300 sm:text-xl font-medium">No products found</p>
           ) : (
-            <div className="grid onefifty:grid-cols-3 hundred:translate-x-0 mobile:grid-cols-2 hundred:mx-0 onefifty:translate-x-30 onefifty:mx-10 hundred:grid-cols-3  gap-6 mobile:gap-4 justify-center">
+            <div className="grid onefifty:grid-cols-3 hundred:translate-x-0 mobile:grid-cols-1 hundred:mx-0 onefifty:mt-10 onefifty:mx-10 hundred:grid-cols-3 gap-6 mobile:gap-4 justify-center">
               {currentProducts.map(product => {
                 const productKey = `${product.product_type}-${product.id}`;
                 return (
@@ -395,7 +437,7 @@ export default function List() {
                           <FaEdit className="mr-1 h-4 w-4" /> Edit
                         </button>
                         <button
-                          onClick={() => handleDelete(product)}
+                          onClick={() => openDeleteModal(product)}
                           className="flex items-center px-3 py-1 text-xs sm:text-sm text-white dark:text-gray-100 hover:bg-red-700 dark:hover:bg-red-600 rounded-md"
                           style={{ background: styles.button.background, backgroundDark: styles.button.backgroundDark, border: styles.button.border, borderDark: styles.button.borderDark, boxShadow: styles.button.boxShadow, boxShadowDark: styles.button.boxShadowDark }}
                         >
@@ -482,6 +524,44 @@ export default function List() {
             overlayClassName="fixed inset-0 bg-black/50 dark:bg-black/70"
           >
             {renderModalForm(false)}
+          </Modal>
+          <Modal
+            isOpen={deleteModalIsOpen}
+            onRequestClose={closeModal}
+            className="fixed inset-0 flex items-center justify-center p-4 mobile:p-2"
+            overlayClassName="fixed inset-0 bg-black/50 dark:bg-black/70"
+          >
+            <div className="bg-white dark:bg-gray-900 rounded-lg p-6 mobile:p-3 max-w-sm w-full">
+              <div className="flex items-center justify-center mb-4">
+                <FaExclamationTriangle className="text-red-600 dark:text-red-400 h-8 w-8" />
+              </div>
+              <h2 className="text-lg sm:text-xl font-semibold text-gray-900 dark:text-gray-100 mb-4 mobile:mb-2 text-center">
+                Would you like to delete the product?
+              </h2>
+              <div className="flex justify-center space-x-4 mobile:space-x-2">
+                <button
+                  onClick={() => handleDelete(productToDelete)}
+                  className="rounded-md px-3 mobile:px-2 py-2 mobile:py-1 text-xs sm:text-sm font-semibold text-white dark:text-gray-100 shadow-sm hover:bg-red-700 dark:hover:bg-red-600"
+                  style={{ 
+                    background: styles.button.background.replace('2,132,199', '220,38,38').replace('14,165,233', '239,68,68'),
+                    backgroundDark: styles.button.backgroundDark.replace('59,130,246', '220,38,38').replace('37,99,235', '200,35,35'),
+                    border: styles.button.border.replace('125,211,252', '252,165,165'),
+                    borderDark: styles.button.borderDark.replace('147,197,253', '252,165,165'),
+                    boxShadow: styles.button.boxShadow.replace('2,132,199', '220,38,38'),
+                    boxShadowDark: styles.button.boxShadowDark.replace('59,130,246', '220,38,38')
+                  }}
+                >
+                  Yes
+                </button>
+                <button
+                  onClick={closeModal}
+                  className="rounded-md px-3 mobile:px-2 py-2 mobile:py-1 text-xs sm:text-sm font-semibold text-white dark:text-gray-100 shadow-sm hover:bg-gray-700 dark:hover:bg-gray-600"
+                  style={{ background: styles.button.background, backgroundDark: styles.button.backgroundDark, border: styles.button.border, borderDark: styles.button.borderDark, boxShadow: styles.button.boxShadow, boxShadowDark: styles.button.boxShadowDark }}
+                >
+                  No
+                </button>
+              </div>
+            </div>
           </Modal>
         </div>
       </div>

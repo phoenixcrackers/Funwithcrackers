@@ -182,7 +182,7 @@ export default function Dispatch() {
     <div className="flex min-h-screen bg-gray-50 dark:bg-gray-900">
       <Sidebar />
       <Logout />
-      <div className="flex-1 flex items-start justify-center p-6 mobile:overflow-hidden onefifty:ml-[20%] hundred:ml-[15%] mobile:ml-[0%]">
+      <div className="flex-1 flex items-start justify-center p-6 mobile:overflow-hidden onefifty:ml-[0%] hundred:ml-[15%] mobile:ml-[0%]">
         <div className="w-full max-w-5xl mobile:p-4">
           <h1 className="text-4xl font-bold mb-8 text-center text-gray-800 dark:text-gray-100 mobile:text-2xl">Dispatch Customers</h1>
           {error && (
@@ -204,7 +204,7 @@ export default function Dispatch() {
             ], 'All Statuses')}
             {renderInput(searchQuery, e => setSearchQuery(e.target.value), 'Search by Name, Order ID, or Total')}
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mobile:gap-4">
+          <div className="grid mobile:grid-cols-1 onefifty:grid-cols-2 hundred:grid-cols-3 gap-6 mobile:gap-4">
             {currentOrders.length > 0 ? (
               currentOrders.map((booking, index) => (
                 <div key={booking.id} className="bg-white dark:bg-gray-900 p-6 rounded-lg shadow-md border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800 mobile:p-4">

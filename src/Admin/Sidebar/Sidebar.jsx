@@ -1,9 +1,49 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { NavLink } from 'react-router-dom';
 import { FaBox, FaList, FaChartBar, FaUsers, FaMapMarkerAlt, FaBars, FaTimes, FaLocationArrow, FaShoppingCart, FaTruck, FaImage, FaTag, FaAddressBook } from 'react-icons/fa';
+import axios from 'axios';
+import { API_BASE_URL } from '../../../Config';
 
 export default function Sidebar() {
   const [isOpen, setIsOpen] = useState(false);
+  const [newOrderCount, setNewOrderCount] = useState(0);
+  const [paidOrderCount, setPaidOrderCount] = useState(0);
+
+  // Fetch count of new orders (status: 'booked') for Tracking
+  useEffect(() => {
+    const fetchNewOrders = async () => {
+      try {
+        const response = await axios.get(`${API_BASE_URL}/api/tracking/bookings`, {
+          params: { status: 'booked' }
+        });
+        setNewOrderCount(response.data.length);
+      } catch (err) {
+        console.error('Failed to fetch new orders for Tracking:', err);
+      }
+    };
+
+    fetchNewOrders();
+    const interval = setInterval(fetchNewOrders, 100000); // Refresh every 100 seconds
+    return () => clearInterval(interval);
+  }, []);
+
+  // Fetch count of paid orders (status: 'paid') for Dispatch Customers
+  useEffect(() => {
+    const fetchPaidOrders = async () => {
+      try {
+        const response = await axios.get(`${API_BASE_URL}/api/tracking/bookings`, {
+          params: { status: 'paid' }
+        });
+        setPaidOrderCount(response.data.length);
+      } catch (err) {
+        console.error('Failed to fetch paid orders for Dispatch:', err);
+      }
+    };
+
+    fetchPaidOrders();
+    const interval = setInterval(fetchPaidOrders, 100000); // Refresh every 100 seconds
+    return () => clearInterval(interval);
+  }, []);
 
   const navItems = [
     { name: 'Inventory', path: '/inventory', icon: <FaBox className="mr-2" /> },
@@ -13,8 +53,18 @@ export default function Sidebar() {
     { name: 'Direct Customer', path: '/direct-customer', icon: <FaUsers className="mr-2" /> },
     { name: 'Direct Enquiry', path: '/direct-enquiry', icon: <FaShoppingCart className="mr-2" /> },
     { name: 'Location', path: '/location', icon: <FaLocationArrow className="mr-2" /> },
-    { name: 'Tracking', path: '/tracking', icon: <FaMapMarkerAlt className="mr-2" /> },
-    { name: 'Dispatch Customers', path: '/dispatch-customers', icon: <FaTruck className="mr-2" /> },
+    { 
+      name: 'Tracking', 
+      path: '/tracking', 
+      icon: <FaMapMarkerAlt className="mr-2" />,
+      notification: newOrderCount > 0 ? newOrderCount : null
+    },
+    { 
+      name: 'Dispatch Customers', 
+      path: '/dispatch-customers', 
+      icon: <FaTruck className="mr-2" />,
+      notification: paidOrderCount > 0 ? paidOrderCount : null
+    },
     { name: 'Report', path: '/report', icon: <FaChartBar className="mr-2" /> },
     { name: 'Sales Analysis', path: '/sales-analysis', icon: <FaAddressBook className="mr-2" /> },
   ];
@@ -59,7 +109,12 @@ export default function Sidebar() {
                   onClick={() => setIsOpen(false)}
                 >
                   {item.icon}
-                  {item.name}
+                  <span className="flex-1">{item.name}</span>
+                  {(item.name === 'Tracking' || item.name === 'Dispatch Customers') && item.notification !== null && (
+                    <span className="bg-red-500 text-white text-xs font-semibold rounded-full px-2 py-1 ml-2">
+                      {item.notification}
+                    </span>
+                  )}
                 </NavLink>
               </li>
             ))}

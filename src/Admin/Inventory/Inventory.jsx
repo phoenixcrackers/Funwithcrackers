@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import { FiLogOut } from 'react-icons/fi';
 import Sidebar from '../Sidebar/Sidebar';
 import { API_BASE_URL } from '../../../Config';
 import { FaPlus } from 'react-icons/fa';
@@ -14,6 +13,7 @@ export default function Inventory() {
   const [images, setImages] = useState([]);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const [discountWarning, setDiscountWarning] = useState('');
 
   const styles = {
     input: { 
@@ -64,7 +64,22 @@ export default function Inventory() {
   };
 
   const handleChange = (inputId, event) => {
-    setValues((prev) => ({ ...prev, [inputId]: event.target.value }));
+    const value = event.target.value;
+    if (inputId === 'discount') {
+      const numValue = parseFloat(value);
+      if (value === '') {
+        setDiscountWarning('');
+        setValues((prev) => ({ ...prev, [inputId]: value }));
+      } else if (isNaN(numValue) || numValue < 0 || numValue > 100) {
+        setDiscountWarning('Discount must be between 0 and 100%');
+        setValues((prev) => ({ ...prev, [inputId]: numValue < 0 ? '0' : '100' }));
+      } else {
+        setDiscountWarning('');
+        setValues((prev) => ({ ...prev, [inputId]: value }));
+      }
+    } else {
+      setValues((prev) => ({ ...prev, [inputId]: event.target.value }));
+    }
   };
 
   const handleImageChange = (event) => {
@@ -98,9 +113,10 @@ export default function Inventory() {
     setProductType(event.target.value);
     setValues({});
     setFocused({});
-    setImages(null);
+    setImages([]);
     setError('');
     setSuccess('');
+    setDiscountWarning('');
   };
 
   const handleNewProductTypeChange = (event) => {
@@ -138,6 +154,7 @@ export default function Inventory() {
     event.preventDefault();
     setError('');
     setSuccess('');
+    setDiscountWarning('');
 
     if (!values.serialNum || !values.productName || !values.price || !values.per || !values.discount || !productType) {
       setError('Please fill in all required fields');
@@ -145,7 +162,7 @@ export default function Inventory() {
     }
 
     let imageBase64Array = [];
-    if (images.length > 0) {
+    if (Array.isArray(images) && images.length > 0) {
       for (const file of images) {
         const base64 = await new Promise((resolve, reject) => {
           const reader = new FileReader();
@@ -181,6 +198,7 @@ export default function Inventory() {
       setSuccess('Product saved successfully!');
       setValues({});
       setImages([]);
+      setDiscountWarning('');
       event.target.reset();
     } catch (err) {
       setError(err.message);
@@ -199,7 +217,7 @@ export default function Inventory() {
     if (!productType) return null;
     return (
       <>
-        <div className="mobile:col-span-3">
+        <div className="mobile:col-span-6">
           <label htmlFor={`serial-num-${productType}`} className="block text-sm font-medium text-gray-900 dark:text-gray-300">
             Serial Number*
           </label>
@@ -217,7 +235,7 @@ export default function Inventory() {
             />
           </div>
         </div>
-        <div className="mobile:col-span-3">
+        <div className="mobile:col-span-6">
           <label htmlFor="product-name" className="block text-sm font-medium text-gray-900 dark:text-gray-300">
             Product Name*
           </label>
@@ -235,7 +253,7 @@ export default function Inventory() {
             />
           </div>
         </div>
-        <div className="mobile:col-span-3">
+        <div className="mobile:col-span-6">
           <label htmlFor="price" className="block text-sm font-medium text-gray-900 dark:text-gray-300">
             Price (INR)*
           </label>
@@ -255,7 +273,7 @@ export default function Inventory() {
             />
           </div>
         </div>
-        <div className="sm:col-span-3">
+        <div className="mobile:col-span-3">
           <label htmlFor="per" className="block text-sm font-medium text-gray-900 dark:text-gray-300">
             Per*
           </label>
@@ -296,9 +314,12 @@ export default function Inventory() {
               className="block w-full rounded-md bg-white dark:bg-gray-900 px-3 py-1.5 text-base text-gray-900 dark:text-gray-800 border border-gray-300 dark:border-gray-600 placeholder:text-gray-400 dark:placeholder:text-gray-500 focus:outline-2 focus:-outline-offset-2 focus:outline-indigo-600 dark:focus:outline-blue-500 sm:text-sm"
               style={{ background: styles.input.background, backgroundDark: styles.input.backgroundDark, border: styles.input.border, borderDark: styles.input.borderDark, backdropFilter: styles.input.backdropFilter }}
             />
+            {discountWarning && (
+              <p className="mt-1 text-sm text-red-600 dark:text-red-400">{discountWarning}</p>
+            )}
           </div>
         </div>
-        <div className="sm:col-span-6">
+        <div className="mobile:col-span-6">
           <label htmlFor="description" className="block text-sm font-medium text-gray-900 dark:text-gray-300">
             Description
           </label>
@@ -316,7 +337,7 @@ export default function Inventory() {
             />
           </div>
         </div>
-        <div className="sm:col-span-3">
+        <div className="mobile:col-span-6">
           <label htmlFor="image" className="block text-sm font-medium text-gray-900 dark:text-gray-300">
             Image Upload
           </label>
@@ -409,6 +430,7 @@ export default function Inventory() {
                       setValues({});
                       setImages([]);
                       setProductType('');
+                      setDiscountWarning('');
                     }}
                   >
                     Cancel

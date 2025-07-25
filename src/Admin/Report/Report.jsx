@@ -116,7 +116,7 @@ export default function Report() {
     <div className="flex min-h-screen bg-gray-50 dark:bg-gray-900">
       <Sidebar />
       <Logout />
-      <div className="flex-1 flex items-start justify-center onefifty:ml-[20%] hundred:ml-[15%] mobile:ml-[0%]">
+      <div className="flex-1 flex items-start justify-center onefifty:ml-[0%] hundred:ml-[15%] mobile:ml-[0%]">
         <div className="w-full max-w-5xl p-6 mobile:p-4">
           <h1 className="text-4xl font-bold mb-8 text-center text-gray-800 dark:text-gray-100 mobile:text-2xl">Report</h1>
           {error && (
@@ -140,7 +140,7 @@ export default function Report() {
               Export to Excel
             </button>
           </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 mobile:gap-4">
+          <div className="grid mobile:grid-cols-1 onefifty:grid-cols-2 hundred:grid-cols-3 gap-6 mobile:gap-4">
             {currentOrders.length > 0 ? (
               currentOrders.map((booking, index) => (
                 <div
