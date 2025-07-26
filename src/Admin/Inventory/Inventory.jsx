@@ -40,7 +40,7 @@ export default function Inventory() {
       const data = await response.json();
       if (!response.ok) throw new Error(data.message || 'Failed to fetch product types');
       const validTypes = data
-        .filter(item => item && item.product_type && typeof item.product_type === 'string')
+        .filter(item => item && item.product_type && typeof item.product_type === 'string' && item.product_type!=='gift_box_dealers')
         .map(item => item.product_type);
       setProductTypes(validTypes);
     } catch (err) {
@@ -84,7 +84,7 @@ export default function Inventory() {
 
   const handleImageChange = (event) => {
     const files = Array.from(event.target.files);
-    const allowedImageTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/jpg'];
+    const allowedImageTypes = ['image JPEG', 'image/png', 'image/gif', 'image/jpg'];
     const allowedVideoTypes = ['video/mp4', 'video/webm', 'video/ogg'];
     const allowedTypes = [...allowedImageTypes, ...allowedVideoTypes];
 
@@ -199,7 +199,7 @@ export default function Inventory() {
       setValues({});
       setImages([]);
       setDiscountWarning('');
-      event.target.reset();
+      event.target.reset(); // This will now work as event.target is the form
     } catch (err) {
       setError(err.message);
     }
@@ -416,7 +416,7 @@ export default function Inventory() {
               </div>
             </div>
             {productType ? (
-              <>
+              <form onSubmit={handleSubmit}>
                 <div className="border-b border-gray-900/10 dark:border-gray-700 pb-8">
                   <div className="mt-6 grid grid-cols-1 gap-x-6 gap-y-8 sm:grid-cols-6">
                     {renderFormFields()}
@@ -437,14 +437,13 @@ export default function Inventory() {
                   </button>
                   <button
                     type="submit"
-                    onClick={handleSubmit}
                     className="rounded-md cursor-pointer text-white dark:text-gray-100 px-3 py-2 text-sm font-semibold shadow-xs hover:bg-gray-900 dark:hover:bg-gray-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600 dark:focus-visible:outline-blue-500"
                     style={{ background: styles.button.background, backgroundDark: styles.button.backgroundDark, border: styles.button.border, borderDark: styles.button.borderDark, boxShadow: styles.button.boxShadow, boxShadowDark: styles.button.boxShadowDark }}
                   >
                     Save
                   </button>
                 </div>
-              </>
+              </form>
             ) : (
               <div className="flex justify-center items-center">
                 <p className="text-lg text-center font-medium text-gray-900 dark:text-gray-100">

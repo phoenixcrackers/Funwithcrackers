@@ -40,7 +40,6 @@ export default function SalesAnalysis() {
         const response = await axios.get(`${API_BASE_URL}/api/sales-analysis/detailed`);
         setSalesData(response.data);
       } catch (err) {
-        console.error('API error:', err.response?.data || err.message);
         setError(`Failed to fetch sales data: ${err.message}`);
       } finally {
         setLoading(false);
@@ -56,14 +55,14 @@ export default function SalesAnalysis() {
 
       // Sales Trends Over Time (Line Chart)
       const salesCtx = document.getElementById('salesTrendChart')?.getContext('2d');
-      if (salesCtx && Array.isArray(salesData.trends)) {
+      if (salesCtx) {
         chartsRef.current.salesTrendChart = new Chart(salesCtx, {
           type: 'line',
           data: {
-            labels: salesData.trends.map(t => t.month) || [],
+            labels: salesData.trends.map(t => t.month),
             datasets: [{
               label: 'Revenue (Rs)',
-              data: salesData.trends.map(t => t.revenue) || [],
+              data: salesData.trends.map(t => t.revenue),
               borderColor: 'rgba(75, 192, 192, 1)',
               backgroundColor: 'rgba(75, 192, 192, 0.2)',
               fill: true,
@@ -88,14 +87,14 @@ export default function SalesAnalysis() {
 
       // Customer Type Analysis (Bar Chart)
       const customerCtx = document.getElementById('customerTypeChart')?.getContext('2d');
-      if (customerCtx && Array.isArray(salesData.customer_types)) {
+      if (customerCtx) {
         chartsRef.current.customerTypeChart = new Chart(customerCtx, {
           type: 'bar',
           data: {
-            labels: salesData.customer_types.map(ct => ct.customer_type) || [],
+            labels: salesData.customer_types.map(ct => ct.customer_type),
             datasets: [{
               label: 'Revenue (Rs)',
-              data: salesData.customer_types.map(ct => ct.revenue) || [],
+              data: salesData.customer_types.map(ct => ct.revenue),
               backgroundColor: 'rgba(54, 162, 235, 0.6)',
               borderColor: 'rgba(54, 162, 235, 1)',
               borderWidth: 1
@@ -119,16 +118,16 @@ export default function SalesAnalysis() {
 
       // Quotation Conversion Rates (Pie Chart)
       const quotationCtx = document.getElementById('quotationChart')?.getContext('2d');
-      if (quotationCtx && salesData.quotations) {
+      if (quotationCtx) {
         chartsRef.current.quotationChart = new Chart(quotationCtx, {
           type: 'pie',
           data: {
             labels: ['Pending', 'Booked', 'Canceled'],
             datasets: [{
               data: [
-                salesData.quotations?.pending?.count || 0,
-                salesData.quotations?.booked?.count || 0,
-                salesData.quotations?.canceled?.count || 0
+                salesData.quotations?.pending.count || 0,
+                salesData.quotations?.booked.count || 0,
+                salesData.quotations?.canceled.count || 0
               ],
               backgroundColor: [
                 'rgba(255, 206, 86, 0.6)',
@@ -160,8 +159,8 @@ export default function SalesAnalysis() {
   // Pagination for Product Performance
   const indexOfLastItem = currentPage * itemsPerPage;
   const indexOfFirstItem = indexOfLastItem - itemsPerPage;
-  const currentProducts = Array.isArray(salesData?.products) ? salesData.products.slice(indexOfFirstItem, indexOfLastItem) : [];
-  const totalPages = Math.ceil((Array.isArray(salesData?.products) ? salesData.products.length : 0) / itemsPerPage);
+  const currentProducts = salesData?.products.slice(indexOfFirstItem, indexOfLastItem);
+  const totalPages = Math.ceil((salesData?.products.length || 0) / itemsPerPage);
 
   const paginate = (pageNumber) => setCurrentPage(pageNumber);
 
@@ -203,7 +202,7 @@ export default function SalesAnalysis() {
                       </tr>
                     </thead>
                     <tbody>
-                      {Array.isArray(salesData.trends) && salesData.trends.length > 0 ? (
+                      {salesData.trends.length > 0 ? (
                         salesData.trends.map((t, index) => (
                           <tr key={index}>
                             <td className="border p-2 dark:text-gray-100">{t.month}</td>
@@ -233,7 +232,7 @@ export default function SalesAnalysis() {
                       </tr>
                     </thead>
                     <tbody>
-                      {currentProducts.length > 0 ? (
+                      {currentProducts?.length > 0 ? (
                         currentProducts.map((p, index) => (
                           <tr key={index}>
                             <td className="border p-2 dark:text-gray-100">{p.productname}</td>
@@ -295,7 +294,7 @@ export default function SalesAnalysis() {
                       </tr>
                     </thead>
                     <tbody>
-                      {Array.isArray(salesData.cities) && salesData.cities.length > 0 ? (
+                      {salesData.cities.length > 0 ? (
                         salesData.cities.map((c, index) => (
                           <tr key={index}>
                             <td className="border p-2 dark:text-gray-100">{c.district}</td>
@@ -325,15 +324,15 @@ export default function SalesAnalysis() {
                     <tbody>
                       <tr>
                         <td className="border p-2 dark:text-gray-100">Total Revenue</td>
-                        <td className="border p-2 text-right dark:text-gray-100">₹{formatValue(salesData.profitability?.total_revenue || 0)}</td>
+                        <td className="border p-2 text-right dark:text-gray-100">₹{formatValue(salesData.profitability.total_revenue)}</td>
                       </tr>
                       <tr>
                         <td className="border p-2 dark:text-gray-100">Total Discounts Given</td>
-                        <td className="border p-2 text-right dark:text-gray-100">₹{formatValue(salesData.profitability?.total_discounts || 0)}</td>
+                        <td className="border p-2 text-right dark:text-gray-100">₹{formatValue(salesData.profitability.total_discounts)}</td>
                       </tr>
                       <tr>
                         <td className="border p-2 dark:text-gray-100">Estimated Net Profit</td>
-                        <td className="border p-2 text-right dark:text-gray-100">₹{formatValue(salesData.profitability?.estimated_profit || 0)}</td>
+                        <td className="border p-2 text-right dark:text-gray-100">₹{formatValue(salesData.profitability.estimated_profit)}</td>
                       </tr>
                     </tbody>
                   </table>
@@ -356,13 +355,13 @@ export default function SalesAnalysis() {
                     </thead>
                     <tbody>
                       {['pending', 'booked', 'canceled'].map(status => {
-                        const total = (salesData.quotations?.pending?.count || 0) + (salesData.quotations?.booked?.count || 0) + (salesData.quotations?.canceled?.count || 0);
+                        const total = salesData.quotations.pending.count + salesData.quotations.booked.count + salesData.quotations.canceled.count;
                         return (
                           <tr key={status}>
                             <td className="border p-2 dark:text-gray-100">{status.charAt(0).toUpperCase() + status.slice(1)}</td>
-                            <td className="border p-2 text-right dark:text-gray-100">{salesData.quotations?.[status]?.count || 0}</td>
-                            <td className="border p-2 text-right dark:text-gray-100">{calculatePercentage(salesData.quotations?.[status]?.count || 0, total)}</td>
-                            <td className="border p-2 text-right dark:text-gray-100">₹{formatValue(salesData.quotations?.[status]?.revenue || 0)}</td>
+                            <td className="border p-2 text-right dark:text-gray-100">{salesData.quotations[status].count}</td>
+                            <td className="border p-2 text-right dark:text-gray-100">{calculatePercentage(salesData.quotations[status].count, total)}</td>
+                            <td className="border p-2 text-right dark:text-gray-100">₹{formatValue(salesData.quotations[status].revenue)}</td>
                           </tr>
                         );
                       })}
@@ -385,7 +384,7 @@ export default function SalesAnalysis() {
                       </tr>
                     </thead>
                     <tbody>
-                      {Array.isArray(salesData.customer_types) && salesData.customer_types.length > 0 ? (
+                      {salesData.customer_types.length > 0 ? (
                         salesData.customer_types.map((ct, index) => (
                           <tr key={index}>
                             <td className="border p-2 dark:text-gray-100">{ct.customer_type}</td>
@@ -415,7 +414,7 @@ export default function SalesAnalysis() {
                       </tr>
                     </thead>
                     <tbody>
-                      {Array.isArray(salesData.cancellations) && salesData.cancellations.length > 0 ? (
+                      {salesData.cancellations.length > 0 ? (
                         salesData.cancellations.map((c, index) => (
                           <tr key={index}>
                             <td className="border p-2 dark:text-gray-100">{c.type}</td>

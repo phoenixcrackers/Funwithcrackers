@@ -116,7 +116,7 @@ export default function List() {
     setCurrentPage(1);
   }, [filterType, products]);
 
-  const handleImageChange = (e, isEdit) => {
+  const handleImageChange = (e) => {
     const files = Array.from(e.target.files).slice(0, 5);
     const allowedTypes = ['image/png', 'image/jpeg', 'image/jpg', 'image/gif', 'video/mp4', 'video/webm', 'video/ogg'];
     const maxSize = 5 * 1024 * 1024;
@@ -155,14 +155,36 @@ export default function List() {
   const handleSubmit = async (e, isEdit) => {
     e.preventDefault();
     setDiscountWarning('');
+    setError('');
+
+    // Validate required fields
+    if (!formData.productname.trim() || 
+        !formData.serial_number.trim() || 
+        !formData.price || 
+        !formData.per || 
+        formData.discount === '' || 
+        !formData.product_type) {
+      setError('Please fill in all required fields');
+      return;
+    }
+
+    // Validate price and discount
+    const price = parseFloat(formData.price);
+    const discount = parseFloat(formData.discount);
+    if (isNaN(price) || price < 0) {
+      setError('Price must be a valid positive number');
+      return;
+    }
+    if (isNaN(discount) || discount < 0 || discount > 100) {
+      setError('Discount must be a valid number between 0 and 100%');
+      return;
+    }
+
     if (formData.product_type === 'gift_box_dealers') {
       setError('Product type "gift_box_dealers" is not allowed');
       return;
     }
-    if (!formData.productname || !formData.serial_number || !formData.price || !formData.per || !formData.discount || !formData.product_type) {
-      setError('Please fill in all required fields');
-      return;
-    }
+
     const url = isEdit
       ? `${API_BASE_URL}/api/products/${selectedProduct.product_type.toLowerCase().replace(/\s+/g, '_')}/${selectedProduct.id}`
       : `${API_BASE_URL}/api/products`;
@@ -170,12 +192,17 @@ export default function List() {
       const response = await fetch(url, {
         method: isEdit ? 'PUT' : 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...formData, box_count: Math.max(1, parseInt(formData.box_count) || 1) }),
+        body: JSON.stringify({ 
+          ...formData, 
+          box_count: Math.max(1, parseInt(formData.box_count) || 1),
+          images: formData.images.length ? formData.images : null
+        }),
       });
       const result = await response.json();
       if (!response.ok) throw new Error(result.message || `Failed to ${isEdit ? 'update' : 'add'} product`);
       fetchProducts();
       closeModal();
+      e.target.reset();
     } catch (err) {
       setError(err.message);
     }
@@ -224,104 +251,107 @@ export default function List() {
   const renderModalForm = (isEdit) => (
     <div className="bg-white dark:bg-gray-900 rounded-lg p-6 mobile:p-3 max-w-md w-full sm:max-w-lg">
       <h2 className="text-lg sm:text-xl font-semibold text-gray-900 dark:text-gray-100 mb-4 mobile:mb-2 text-center">{isEdit ? 'Edit Product' : 'Add Product'}</h2>
-      <div className="space-y-4 mobile:space-y-2">
-        {!isEdit && (
-          <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Product Type</label>
-            <input
-              type="text"
-              name="product_type"
-              value={formData.product_type}
-              onChange={handleInputChange}
-              className="mt-1 mobile:mt-0.5 block w-full rounded-md bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-900 border-gray-300 dark:border-gray-600 shadow-sm focus:border-indigo-600 dark:focus:border-blue-500 focus:ring-indigo-600 dark:focus:ring-blue-500 sm:text-sm"
-              style={{ background: styles.input.background, backgroundDark: styles.input.backgroundDark, border: styles.input.border, borderDark: styles.input.borderDark, backdropFilter: styles.input.backdropFilter }}
-              required
-            />
-          </div>
-        )}
-        {['productname', 'serial_number', 'price', 'discount', 'box_count'].map(field => (
-          <div key={field} className='mb-5'>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">{capitalize(field.replace('_', ' '))}</label>
-            <input
-              type={field === 'price' || field === 'discount' || field === 'box_count' ? 'number' : 'text'}
-              name={field}
-              value={formData[field]}
-              onChange={handleInputChange}
-              className="mt-1 px-2 h-8 mobile:mt-0.5 block w-full rounded-md bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-900 border-gray-300 dark:border-gray-600 shadow-sm focus:border-indigo-600 dark:focus:border-blue-500 focus:ring-indigo-600 dark:focus:ring-blue-500 sm:text-sm"
-              style={{ background: styles.input.background, backgroundDark: styles.input.backgroundDark, border: styles.input.border, borderDark: styles.input.borderDark, backdropFilter: styles.input.backdropFilter }}
-              required
-              step={field === 'price' || field === 'discount' ? '0.01' : undefined}
-              min={field === 'box_count' ? '1' : field === 'discount' ? '0' : undefined}
-              max={field === 'discount' ? '100' : undefined}
-            />
-            {field === 'discount' && discountWarning && (
-              <p className="mt-1 text-sm text-red-600 dark:text-red-400">{discountWarning}</p>
-            )}
-          </div>
-        ))}
-        <div>
-          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Per</label>
-          <select
-            name="per"
-            value={formData.per}
-            onChange={handleInputChange}
-            className="mt-1 h-8 text-2xl mobile:mt-0.5 block w-full rounded-md bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-900 border-gray-300 dark:border-gray-600 shadow-sm focus:border-indigo-600 dark:focus:border-blue-500 focus:ring-indigo-600 dark:focus:ring-blue-500 sm:text-sm"
-            style={{ background: styles.input.background, backgroundDark: styles.input.backgroundDark, border: styles.input.border, borderDark: styles.input.borderDark, backdropFilter: styles.input.backdropFilter }}
-            required
-          >
-            {isEdit
-              ? ['pieces', 'box', 'pkt'].map(opt => <option key={opt} value={opt}>{opt}</option>)
-              : [<option key="" value="">Select Unit</option>, ...['pieces', 'box', 'pkt'].map(opt => <option key={opt} value={opt}>{opt}</option>)]
-            }
-          </select>
-        </div>
-        <div>
-          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Description</label>
-          <textarea
-            name="description"
-            value={formData.description}
-            onChange={handleInputChange}
-            className="mt-1 mobile:mt-0.5 block w-full rounded-md bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-900 border-gray-300 dark:border-gray-600 shadow-sm focus:border-indigo-600 dark:focus:border-blue-500 focus:ring-indigo-600 dark:focus:ring-blue-500 sm:text-sm"
-            style={{ background: styles.input.background, backgroundDark: styles.input.backgroundDark, border: styles.input.border, borderDark: styles.input.borderDark, backdropFilter: styles.input.backdropFilter }}
-            rows="3"
-            placeholder="Enter product description"
-          />
-        </div>
-        <div>
-          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Image</label>
-          <input
-            type="file"
-            name="images"
-            multiple
-            onChange={e => handleImageChange(e, isEdit)}
-            accept="image/jpeg,image/png,image/gif,video/mp4,video/webm,video/ogg"
-            className="mt-1 mobile:mt-0.5 block w-full text-sm text-gray-900 dark:text-gray-900 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 dark:file:bg-gray-700 file:text-indigo-600 dark:file:text-gray-200 hover:file:bg-indigo-100 dark:hover:file:bg-gray-600"
-          />
-          {formData.images.length > 0 && (
-            <div className="mt-2 flex flex-wrap gap-2">
-              {formData.images.map((file, idx) => renderMedia(file, idx, 'h-24 w-24'))}
+      <form onSubmit={(e) => handleSubmit(e, isEdit)}>
+        <div className="space-y-4 mobile:space-y-2">
+          {!isEdit && (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Product Type</label>
+              <select
+                name="product_type"
+                value={formData.product_type}
+                onChange={handleInputChange}
+                className="mt-1 text-md mobile:mt-0.5 block w-full rounded-md bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-900 border-gray-300 dark:border-gray-600 shadow-sm focus:border-indigo-600 dark:focus:border-blue-500 focus:ring-indigo-600 dark:focus:ring-blue-500 sm:text-sm"
+                style={{ background: styles.input.background, backgroundDark: styles.input.backgroundDark, border: styles.input.border, borderDark: styles.input.borderDark, backdropFilter: styles.input.backdropFilter }}
+                required
+              >
+                <option value="">Select Product Type</option>
+                {productTypes.map(type => (
+                  <option key={type} value={type}>{capitalize(type)}</option>
+                ))}
+              </select>
             </div>
           )}
+          {['productname', 'serial_number', 'price', 'discount', 'box_count'].map(field => (
+            <div key={field} className='mb-5'>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">{capitalize(field.replace('_', ' '))}</label>
+              <input
+                type={field === 'price' || field === 'discount' || field === 'box_count' ? 'number' : 'text'}
+                name={field}
+                value={formData[field]}
+                onChange={handleInputChange}
+                className="mt-1 text-md px-2 h-8 mobile:mt-0.5 block w-full rounded-md bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-900 border-gray-300 dark:border-gray-600 shadow-sm focus:border-indigo-600 dark:focus:border-blue-500 focus:ring-indigo-600 dark:focus:ring-blue-500 sm:text-sm"
+                style={{ background: styles.input.background, backgroundDark: styles.input.backgroundDark, border: styles.input.border, borderDark: styles.input.borderDark, backdropFilter: styles.input.backdropFilter }}
+                required
+                step={field === 'price' || field === 'discount' ? '0.01' : undefined}
+                min={field === 'box_count' ? '1' : field === 'discount' ? '0' : undefined}
+                max={field === 'discount' ? '100' : undefined}
+              />
+              {field === 'discount' && discountWarning && (
+                <p className="mt-1 text-sm text-red-600 dark:text-red-400">{discountWarning}</p>
+              )}
+            </div>
+          ))}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Per</label>
+            <select
+              name="per"
+              value={formData.per}
+              onChange={handleInputChange}
+              className="mt-1 h-8 text-md mobile:mt-0.5 block w-full rounded-md bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-900 border-gray-300 dark:border-gray-600 shadow-sm focus:border-indigo-600 dark:focus:border-blue-500 focus:ring-indigo-600 dark:focus:ring-blue-500 sm:text-sm"
+              style={{ background: styles.input.background, backgroundDark: styles.input.backgroundDark, border: styles.input.border, borderDark: styles.input.borderDark, backdropFilter: styles.input.backdropFilter }}
+              required
+            >
+              <option value="">Select Unit</option>
+              {['pieces', 'box', 'pkt'].map(opt => <option key={opt} value={opt}>{opt}</option>)}
+            </select>
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Description</label>
+            <textarea
+              name="description"
+              value={formData.description}
+              onChange={handleInputChange}
+              className="mt-1 text-md px-2 mobile:mt-0.5 block w-full rounded-md bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-900 border-gray-300 dark:border-gray-600 shadow-sm focus:border-indigo-600 dark:focus:border-blue-500 focus:ring-indigo-600 dark:focus:ring-blue-500 sm:text-sm"
+              style={{ background: styles.input.background, backgroundDark: styles.input.backgroundDark, border: styles.input.border, borderDark: styles.input.borderDark, backdropFilter: styles.input.backdropFilter }}
+              rows="3"
+              placeholder="Enter product description"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Image</label>
+            <input
+              type="file"
+              name="images"
+              multiple
+              onChange={handleImageChange}
+              accept="image/jpeg,image/png,image/gif,video/mp4,video/webm,video/ogg"
+              className="mt-1 mobile:mt-0.5 block w-full text-sm text-gray-900 dark:text-gray-900 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 dark:file:bg-gray-700 file:text-indigo-600 dark:file:text-gray-200 hover:file:bg-indigo-100 dark:hover:file:bg-gray-600"
+            />
+            {formData.images.length > 0 && (
+              <div className="mt-2 flex flex-wrap gap-2">
+                {formData.images.map((file, idx) => renderMedia(file, idx, 'h-24 w-24'))}
+              </div>
+            )}
+          </div>
+          <div className="mt-6 mobile:mt-3 flex justify-end space-x-2 mobile:space-x-1">
+            <button
+              type="button"
+              onClick={closeModal}
+              className="rounded-md px-3 mobile:px-2 py-2 mobile:py-1 text-xs sm:text-sm font-semibold text-white dark:text-gray-100 shadow-sm hover:bg-gray-700 dark:hover:bg-gray-600"
+              style={{ background: styles.button.background, backgroundDark: styles.button.backgroundDark, border: styles.button.border, borderDark: styles.button.borderDark, boxShadow: styles.button.boxShadow, boxShadowDark: styles.button.boxShadowDark }}
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              className="rounded-md px-3 mobile:px-2 py-2 mobile:py-1 text-xs sm:text-sm font-semibold text-white dark:text-gray-100 shadow-sm hover:bg-indigo-700 dark:hover:bg-blue-600"
+              style={{ background: styles.button.background, backgroundDark: styles.button.backgroundDark, border: styles.button.border, borderDark: styles.button.borderDark, boxShadow: styles.button.boxShadow, boxShadowDark: styles.button.boxShadowDark }}
+            >
+              {isEdit ? 'Save' : 'Add'}
+            </button>
+          </div>
         </div>
-        <div className="mt-6 mobile:mt-3 flex justify-end space-x-2 mobile:space-x-1">
-          <button
-            type="button"
-            onClick={closeModal}
-            className="rounded-md px-3 mobile:px-2 py-2 mobile:py-1 text-xs sm:text-sm font-semibold text-white dark:text-gray-100 shadow-sm hover:bg-gray-700 dark:hover:bg-gray-600"
-            style={{ background: styles.button.background, backgroundDark: styles.button.backgroundDark, border: styles.button.border, borderDark: styles.button.borderDark, boxShadow: styles.button.boxShadow, boxShadowDark: styles.button.boxShadowDark }}
-          >
-            Cancel
-          </button>
-          <button
-            type="button"
-            onClick={e => handleSubmit(e, isEdit)}
-            className="rounded-md px-3 mobile:px-2 py-2 mobile:py-1 text-xs sm:text-sm font-semibold text-white dark:text-gray-100 shadow-sm hover:bg-indigo-700 dark:hover:bg-blue-600"
-            style={{ background: styles.button.background, backgroundDark: styles.button.backgroundDark, border: styles.button.border, borderDark: styles.button.borderDark, boxShadow: styles.button.boxShadow, boxShadowDark: styles.button.boxShadowDark }}
-          >
-            {isEdit ? 'Save' : 'Add'}
-          </button>
-        </div>
-      </div>
+      </form>
     </div>
   );
 
@@ -430,7 +460,21 @@ export default function List() {
                           <FaEye className="mr-1 h-4 w-4" /> View
                         </button>
                         <button
-                          onClick={() => { setSelectedProduct(product); setFormData({ productname: product.productname, serial_number: product.serial_number, price: product.price, discount: product.discount, per: product.per, description: product.description || '', box_count: product.box_count, images: product.images }); setEditModalIsOpen(true); }}
+                          onClick={() => { 
+                            setSelectedProduct(product); 
+                            setFormData({ 
+                              productname: product.productname, 
+                              serial_number: product.serial_number, 
+                              price: product.price, 
+                              discount: product.discount, 
+                              per: product.per, 
+                              product_type: product.product_type,
+                              description: product.description || '', 
+                              box_count: product.box_count, 
+                              images: product.images 
+                            }); 
+                            setEditModalIsOpen(true); 
+                          }}
                           className="flex items-center px-3 py-1 text-xs sm:text-sm text-white dark:text-gray-100 hover:bg-green-700 dark:hover:bg-green-600 rounded-md"
                           style={{ background: styles.button.background, backgroundDark: styles.button.backgroundDark, border: styles.button.border, borderDark: styles.button.borderDark, boxShadow: styles.button.boxShadow, boxShadowDark: styles.button.boxShadowDark }}
                         >
