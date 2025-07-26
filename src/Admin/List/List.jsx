@@ -5,6 +5,8 @@ import '../../App.css';
 import { API_BASE_URL } from '../../../Config';
 import { FaEye, FaEdit, FaTrash, FaArrowLeft, FaArrowRight, FaExclamationTriangle } from 'react-icons/fa';
 import Logout from '../Logout';
+import jsPDF from 'jspdf';
+import 'jspdf-autotable';
 
 Modal.setAppElement('#root');
 
@@ -32,27 +34,27 @@ export default function List() {
     product_type: '',
     description: '',
     box_count: 1,
-    images: []
+    images: [],
   });
   const productsPerPage = 9;
 
   const styles = {
-    input: { 
-      background: "linear-gradient(135deg, rgba(255,255,255,0.8), rgba(240,249,255,0.6))", 
+    input: {
+      background: "linear-gradient(135deg, rgba(255,255,255,0.8), rgba(240,249,255,0.6))",
       backgroundDark: "linear-gradient(135deg, rgba(55,65,81,0.8), rgba(75,85,99,0.6))",
-      backdropFilter: "blur(10px)", 
-      border: "1px solid rgba(2,132,199,0.3)", 
-      borderDark: "1px solid rgba(59,130,246,0.4)"
+      backdropFilter: "blur(10px)",
+      border: "1px solid rgba(2,132,199,0.3)",
+      borderDark: "1px solid rgba(59,130,246,0.4)",
     },
-    button: { 
-      background: "linear-gradient(135deg, rgba(2,132,199,0.9), rgba(14,165,233,0.95))", 
+    button: {
+      background: "linear-gradient(135deg, rgba(2,132,199,0.9), rgba(14,165,233,0.95))",
       backgroundDark: "linear-gradient(135deg, rgba(59,130,246,0.9), rgba(37,99,235,0.95))",
-      backdropFilter: "blur(15px)", 
-      border: "1px solid rgba(125,211,252,0.4)", 
+      backdropFilter: "blur(15px)",
+      border: "1px solid rgba(125,211,252,0.4)",
       borderDark: "1px solid rgba(147,197,253,0.4)",
       boxShadow: "0 15px 35px rgba(2,132,199,0.3), inset 0 1px 0 rgba(255,255,255,0.2)",
-      boxShadowDark: "0 15px 35px rgba(59,130,246,0.4), inset 0 1px 0 rgba(255,255,255,0.1)"
-    }
+      boxShadowDark: "0 15px 35px rgba(59,130,246,0.4), inset 0 1px 0 rgba(255,255,255,0.1)",
+    },
   };
 
   const fetchData = async (url, errorMsg, setter) => {
@@ -78,7 +80,7 @@ export default function List() {
       .map(product => ({
         ...product,
         images: product.image ? (Array.isArray(JSON.parse(product.image)) ? JSON.parse(product.image) : [product.image]) : [],
-        box_count: product.box_count || 1
+        box_count: product.box_count || 1,
       }))
       .sort((a, b) => a.serial_number.localeCompare(b.serial_number));
     setProducts(normalizedData);
@@ -157,18 +159,16 @@ export default function List() {
     setDiscountWarning('');
     setError('');
 
-    // Validate required fields
-    if (!formData.productname.trim() || 
-        !formData.serial_number.trim() || 
-        !formData.price || 
-        !formData.per || 
-        formData.discount === '' || 
+    if (!formData.productname.trim() ||
+        !formData.serial_number.trim() ||
+        !formData.price ||
+        !formData.per ||
+        formData.discount === '' ||
         !formData.product_type) {
       setError('Please fill in all required fields');
       return;
     }
 
-    // Validate price and discount
     const price = parseFloat(formData.price);
     const discount = parseFloat(formData.discount);
     if (isNaN(price) || price < 0) {
@@ -192,10 +192,10 @@ export default function List() {
       const response = await fetch(url, {
         method: isEdit ? 'PUT' : 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          ...formData, 
+        body: JSON.stringify({
+          ...formData,
           box_count: Math.max(1, parseInt(formData.box_count) || 1),
-          images: formData.images.length ? formData.images : null
+          images: formData.images.length ? formData.images : null,
         }),
       });
       const result = await response.json();
@@ -237,6 +237,76 @@ export default function List() {
   };
 
   const capitalize = str => str ? str.split('_').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ') : '';
+
+  const downloadPDF = () => {
+    try {
+      if (!products.length || !productTypes.length) {
+        setError('No products or product types available to export');
+        return;
+      }
+
+      const doc = new jsPDF();
+      const pageWidth = doc.internal.pageSize.getWidth();
+      let yOffset = 20;
+
+      // Header
+      doc.setFontSize(16);
+      doc.setFont('helvetica', 'bold');
+      doc.text('PHOENIX CRACKERS', pageWidth / 2, yOffset, { align: 'center' });
+      yOffset += 10;
+      doc.setFontSize(12);
+      doc.setFont('helvetica', 'normal');
+      doc.text('Website - www.funwithcrackers.com', pageWidth / 2, yOffset, { align: 'center' });
+      yOffset += 10;
+      doc.text('Retail Pricelist - 2025', pageWidth / 2, yOffset, { align: 'center' });
+      yOffset += 20;
+
+      // Table data
+      const tableData = [];
+      productTypes.forEach(type => {
+        const typeProducts = products.filter(product => product.product_type === type);
+        if (typeProducts.length > 0) {
+          tableData.push([{ content: capitalize(type), colSpan: 4, styles: { fontStyle: 'bold', halign: 'left', fillColor: [200, 200, 200] } }]);
+          tableData.push(['SL.NO', 'Product Name', 'Rate', 'Per']);
+          typeProducts.forEach((product, index) => {
+            tableData.push([
+              index + 1,
+              product.productname,
+              `Rs.${parseFloat(product.price).toFixed(2)}`,
+              product.per,
+            ]);
+          });
+          tableData.push([]); // Empty row for spacing
+        }
+      });
+
+      // Generate table
+      doc.autoTable({
+        startY: yOffset,
+        head: [['SL.NO', 'Product Name', 'Net Rate', 'Per']],
+        body: tableData,
+        theme: 'grid',
+        styles: { fontSize: 10, cellPadding: 3 },
+        headStyles: { fillColor: [100, 100, 100], textColor: [255, 255, 255] },
+        columnStyles: {
+          0: { cellWidth: 20 }, // SL.NO
+          1: { cellWidth: 80 }, // Product Name
+          2: { cellWidth: 40 }, // Net Rate
+          3: { cellWidth: 30 }, // Per
+        },
+        didDrawCell: (data) => {
+          if (data.row.section === 'body' && data.cell.raw && data.cell.raw.colSpan === 4) {
+            data.cell.styles.cellPadding = 5;
+            data.cell.styles.fontSize = 12;
+          }
+        },
+      });
+
+      doc.save('Retail_Pricelist_2025.pdf');
+    } catch (err) {
+      setError('Failed to generate PDF: ' + err.message);
+    }
+  };
 
   const renderMedia = (media, idx, sizeClass) => (
     media.startsWith('data:video/') ? (
@@ -357,7 +427,7 @@ export default function List() {
 
   const { indexOfFirstProduct, indexOfLastProduct } = {
     indexOfFirstProduct: currentPage * productsPerPage - productsPerPage,
-    indexOfLastProduct: currentPage * productsPerPage
+    indexOfLastProduct: currentPage * productsPerPage,
   };
   const currentProducts = filteredProducts.slice(indexOfFirstProduct, indexOfLastProduct);
   const totalPages = Math.ceil(filteredProducts.length / productsPerPage);
@@ -384,13 +454,22 @@ export default function List() {
                 {productTypes.map(type => <option key={type} value={type}>{capitalize(type)}</option>)}
               </select>
             </div>
-            <button
-              onClick={() => setAddModalIsOpen(true)}
-              className="rounded-md px-3 py-2 mobile:translate-y-3 text-sm font-semibold text-white dark:text-gray-100 shadow-sm hover:bg-indigo-700 dark:hover:bg-blue-600"
-              style={{ background: styles.button.background, backgroundDark: styles.button.backgroundDark, border: styles.button.border, borderDark: styles.button.borderDark, boxShadow: styles.button.boxShadow, boxShadowDark: styles.button.boxShadowDark }}
-            >
-              Add Product
-            </button>
+            <div className="flex space-x-2">
+              <button
+                onClick={() => setAddModalIsOpen(true)}
+                className="rounded-md px-3 py-2 mobile:translate-y-3 text-sm font-semibold text-white dark:text-gray-100 shadow-sm hover:bg-indigo-700 dark:hover:bg-blue-600"
+                style={{ background: styles.button.background, backgroundDark: styles.button.backgroundDark, border: styles.button.border, borderDark: styles.button.borderDark, boxShadow: styles.button.boxShadow, boxShadowDark: styles.button.boxShadowDark }}
+              >
+                Add Product
+              </button>
+              <button
+                onClick={downloadPDF}
+                className="rounded-md px-3 py-2 text-sm font-semibold text-white dark:text-gray-100 shadow-sm hover:bg-indigo-700 dark:hover:bg-blue-600"
+                style={{ background: styles.button.background, backgroundDark: styles.button.backgroundDark, border: styles.button.border, borderDark: styles.button.borderDark, boxShadow: styles.button.boxShadow, boxShadowDark: styles.button.boxShadowDark }}
+              >
+                Download Pricelist PDF
+              </button>
+            </div>
           </div>
           {currentProducts.length === 0 ? (
             <p className="text-lg text-center text-gray-600 dark:text-gray-300 sm:text-xl font-medium">No products found</p>
@@ -460,20 +539,20 @@ export default function List() {
                           <FaEye className="mr-1 h-4 w-4" /> View
                         </button>
                         <button
-                          onClick={() => { 
-                            setSelectedProduct(product); 
-                            setFormData({ 
-                              productname: product.productname, 
-                              serial_number: product.serial_number, 
-                              price: product.price, 
-                              discount: product.discount, 
-                              per: product.per, 
+                          onClick={() => {
+                            setSelectedProduct(product);
+                            setFormData({
+                              productname: product.productname,
+                              serial_number: product.serial_number,
+                              price: product.price,
+                              discount: product.discount,
+                              per: product.per,
                               product_type: product.product_type,
-                              description: product.description || '', 
-                              box_count: product.box_count, 
-                              images: product.images 
-                            }); 
-                            setEditModalIsOpen(true); 
+                              description: product.description || '',
+                              box_count: product.box_count,
+                              images: product.images,
+                            });
+                            setEditModalIsOpen(true);
                           }}
                           className="flex items-center px-3 py-1 text-xs sm:text-sm text-white dark:text-gray-100 hover:bg-green-700 dark:hover:bg-green-600 rounded-md"
                           style={{ background: styles.button.background, backgroundDark: styles.button.backgroundDark, border: styles.button.border, borderDark: styles.button.borderDark, boxShadow: styles.button.boxShadow, boxShadowDark: styles.button.boxShadowDark }}
@@ -586,13 +665,13 @@ export default function List() {
                 <button
                   onClick={() => handleDelete(productToDelete)}
                   className="rounded-md px-3 mobile:px-2 py-2 mobile:py-1 text-xs sm:text-sm font-semibold text-white dark:text-gray-100 shadow-sm hover:bg-red-700 dark:hover:bg-red-600"
-                  style={{ 
+                  style={{
                     background: styles.button.background.replace('2,132,199', '220,38,38').replace('14,165,233', '239,68,68'),
                     backgroundDark: styles.button.backgroundDark.replace('59,130,246', '220,38,38').replace('37,99,235', '200,35,35'),
                     border: styles.button.border.replace('125,211,252', '252,165,165'),
                     borderDark: styles.button.borderDark.replace('147,197,253', '252,165,165'),
                     boxShadow: styles.button.boxShadow.replace('2,132,199', '220,38,38'),
-                    boxShadowDark: styles.button.boxShadowDark.replace('59,130,246', '220,38,38')
+                    boxShadowDark: styles.button.boxShadowDark.replace('59,130,246', '220,38,38'),
                   }}
                 >
                   Yes
