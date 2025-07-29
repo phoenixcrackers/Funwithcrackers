@@ -172,20 +172,60 @@ const Pricelist = () => {
   };
 
   useEffect(() => {
-    const savedCart = localStorage.getItem("firecracker-cart");
-    if (savedCart) setCart(JSON.parse(savedCart));
-    fetch(`${API_BASE_URL}/api/locations/states`)
-      .then(res => res.json())
-      .then(data => setStates(Array.isArray(data) ? data : []))
-      .catch(err => console.error("Error fetching states:", err));
-    fetch(`${API_BASE_URL}/api/products`)
-      .then(res => res.json())
-      .then(data => setProducts(data.filter(p => p.status === "on")))
-      .catch(err => console.error("Error loading products:", err));
-    fetch(`${API_BASE_URL}/api/promocodes`)
-      .then(res => res.json())
-      .then(data => setPromocodes(Array.isArray(data) ? data : []))
-      .catch(err => console.error("Error fetching promocodes:", err));
+    const initializeData = async () => {
+      try {
+        const savedCart = localStorage.getItem("firecracker-cart");
+        if (savedCart) setCart(JSON.parse(savedCart));
+        const [statesRes, productsRes, promocodesRes] = await Promise.all([
+          fetch(`${API_BASE_URL}/api/locations/states`),
+          fetch(`${API_BASE_URL}/api/products`),
+          fetch(`${API_BASE_URL}/api/promocodes`),
+        ]);
+        const [statesData, productsData, promocodesData] = await Promise.all([
+          statesRes.json(),
+          productsRes.json(),
+          promocodesRes.json(),
+        ]);
+        setStates(Array.isArray(statesData) ? statesData : []);
+
+        // Natural sort function for case-insensitive sorting with numeric handling
+        const naturalSort = (a, b) => {
+          const collator = new Intl.Collator(undefined, {
+            numeric: true,
+            sensitivity: "base",
+          });
+          return collator.compare(a.productname, b.productname);
+        };
+
+        // Deduplicate and sort products
+        const seenSerials = new Set();
+        const normalizedProducts = productsData.data
+          .filter((p) => {
+            if (p.status !== "on") return false;
+            if (seenSerials.has(p.serial_number)) {
+              console.warn(`Duplicate serial_number found: ${p.serial_number}`);
+              return false;
+            }
+            seenSerials.add(p.serial_number);
+            return true;
+          })
+          .map((product) => ({
+            ...product,
+            images: product.image
+              ? typeof product.image === "string"
+                ? JSON.parse(product.image)
+                : product.image
+              : [],
+          }))
+          .sort(naturalSort);
+
+        setProducts(normalizedProducts);
+        setPromocodes(Array.isArray(promocodesData) ? promocodesData : []);
+      } catch (err) {
+        console.error("Error loading initial data:", err);
+      }
+    };
+    initializeData();
   }, []);
 
   useEffect(() => {

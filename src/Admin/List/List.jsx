@@ -6,7 +6,7 @@ import { API_BASE_URL } from '../../../Config';
 import { FaEye, FaEdit, FaTrash, FaArrowLeft, FaArrowRight, FaExclamationTriangle } from 'react-icons/fa';
 import Logout from '../Logout';
 import jsPDF from 'jspdf';
-import 'jspdf-autotable';
+import autoTable from 'jspdf-autotable';
 
 Modal.setAppElement('#root');
 
@@ -34,7 +34,7 @@ export default function List() {
     product_type: '',
     description: '',
     box_count: 1,
-    images: [],
+    images: [], // Will store File objects for new uploads or URLs for existing images
   });
   const productsPerPage = 9;
 
@@ -75,11 +75,11 @@ export default function List() {
   );
 
   const fetchProducts = () => fetchData(`${API_BASE_URL}/api/products`, 'Failed to fetch products', data => {
-    const normalizedData = data
+    const normalizedData = data.data
       .filter(product => product.product_type !== 'gift_box_dealers')
       .map(product => ({
         ...product,
-        images: product.image ? (Array.isArray(JSON.parse(product.image)) ? JSON.parse(product.image) : [product.image]) : [],
+        images: product.image ? (typeof product.image === 'string' ? JSON.parse(product.image) : product.image) : [],
         box_count: product.box_count || 1,
       }))
       .sort((a, b) => a.serial_number.localeCompare(b.serial_number));
@@ -118,21 +118,31 @@ export default function List() {
     setCurrentPage(1);
   }, [filterType, products]);
 
-  const handleImageChange = (e) => {
-    const files = Array.from(e.target.files).slice(0, 5);
-    const allowedTypes = ['image/png', 'image/jpeg', 'image/jpg', 'image/gif', 'video/mp4', 'video/webm', 'video/ogg'];
-    const maxSize = 5 * 1024 * 1024;
-    if (files.some(file => !allowedTypes.includes(file.type))) return setError('Only JPG, PNG, GIF, MP4, WebM, or Ogg files allowed');
-    if (files.some(file => file.size > maxSize)) return setError('Each file must be less than 5MB');
-    Promise.all(files.map(file => new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onloadend = () => resolve(reader.result);
-      reader.onerror = reject;
-      reader.readAsDataURL(file);
-    }))).then(base64Files => {
-      setError('');
-      setFormData(prev => ({ ...prev, images: base64Files }));
-    }).catch(() => setError('Failed to read files'));
+  const handleImageChange = (event) => {
+    const files = Array.from(event.target.files);
+    const allowedImageTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif'];
+    const allowedVideoTypes = ['video/mp4', 'video/webm', 'video/ogg'];
+    const allowedTypes = [...allowedImageTypes, ...allowedVideoTypes];
+
+    const validFiles = [];
+
+    for (const file of files) {
+      const fileType = file.type.toLowerCase();
+      if (!allowedTypes.includes(fileType)) {
+        setError('Only JPG, PNG, GIF images and MP4, WebM, Ogg videos are allowed');
+        return;
+      }
+
+      if (file.size > 5 * 1024 * 1024) {
+        setError('Each file must be less than 5MB');
+        return;
+      }
+
+      validFiles.push(file);
+    }
+
+    setError('');
+    setFormData(prev => ({ ...prev, images: validFiles }));
   };
 
   const handleInputChange = (e) => {
@@ -185,24 +195,50 @@ export default function List() {
       return;
     }
 
+    const formDataToSend = new FormData();
+    formDataToSend.append('productname', formData.productname);
+    formDataToSend.append('serial_number', formData.serial_number);
+    formDataToSend.append('price', formData.price);
+    formDataToSend.append('per', formData.per);
+    formDataToSend.append('discount', formData.discount);
+    formDataToSend.append('description', formData.description || '');
+    formDataToSend.append('product_type', formData.product_type);
+    formDataToSend.append('box_count', Math.max(1, parseInt(formData.box_count) || 1));
+
+    // Handle images
+    if (isEdit && formData.images.length > 0 && typeof formData.images[0] === 'string') {
+      // If editing and images are URLs (existing images), send them as JSON
+      formDataToSend.append('images', JSON.stringify(formData.images));
+    } else {
+      // If new files are uploaded, append each file
+      formData.images.forEach(file => formDataToSend.append('images', file));
+    }
+
     const url = isEdit
       ? `${API_BASE_URL}/api/products/${selectedProduct.product_type.toLowerCase().replace(/\s+/g, '_')}/${selectedProduct.id}`
       : `${API_BASE_URL}/api/products`;
+
     try {
       const response = await fetch(url, {
         method: isEdit ? 'PUT' : 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          ...formData,
-          box_count: Math.max(1, parseInt(formData.box_count) || 1),
-          images: formData.images.length ? formData.images : null,
-        }),
+        body: formDataToSend,
       });
       const result = await response.json();
       if (!response.ok) throw new Error(result.message || `Failed to ${isEdit ? 'update' : 'add'} product`);
       fetchProducts();
       closeModal();
       e.target.reset();
+      setFormData({
+        productname: '',
+        serial_number: '',
+        price: '',
+        discount: '',
+        per: '',
+        product_type: '',
+        description: '',
+        box_count: 1,
+        images: [],
+      });
     } catch (err) {
       setError(err.message);
     }
@@ -233,7 +269,17 @@ export default function List() {
     setProductToDelete(null);
     setError('');
     setDiscountWarning('');
-    setFormData({ productname: '', serial_number: '', price: '', discount: '', per: '', product_type: '', description: '', box_count: 1, images: [] });
+    setFormData({
+      productname: '',
+      serial_number: '',
+      price: '',
+      discount: '',
+      per: '',
+      product_type: '',
+      description: '',
+      box_count: 1,
+      images: [],
+    });
   };
 
   const capitalize = str => str ? str.split('_').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ') : '';
@@ -249,19 +295,17 @@ export default function List() {
       const pageWidth = doc.internal.pageSize.getWidth();
       let yOffset = 20;
 
-      // Header
       doc.setFontSize(16);
       doc.setFont('helvetica', 'bold');
-      doc.text('PHOENIX CRACKERS', pageWidth / 2, yOffset, { align: 'center' });
+      doc.text('Madhu Nisha CRACKERS', pageWidth / 2, yOffset, { align: 'center' });
       yOffset += 10;
       doc.setFontSize(12);
       doc.setFont('helvetica', 'normal');
-      doc.text('Website - www.funwithcrackers.com', pageWidth / 2, yOffset, { align: 'center' });
+      doc.text('Website - www.madhunishacrackers.com', pageWidth / 2, yOffset, { align: 'center' });
       yOffset += 10;
       doc.text('Retail Pricelist - 2025', pageWidth / 2, yOffset, { align: 'center' });
       yOffset += 20;
 
-      // Table data
       const tableData = [];
       productTypes.forEach(type => {
         const typeProducts = products.filter(product => product.product_type === type);
@@ -276,23 +320,22 @@ export default function List() {
               product.per,
             ]);
           });
-          tableData.push([]); // Empty row for spacing
+          tableData.push([]);
         }
       });
 
-      // Generate table
-      doc.autoTable({
+      autoTable(doc, {
         startY: yOffset,
-        head: [['SL.NO', 'Product Name', 'Net Rate', 'Per']],
+        head: [['SL.NO', 'Product Name', 'Rate', 'Per']],
         body: tableData,
         theme: 'grid',
         styles: { fontSize: 10, cellPadding: 3 },
         headStyles: { fillColor: [100, 100, 100], textColor: [255, 255, 255] },
         columnStyles: {
-          0: { cellWidth: 20 }, // SL.NO
-          1: { cellWidth: 80 }, // Product Name
-          2: { cellWidth: 40 }, // Net Rate
-          3: { cellWidth: 30 }, // Per
+          0: { cellWidth: 20 },
+          1: { cellWidth: 80 },
+          2: { cellWidth: 40 },
+          3: { cellWidth: 30 },
         },
         didDrawCell: (data) => {
           if (data.row.section === 'body' && data.cell.raw && data.cell.raw.colSpan === 4) {
@@ -308,15 +351,42 @@ export default function List() {
     }
   };
 
-  const renderMedia = (media, idx, sizeClass) => (
-    media.startsWith('data:video/') ? (
-      <video key={idx} src={media} controls className={`${sizeClass} object-cover rounded-md inline-block mx-1`} />
-    ) : media.startsWith('data:image/') ? (
-      <img key={idx} src={media} alt={`media-${idx}`} className={`${sizeClass} object-cover rounded-md inline-block mx-1`} />
+  const renderMedia = (media, idx, sizeClass) => {
+    let src;
+    let isVideo = false;
+
+    if (media instanceof File) {
+      src = URL.createObjectURL(media);
+      isVideo = media.type.startsWith('video/');
+    } else if (typeof media === 'string') {
+      src = media;
+      isVideo = media.includes('/video/');
+    } else {
+      return <span key={idx} className="text-gray-500 dark:text-gray-400 text-sm">Invalid media</span>;
+    }
+
+    return isVideo ? (
+      <video
+        key={idx}
+        src={src}
+        controls
+        className={`${sizeClass} object-cover rounded-md inline-block mx-1`}
+        onLoad={() => {
+          if (media instanceof File) URL.revokeObjectURL(src);
+        }}
+      />
     ) : (
-      <span key={idx} className="text-xs text-gray-500 dark:text-gray-400">Unsupported format</span>
-    )
-  );
+      <img
+        key={idx}
+        src={src}
+        alt={`media-${idx}`}
+        className={`${sizeClass} object-cover rounded-md inline-block mx-1`}
+        onLoad={() => {
+          if (media instanceof File) URL.revokeObjectURL(src);
+        }}
+      />
+    );
+  };
 
   const renderModalForm = (isEdit) => (
     <div className="bg-white dark:bg-gray-900 rounded-lg p-6 mobile:p-3 max-w-md w-full sm:max-w-lg">
@@ -394,7 +464,7 @@ export default function List() {
               name="images"
               multiple
               onChange={handleImageChange}
-              accept="image/jpeg,image/png,image/gif,video/mp4,video/webm,video/ogg"
+              accept="image/jpeg,image/jpg,image/png,image/gif,video/mp4,video/webm,video/ogg"
               className="mt-1 mobile:mt-0.5 block w-full text-sm text-gray-900 dark:text-gray-900 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 dark:file:bg-gray-700 file:text-indigo-600 dark:file:text-gray-200 hover:file:bg-indigo-100 dark:hover:file:bg-gray-600"
             />
             {formData.images.length > 0 && (
@@ -467,7 +537,7 @@ export default function List() {
                 className="rounded-md px-3 py-2 mobile:translate-y-3 text-sm font-semibold text-white dark:text-gray-100 shadow-sm hover:bg-indigo-700 dark:hover:bg-blue-600"
                 style={{ background: styles.button.background, backgroundDark: styles.button.backgroundDark, border: styles.button.border, borderDark: styles.button.borderDark, boxShadow: styles.button.boxShadow, boxShadowDark: styles.button.boxShadowDark }}
               >
-                Download Pricelist PDF
+                Download Pricelist
               </button>
             </div>
           </div>
@@ -589,7 +659,7 @@ export default function List() {
               <button
                 onClick={() => { setCurrentPage(p => p + 1); window.scrollTo(0, 0); }}
                 disabled={currentPage === totalPages}
-                className={`p-2 rounded-md ${currentPage === totalPages ? 'bg-gray-200 dark:bg-gray-700 text-gray-400 dark:text-gray-500 cursor-not-allowed' : 'text-white dark:text-gray-100 hover:bg-indigo-700 dark:hover:bg-blue-600'}`}
+                className={`p-2 rounded-md ${currentPage === totalPages ? 'px-500' : 'text-white dark:text-gray-100 hover:bg-indigo-700 dark:hover:bg-blue-600'}`}
                 style={currentPage !== totalPages ? { background: styles.button.background, backgroundDark: styles.button.backgroundDark, border: styles.button.border, borderDark: styles.button.borderDark, boxShadow: styles.button.boxShadow, boxShadowDark: styles.button.boxShadowDark } : {}}
               >
                 <FaArrowRight className="h-5 w-5 mobile:h-4 mobile:w-4" />
@@ -607,14 +677,14 @@ export default function List() {
                 <h2 className="text-lg sm:text-xl font-bold text-gray-900 dark:text-gray-100 mb-4 mobile:mb-2 text-center">Product Details</h2>
                 <div className="space-y-4 mobile:space-y-2">
                   <div className="flex justify-center">
-                    {selectedProduct.images.length > 0 ? selectedProduct.images.map((media, idx) => renderMedia(media, idx, 'h-24 w-24 mobile:h-16 mobile:w-16')) : <span className="text-gray-500 dark:text-gray-400 text-sm">No media</span>}
+                    {selectedProduct.images.length > 0 ? selectedProduct.images.map((media, idx) => renderMedia(media, idx, 'h-24 w-24 mobile:h-sm mobile:w-sm')) : <span className="text-gray-500 dark:text-gray-400 text-sm">No media</span>}
                   </div>
                   <div className="grid grid-cols-2 mobile:grid-cols-2 gap-4 mobile:gap-2">
                     {['product_type', 'serial_number', 'productname', 'price', 'per', 'discount', 'box_count', 'status', 'description'].map(field => (
                       <div key={field} className={field === 'description' ? 'sm:col-span-2' : ''}>
                         <span className="font-medium text-gray-700 dark:text-gray-300 text-xs sm:text-sm">{capitalize(field.replace('_', ' '))}:</span>
                         <span className="ml-2 text-gray-900 dark:text-gray-100 text-xs sm:text-sm">
-                          {field === 'price' ? `₹${parseFloat(selectedProduct[field]).toFixed(2)}` : field === 'discount' ? `${parseFloat(selectedProduct[field]).toFixed(2)}%` : field === 'description' ? (selectedProduct[field] || 'No description') : field === 'box_count' ? selectedProduct[field] : capitalize(selectedProduct[field])}
+                          {field === 'price' ? `₹${parseFloat(selectedProduct[field]).toFixed(2)}` : field === 'discount' ? `${parseFloat(selectedProduct[field]).toFixed(2)}%` : field === 'description' ? (selectedProduct[field] || 'No') : field === 'box_count' ? selectedProduct[field] : capitalize(selectedProduct[field])}
                         </span>
                       </div>
                     ))}
@@ -644,7 +714,7 @@ export default function List() {
             isOpen={addModalIsOpen}
             onRequestClose={closeModal}
             className="fixed inset-0 flex items-center justify-center p-4 mobile:p-2"
-            overlayClassName="fixed inset-0 bg-black/50 dark:bg-black/70"
+            overlayClassName="fixed inset-0 bg-black/50 dark:bg-black/30"
           >
             {renderModalForm(false)}
           </Modal>
@@ -664,7 +734,7 @@ export default function List() {
               <div className="flex justify-center space-x-4 mobile:space-x-2">
                 <button
                   onClick={() => handleDelete(productToDelete)}
-                  className="rounded-md px-3 mobile:px-2 py-2 mobile:py-1 text-xs sm:text-sm font-semibold text-white dark:text-gray-100 shadow-sm hover:bg-red-700 dark:hover:bg-red-600"
+                  className="rounded-md px-3 mobile:px-2 py-2 mobile:py-1 text-xs sm:text-sm font-semibold text-white dark:text-gray-100 shadow-sm hover:bg-red-700 dark:hover:bg-gray-600"
                   style={{
                     background: styles.button.background.replace('2,132,199', '220,38,38').replace('14,165,233', '239,68,68'),
                     backgroundDark: styles.button.backgroundDark.replace('59,130,246', '220,38,38').replace('37,99,235', '200,35,35'),
@@ -678,8 +748,8 @@ export default function List() {
                 </button>
                 <button
                   onClick={closeModal}
-                  className="rounded-md px-3 mobile:px-2 py-2 mobile:py-1 text-xs sm:text-sm font-semibold text-white dark:text-gray-100 shadow-sm hover:bg-gray-700 dark:hover:bg-gray-600"
-                  style={{ background: styles.button.background, backgroundDark: styles.button.backgroundDark, border: styles.button.border, borderDark: styles.button.borderDark, boxShadow: styles.button.boxShadow, boxShadowDark: styles.button.boxShadowDark }}
+                  className="rounded-md px-3 mobile:px-2 py-2 mobile:py-1 text-xs sm:text-sm font-semibold text-white dark:text-gray-100 shadow-sm hover:bg-gray-dark dark:hover:bg-gray-600"
+                  style={{ background: styles.button.background, backgroundDark: styles.button.backgroundDark, border: styles.button.borderDark, boxShadow: styles.button.boxShadow, boxShadowDark: styles.button.boxShadowDark }}
                 >
                   No
                 </button>
@@ -689,13 +759,13 @@ export default function List() {
         </div>
       </div>
       <style>{`
-        .line-clamp-2 { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
-        [style*="backgroundDark"] { background: var(--bg, ${styles.input.background}); }
-        [style*="backgroundDark"][data-dark] { --bg: ${styles.input.backgroundDark}; }
-        [style*="borderDark"] { border: var(--border, ${styles.input.border}); }
-        [style*="borderDark"][data-dark] { --border: ${styles.input.borderDark}; }
-        [style*="boxShadowDark"] { box-shadow: var(--shadow, ${styles.button.boxShadow}); }
-        [style*="boxShadowDark"][data-dark] { --shadow: ${styles.button.boxShadowDark}; }
+        .line-height-2 { display: -webkit-box; -webkit-line-height: 2; -webkit-box-orientation: vertical; overflow: hidden; }
+        [style*="backgroundDark"] { background: var(--background-dark bg, ${styles.input.background}); }
+        [style*="backgroundDark"][data-dark] { --background-dark: var(--bg-dark, ${styles.input.backgroundDark}); } 
+        [style*="borderDark"] { border: var(--border-dark, ${styles.input.border}); }
+        [style*="borderDark"][data-dark] { --border-dark: var(--border-dark, ${styles.input.borderDark}); } 
+        [style*="box-shadowDark"] { box-shadow: var(--shadow-dark box-shadow, ${styles.button.boxShadow}); }
+        [style*="boxShadowDark"][data-dark] { --shadow-dark: var(--shadow-dark, ${styles.button.boxShadowDark}); } 
       `}</style>
     </div>
   );

@@ -1,12 +1,12 @@
-import { useState, useEffect, useRef, useMemo } from "react"
-import { useNavigate } from "react-router-dom"
-import { Sparkles, Rocket, Volume2, Bomb, Disc, CloudSun, Heart, SmilePlus, Clock, Copy, Check } from "lucide-react"
-import { motion, useScroll, useTransform, AnimatePresence } from "framer-motion"
-import { useInView } from "react-intersection-observer"
-import { FaInfoCircle, FaArrowLeft, FaArrowRight } from "react-icons/fa"
-import Navbar from "../Component/Navbar"
-import "../App.css"
-import { API_BASE_URL } from "../../Config"
+import { useState, useEffect, useRef, useMemo } from "react";
+import { useNavigate } from "react-router-dom";
+import { Sparkles, Rocket, Volume2, Bomb, Disc, CloudSun, Heart, SmilePlus, Clock, Copy, Check } from "lucide-react";
+import { motion, useScroll, useTransform, AnimatePresence } from "framer-motion";
+import { useInView } from "react-intersection-observer";
+import { FaInfoCircle, FaArrowLeft, FaArrowRight } from "react-icons/fa";
+import Navbar from "../Component/Navbar";
+import "../App.css";
+import { API_BASE_URL } from "../../Config";
 
 const categories = [
   { name: "Sparklers", icon: Sparkles },
@@ -15,16 +15,16 @@ const categories = [
   { name: "Atom Bombs", icon: Bomb },
   { name: "Ground Chakkars", icon: Disc },
   { name: "Sky Shots", icon: CloudSun },
-]
+];
 
 const statsData = [
   { label: "Customer Satisfaction", value: 100, icon: Heart },
   { label: "Products", value: 200, icon: Sparkles },
   { label: "Happy Clients", value: 500, icon: SmilePlus },
   { label: "Days Of Crackers", value: 365, icon: Clock },
-]
+];
 
-const navLinks = ["Home", "About Us", "Price List", "Safety Tips", "Contact Us"]
+const navLinks = ["Home", "About Us", "Price List", "Safety Tips", "Contact Us"];
 
 const styles = {
   card: {
@@ -59,45 +59,64 @@ const styles = {
     border: "1px solid rgba(125,211,252,0.3)",
     boxShadow: "0 10px 25px rgba(56,189,248,0.2), inset 0 1px 0 rgba(255,255,255,0.2)",
   },
-}
+};
 
 const Carousel = ({ media }) => {
-  const [currentIndex, setCurrentIndex] = useState(0)
-  const [isDragging, setIsDragging] = useState(false)
-  const [startX, setStartX] = useState(0)
-  const dragRef = useRef(null)
+  const [currentIndex, setCurrentIndex] = useState(0);
+  const [isDragging, setIsDragging] = useState(false);
+  const [startX, setStartX] = useState(0);
 
   const mediaItems = useMemo(() => {
-    const items = typeof media === "string" ? JSON.parse(media) : Array.isArray(media) ? media : []
+    const items = media && typeof media === 'string' ? JSON.parse(media) : (Array.isArray(media) ? media : []);
     return items.sort((a, b) => {
-      const [isAImage, isAGif, isAVideo] = [a.startsWith("data:image/") && !a.includes(".gif"), a.includes(".gif"), a.startsWith("data:video/")]
-      const [isBImage, isBGif, isBVideo] = [b.startsWith("data:image/") && !b.includes(".gif"), b.includes(".gif"), b.startsWith("data:video/")]
-      const getPriority = (img, gif, vid) => img ? 0 : gif ? 1 : vid ? 2 : 3
-      return getPriority(isAImage, isAGif, isAVideo) - getPriority(isBImage, isBGif, isBVideo)
-    })
-  }, [media])
+      const aStr = typeof a === 'string' ? a : '';
+      const bStr = typeof b === 'string' ? b : '';
+      const isAVideo = aStr.startsWith('data:video/');
+      const isBVideo = bStr.startsWith('data:video/');
+      const isAGif = aStr.startsWith('data:image/gif') || aStr.toLowerCase().endsWith('.gif');
+      const isBGif = bStr.startsWith('data:image/gif') || bStr.toLowerCase().endsWith('.gif');
+      const isAImage = aStr.startsWith('data:image/') && !isAGif;
+      const isBImage = bStr.startsWith('data:image/') && !isBGif;
+      return (isAImage ? 0 : isAGif ? 1 : isAVideo ? 2 : 3) - (isBImage ? 0 : isBGif ? 1 : isBVideo ? 2 : 3);
+    });
+  }, [media]);
 
-  const handleSwipe = (e, direction) => {
-    setIsDragging(false)
-    const endX = e.changedTouches[0].clientX
-    const diffX = startX - endX
-    if (Math.abs(diffX) > 50) setCurrentIndex((prev) => (prev + (diffX > 0 ? 1 : -1) + mediaItems.length) % mediaItems.length)
-  }
+  const isVideo = (item) => typeof item === 'string' && item.startsWith('data:video/');
 
-  if (!mediaItems.length) {
-    return <div className="w-full h-30 rounded-2xl mb-4 overflow-hidden bg-gray-200 flex items-center justify-center">No media available</div>
+  const handlePrev = () => setCurrentIndex(prev => (prev === 0 ? mediaItems.length - 1 : prev - 1));
+  const handleNext = () => setCurrentIndex(prev => (prev === mediaItems.length - 1 ? 0 : prev + 1));
+
+  const handleTouchStart = (e) => {
+    setIsDragging(true);
+    setStartX(e.touches[0].clientX);
+  };
+
+  const handleTouchMove = (e) => {
+    if (!isDragging) return;
+  };
+
+  const handleTouchEnd = (e) => {
+    if (!isDragging) return;
+    setIsDragging(false);
+    const endX = e.changedTouches[0].clientX;
+    const diffX = startX - endX;
+    if (diffX > 50) handleNext();
+    else if (diffX < -50) handlePrev();
+  };
+
+  if (!mediaItems || mediaItems.length === 0) {
+    return <div className="w-full h-30 rounded-2xl mb-4 overflow-hidden bg-gray-200 flex items-center justify-center">No media available</div>;
   }
 
   return (
     <div
       className="relative w-full h-30 rounded-2xl mb-4 overflow-hidden select-none"
       style={{ background: "linear-gradient(135deg, rgba(255,255,255,0.6), rgba(240,249,255,0.4))", backdropFilter: "blur(10px)", border: "1px solid rgba(2,132,199,0.2)" }}
-      onTouchStart={(e) => (setIsDragging(true), setStartX(e.touches[0].clientX))}
-      onTouchMove={() => isDragging && null}
-      onTouchEnd={(e) => handleSwipe(e)}
-      ref={dragRef}
+      onTouchStart={handleTouchStart}
+      onTouchMove={handleTouchMove}
+      onTouchEnd={handleTouchEnd}
     >
-      {mediaItems[currentIndex].startsWith("data:video/") ? (
+      {isVideo(mediaItems[currentIndex]) ? (
         <video src={mediaItems[currentIndex]} autoPlay muted loop className="w-full h-full object-contain p-2" />
       ) : (
         <img src={mediaItems[currentIndex] || "/placeholder.svg"} alt="Product" className="w-full h-full object-contain p-2" />
@@ -105,47 +124,47 @@ const Carousel = ({ media }) => {
       {mediaItems.length > 1 && (
         <>
           <button
-            onClick={() => setCurrentIndex((prev) => (prev === 0 ? mediaItems.length - 1 : prev - 1))}
-            className="mobile:hidden sm:flex absolute left-2 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-white/80 text-sky-700 flex items-center justify-center text-lg z-10 hover:bg-sky-700 hover:text-white cursor-pointer"
+            onClick={handlePrev}
+            className="mobile:hidden sm:flex absolute left-2 top-1/2 transform -translate-y-1/2 w-8 h-8 rounded-full bg-white/80 text-sky-700 flex items-center justify-center text-lg z-10 hover:bg-sky-700 hover:text-white cursor-pointer"
             style={{ boxShadow: "0 4px 10px rgba(0,0,0,0.2)" }}
             aria-label="Previous media"
           >
             <FaArrowLeft />
           </button>
           <button
-            onClick={() => setCurrentIndex((prev) => (prev === mediaItems.length - 1 ? 0 : prev + 1))}
-            className="mobile:hidden sm:flex absolute right-2 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-white/80 text-sky-700 flex items-center justify-center text-lg z-10 hover:bg-sky-700 hover:text-white cursor-pointer"
+            onClick={handleNext}
+            className="mobile:hidden sm:flex absolute right-2 top-1/2 transform -translate-y-1/2 w-8 h-8 rounded-full bg-white/80 text-sky-700 flex items-center justify-center text-lg z-10 hover:bg-sky-700 hover:text-white cursor-pointer"
             style={{ boxShadow: "0 4px 10px rgba(0,0,0,0.2)" }}
             aria-label="Next media"
           >
             <FaArrowRight />
           </button>
-          <div className="absolute bottom-2 left-1/2 -translate-x-1/2 flex gap-1 z-10">
-            {mediaItems.map((_, i) => (
-              <div key={i} className={`w-2 h-2 rounded-full ${i === currentIndex ? "bg-sky-700" : "bg-gray-300"}`} />
+          <div className="absolute bottom-2 left-1/2 transform -translate-x-1/2 flex gap-1 z-10">
+            {mediaItems.map((_, index) => (
+              <div key={index} className={`w-2 h-2 rounded-full ${index === currentIndex ? 'bg-sky-700' : 'bg-gray-300'}`} />
             ))}
           </div>
         </>
       )}
     </div>
-  )
-}
+  );
+};
 
 const StatCard = ({ icon: Icon, value, label, delay }) => {
-  const [count, setCount] = useState(0)
-  const [ref, inView] = useInView({ triggerOnce: true })
+  const [count, setCount] = useState(0);
+  const [ref, inView] = useInView({ triggerOnce: true });
 
   useEffect(() => {
     if (inView && count === 0) {
-      let start = 0
+      let start = 0;
       const timer = setInterval(() => {
-        start += 1
-        setCount(start)
-        if (start === value) clearInterval(timer)
-      }, Math.max(Math.floor(1000 / value), 10))
-      return () => clearInterval(timer)
+        start += 1;
+        setCount(start);
+        if (start === value) clearInterval(timer);
+      }, Math.max(Math.floor(1000 / value), 10));
+      return () => clearInterval(timer);
     }
-  }, [inView, value])
+  }, [inView, value]);
 
   return (
     <motion.div
@@ -165,14 +184,14 @@ const StatCard = ({ icon: Icon, value, label, delay }) => {
         <p className="text-sm font-medium text-slate-600 group-hover:text-slate-700 mt-2 transition-colors duration-500">{label}</p>
       </div>
     </motion.div>
-  )
-}
+  );
+};
 
 const PromoBurst = ({ promoCodes }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [hasBursted, setHasBursted] = useState(false);
   const [showPromoCard, setShowPromoCard] = useState(false);
-  const [copied, setCopied] = useState('');
+  const [copied, setCopied] = useState("");
   const [isHovering, setIsHovering] = useState(false);
   const navigate = useNavigate();
   const rocketRef = useRef(null);
@@ -193,19 +212,18 @@ const PromoBurst = ({ promoCodes }) => {
     try {
       await navigator.clipboard.writeText(code);
       setCopied(code);
-      setTimeout(() => setCopied(''), 2000);
+      setTimeout(() => setCopied(""), 2000);
     } catch (err) {
-      console.error('Failed to copy:', err);
+      console.error("Failed to copy:", err);
     }
   };
 
-  // Format date if it exists
   const formatDate = (dateString) => {
     if (!dateString) return null;
-    return new Date(dateString).toLocaleDateString('en-US', {
-      month: 'short',
-      day: 'numeric',
-      year: 'numeric',
+    return new Date(dateString).toLocaleDateString("en-US", {
+      month: "short",
+      day: "numeric",
+      year: "numeric",
     });
   };
 
@@ -217,8 +235,8 @@ const PromoBurst = ({ promoCodes }) => {
             <motion.div
               key="rocket"
               initial={{ opacity: 0, scale: 0.8 }}
-              animate={{ opacity: 1, scale: 1, transition: { duration: 0.6, ease: 'easeOut' } }}
-              exit={{ y: '-100vh', opacity: 0, scale: 0.3, rotate: 15, transition: { duration: 1.2, ease: 'easeInOut' } }}
+              animate={{ opacity: 1, scale: 1, transition: { duration: 0.6, ease: "easeOut" } }}
+              exit={{ y: "-100vh", opacity: 0, scale: 0.3, rotate: 15, transition: { duration: 1.2, ease: "easeInOut" } }}
               className="relative cursor-pointer"
               onClick={handleClick}
               onMouseEnter={() => setIsHovering(true)}
@@ -229,7 +247,7 @@ const PromoBurst = ({ promoCodes }) => {
               <motion.div
                 ref={rocketRef}
                 className="w-14 h-20 bg-gradient-to-b from-red-500 via-red-600 to-orange-600 rounded-t-full rounded-b-md relative shadow-lg"
-                animate={{ y: [-3, 3], rotate: [-1, 1], transition: { repeat: Infinity, duration: 3, ease: 'easeInOut' } }}
+                animate={{ y: [-3, 3], rotate: [-1, 1], transition: { repeat: Infinity, duration: 3, ease: "easeInOut" } }}
               >
                 <div className="absolute bottom-0 left-0 w-0 h-0 border-l-[8px] border-r-[8px] border-b-[10px] border-l-transparent border-r-transparent border-b-red-800" />
                 <div className="absolute bottom-0 left-[-6px] w-6 h-6 bg-red-800 rounded-bl-full" />
@@ -238,18 +256,18 @@ const PromoBurst = ({ promoCodes }) => {
                 <motion.div
                   className="absolute bottom-[-4px] left-1/2 -translate-x-1/2 w-3 h-3 bg-yellow-400 rounded-full"
                   animate={{ opacity: [0.7, 1, 0.7], y: [0, -25, -15], scale: [0.8, 1.2, 0.8], x: [-2, 2, -1] }}
-                  transition={{ duration: 0.6, repeat: Infinity, ease: 'easeInOut' }}
+                  transition={{ duration: 0.6, repeat: Infinity, ease: "easeInOut" }}
                 />
                 <motion.div
                   className="absolute bottom-[-8px] left-1/2 -translate-x-1/2 w-2 h-2 bg-orange-500 rounded-full"
                   animate={{ opacity: [0.5, 0.9, 0.5], y: [0, -30, -20], scale: [0.6, 1, 0.6], x: [1, -1, 2] }}
-                  transition={{ duration: 0.8, repeat: Infinity, ease: 'easeInOut', delay: 0.2 }}
+                  transition={{ duration: 0.8, repeat: Infinity, ease: "easeInOut", delay: 0.2 }}
                 />
               </motion.div>
               <motion.div
                 className="absolute top-20 left-1/2 -translate-x-1/2 w-1 h-12 bg-gray-500 cursor-pointer rounded-full"
-                style={{ touchAction: 'none' }}
-                animate={{ rotateZ: [-3, 3], transition: { repeat: Infinity, duration: 4, ease: 'easeInOut' } }}
+                style={{ touchAction: "none" }}
+                animate={{ rotateZ: [-3, 3], transition: { repeat: Infinity, duration: 4, ease: "easeInOut" } }}
                 whileHover={{ scale: 1.1 }}
               >
                 <div className="absolute bottom-0 w-4 h-4 bg-gray-600 rounded-full -translate-x-[7px] shadow-md" />
@@ -288,30 +306,30 @@ const PromoBurst = ({ promoCodes }) => {
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               className="fixed inset-0 z-30"
-              style={{ background: 'radial-gradient(circle at 50% 50%, transparent 20%, rgba(0,0,0,0.7) 60%)' }}
+              style={{ background: "radial-gradient(circle at 50% 50%, transparent 20%, rgba(0,0,0,0.7) 60%)" }}
             />
             <motion.div
               initial={{ opacity: 0, scale: 0 }}
-              animate={{ opacity: [0, 0.8, 0.6], scale: [0, 1.2, 1], transition: { duration: 1, ease: 'easeOut' } }}
+              animate={{ opacity: [0, 0.8, 0.6], scale: [0, 1.2, 1], transition: { duration: 1, ease: "easeOut" } }}
               exit={{ opacity: 0, scale: 0 }}
               className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-96 h-96 rounded-full z-40"
-              style={{ background: 'radial-gradient(circle, rgba(255,255,255,0.3) 0%, rgba(135,206,235,0.2) 30%, transparent 70%)', boxShadow: '0 0 200px rgba(135,206,235,0.4), inset 0 0 100px rgba(255,255,255,0.2)' }}
+              style={{ background: "radial-gradient(circle, rgba(255,255,255,0.3) 0%, rgba(135,206,235,0.2) 30%, transparent 70%)", boxShadow: "0 0 200px rgba(135,206,235,0.4), inset 0 0 100px rgba(255,255,255,0.2)" }}
             />
             <motion.div
               key="promo-card"
               initial={{ scale: 0, opacity: 0, y: 50 }}
-              animate={{ scale: 1, opacity: 1, y: 0, transition: { type: 'spring', stiffness: 200, damping: 15, duration: 0.8 } }}
+              animate={{ scale: 1, opacity: 1, y: 0, transition: { type: "spring", stiffness: 200, damping: 15, duration: 0.8 } }}
               exit={{ scale: 0, opacity: 0, y: -50 }}
-              className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-50 w-[20%] max-w-md mobile:max-w-[90%] max-h-[80vh] overflow-y-auto scrollbar-thin scrollbar-thumb-sky-300 scrollbar-track-sky-100"
+              className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-50 w-[90%] max-w-md mobile:max-w-[90%] max-h-[80vh] overflow-y-auto scrollbar-thin scrollbar-thumb-sky-300 scrollbar-track-sky-100"
               whileHover={{ scale: 1.02 }}
             >
-              <div className="relative rounded-3xl p-6 bg-white shadow-2xl border border-sky-200" style={{ boxShadow: '0 25px 50px rgba(135,206,235,0.3), 0 0 0 1px rgba(135,206,235,0.2)' }}>
+              <div className="relative rounded-3xl p-6 bg-white shadow-2xl border border-sky-200" style={{ boxShadow: "0 25px 50px rgba(135,206,235,0.3), 0 0 0 1px rgba(135,206,235,0.2)" }}>
                 <div className="absolute inset-0 opacity-5" style={{ backgroundImage: `radial-gradient(circle at 25% 25%, rgba(135,206,235,0.3) 0%, transparent 50%), radial-gradient(circle at 75% 75%, rgba(135,206,235,0.2) 0%, transparent 50%)` }} />
                 <motion.h3
-                  animate={{ scale: [1, 1.05, 1], color: ['rgb(14, 165, 233)', 'rgb(2, 132, 199)', 'rgb(14, 165, 233)'] }}
+                  animate={{ scale: [1, 1.05, 1], color: ["rgb(14, 165, 233)", "rgb(2, 132, 199)", "rgb(14, 165, 233)"] }}
                   transition={{ duration: 3, repeat: Infinity }}
                   className="text-2xl font-bold text-center mb-4 drop-shadow-sm"
-                  style={{ color: 'rgb(14, 165, 233)' }}
+                  style={{ color: "rgb(14, 165, 233)" }}
                 >
                   ✨ EXCLUSIVE DEALS ✨
                 </motion.h3>
@@ -321,10 +339,10 @@ const PromoBurst = ({ promoCodes }) => {
                       key={promo.id}
                       initial={{ x: 100, opacity: 0 }}
                       animate={{ x: 0, opacity: 1 }}
-                      transition={{ delay: i * 0.15, type: 'spring', stiffness: 100 }}
+                      transition={{ delay: i * 0.15, type: "spring", stiffness: 100 }}
                       whileHover={{ scale: 1.02, x: 5 }}
                       className="bg-gradient-to-r from-sky-50 to-blue-50 rounded-xl p-4 border border-sky-200 hover:border-sky-300 transition-all duration-300"
-                      style={{ boxShadow: '0 4px 15px rgba(135,206,235,0.1)' }}
+                      style={{ boxShadow: "0 4px 15px rgba(135,206,235,0.1)" }}
                     >
                       <div className="flex items-center justify-between gap-4">
                         <div className="flex-1">
@@ -338,7 +356,7 @@ const PromoBurst = ({ promoCodes }) => {
                           {promo.end_date && (
                             <p className="text-sky-600 text-sm">Expires: {formatDate(promo.end_date)}</p>
                           )}
-                          <p className="text-sky-600 text-sm">Valid for: {promo.product_type || 'All Products'}</p>
+                          <p className="text-sky-600 text-sm">Valid for: {promo.product_type || "All Products"}</p>
                         </div>
                         <div className="flex gap-2 shrink-0">
                           <motion.button
@@ -350,7 +368,7 @@ const PromoBurst = ({ promoCodes }) => {
                             {copied === promo.code ? <Check className="w-4 h-4 text-green-600" /> : <Copy className="w-4 h-4" />}
                           </motion.button>
                           <motion.button
-                            onClick={() => navigate('/price-list')}
+                            onClick={() => navigate("/price-list")}
                             whileHover={{ scale: 1.05 }}
                             whileTap={{ scale: 0.95 }}
                             className="px-4 py-2 bg-sky-500 text-white rounded-full text-sm font-bold hover:bg-sky-600 transition-colors duration-200 shadow-md z-60"
@@ -382,9 +400,9 @@ const PromoBurst = ({ promoCodes }) => {
 };
 
 const BigFireworkAnimation = ({ delay = 0 }) => {
-  const screenWidth = typeof window !== "undefined" ? window.innerWidth : 1920
-  const screenHeight = typeof window !== "undefined" ? window.innerHeight : 1080
-  const burstPosition = { x: screenWidth * 0.5, y: screenHeight * 0.5 }
+  const screenWidth = typeof window !== "undefined" ? window.innerWidth : 1920;
+  const screenHeight = typeof window !== "undefined" ? window.innerHeight : 1080;
+  const burstPosition = { x: screenWidth * 0.5, y: screenHeight * 0.5 };
   return (
     <div className="fixed inset-0 pointer-events-none overflow-hidden z-50">
       <motion.div className="absolute" style={{ left: burstPosition.x, top: burstPosition.y, transform: "translate(-50%, -50%)" }}>
@@ -411,54 +429,92 @@ const BigFireworkAnimation = ({ delay = 0 }) => {
         />
       </motion.div>
     </div>
-  )
-}
+  );
+};
 
 export default function Home() {
-  const [banners, setBanners] = useState([])
-  const [currentSlide, setCurrentSlide] = useState(0)
-  const [fastRunningProducts, setFastRunningProducts] = useState([])
-  const [promoCodes, setPromoCodes] = useState([])
-  const [selectedProduct, setSelectedProduct] = useState(null)
-  const [showDetailsModal, setShowDetailsModal] = useState(false)
-  const containerRef = useRef(null)
-  const { scrollYProgress } = useScroll({ target: containerRef, offset: ["start start", "end start"] })
-  const heroY = useTransform(scrollYProgress, [0, 1], ["0%", "50%"])
-  const heroOpacity = useTransform(scrollYProgress, [0, 0.5], [1, 0])
-  const aboutY = useTransform(scrollYProgress, [0, 1], ["0%", "-20%"])
-  const navigate = useNavigate()
+  const [banners, setBanners] = useState([]);
+  const [currentSlide, setCurrentSlide] = useState(0);
+  const [fastRunningProducts, setFastRunningProducts] = useState([]);
+  const [promoCodes, setPromoCodes] = useState([]);
+  const [selectedProduct, setSelectedProduct] = useState(null);
+  const [showDetailsModal, setShowDetailsModal] = useState(false);
+  const containerRef = useRef(null);
+  const { scrollYProgress } = useScroll({ target: containerRef, offset: ["start start", "end start"] });
+  const heroY = useTransform(scrollYProgress, [0, 1], ["0%", "50%"]);
+  const heroOpacity = useTransform(scrollYProgress, [0, 0.5], [1, 0]);
+  const aboutY = useTransform(scrollYProgress, [0, 1], ["0%", "-20%"]);
+  const navigate = useNavigate();
 
   useEffect(() => {
-    const fetchData = (url, setter) => {
-      fetch(url)
-        .then((res) => res.json())
-        .then((data) => setter(data.filter((item) => item.is_active || item.fast_running)))
-        .catch((err) => console.error(`Error loading ${url}:`, err))
-    }
+    const fetchData = async (url, setter) => {
+      try {
+        const res = await fetch(url);
+        if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
+        const response = await res.json();
+        let dataArray;
+        
+        // Check if response is an array directly or has a data property
+        if (Array.isArray(response)) {
+          dataArray = response;
+        } else if (response && Array.isArray(response.data)) {
+          dataArray = response.data;
+        } else {
+          console.error(`Expected an array or response.data to be an array, but received:`, response);
+          setter([]);
+          return;
+        }
+
+        // Apply filter only for endpoints that need it (products and banners)
+        if (url.includes("/api/products") || url.includes("/api/banners")) {
+          setter(dataArray.filter((item) => item.is_active || item.fast_running));
+        } else {
+          setter(dataArray); // For promo codes, no filtering needed
+        }
+      } catch (err) {
+        console.error(`Error loading ${url}:`, err);
+        setter([]);
+      }
+    };
+
     const fetchPromoCodes = async () => {
       try {
-        const res = await fetch(`${API_BASE_URL}/api/promocodes`)
-        if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`)
-        setPromoCodes(await res.json())
+        const res = await fetch(`${API_BASE_URL}/api/promocodes`);
+        if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
+        setPromoCodes(await res.json());
       } catch (err) {
-        console.error("Error loading promo codes:", err)
-        setPromoCodes([])
+        console.error("Error loading promo codes:", err);
+        setPromoCodes([]);
       }
-    }
-    fetchData(`${API_BASE_URL}/api/banners`, setBanners)
-    fetchData(`${API_BASE_URL}/api/products`, setFastRunningProducts)
-    fetchPromoCodes()
+    };
+
+    fetchData(`${API_BASE_URL}/api/banners`, setBanners);
+    fetchData(`${API_BASE_URL}/api/products`, setFastRunningProducts);
+    fetchPromoCodes();
+
     const intervals = [
       setInterval(() => fetchData(`${API_BASE_URL}/api/banners`, setBanners), 1200 * 1000),
-      setInterval(() => fetchData(`${API_BASE_URL}/api/products`, setFastRunningProducts), 5 * 1000),
+      setInterval(() => fetchData(`${API_BASE_URL}/api/products`, setFastRunningProducts), 30 * 1000),
       setInterval(fetchPromoCodes, 30 * 1000),
-      setInterval(() => setCurrentSlide((prev) => (prev + 1) % (banners.length || 1)), 4000),
-    ]
-    return () => intervals.forEach(clearInterval)
-  }, [banners.length])
+      setInterval(() => {
+        if (banners.length > 0) {
+          setCurrentSlide((prev) => (prev + 1) % banners.length);
+        }
+      }, 4000),
+    ];
+
+    return () => intervals.forEach(clearInterval);
+  }, [banners.length]);
 
   return (
-    <div ref={containerRef} className="min-h-screen text-slate-800 overflow-x-hidden" style={{ background: "linear-gradient(135deg, #fef7ff 0%, #f0f9ff 25%, #ecfdf5 50%, #fef3c7 75%, #fef7ff 100%)" }}>
+    <div
+      ref={containerRef}
+      className="min-h-screen text-slate-800 overflow-x-hidden"
+      style={{
+        background: "linear-gradient(135deg, #fef7ff 0%, #f0f9ff 25%, #ecfdf5 50%, #fef3c7 75%, #fef7ff 100%)",
+        position: "relative",
+      }}
+    >
       <Navbar />
       {showDetailsModal && selectedProduct && (
         <div className="fixed inset-0 bg-black/50 z-55 flex items-center justify-center details-modal">
@@ -466,7 +522,9 @@ export default function Home() {
             <div className="p-6">
               <div className="flex justify-between items-center mb-4">
                 <h2 className="text-2xl font-bold text-sky-700 drop-shadow-sm">{selectedProduct.productname}</h2>
-                <button onClick={() => setShowDetailsModal(false)} className="text-gray-600 hover:text-red-500 text-xl cursor-pointer" aria-label="Close details modal">×</button>
+                <button onClick={() => setShowDetailsModal(false)} className="text-gray-600 hover:text-red-500 text-xl cursor-pointer" aria-label="Close details modal">
+                  ×
+                </button>
               </div>
               <Carousel media={selectedProduct.image} />
               <div className="mt-4">
@@ -509,8 +567,14 @@ export default function Home() {
         </motion.div>
         <div className="flex flex-row space-x-6 overflow-x-auto mt-8 mobile:space-x-4 snap-x snap-mandatory scrollbar-thin scrollbar-thumb-sky-600 scrollbar-track-sky-100">
           {fastRunningProducts.map((product) => {
-            const originalPrice = Number.parseFloat(product.price)
-            const finalPrice = (originalPrice - originalPrice * (product.discount / 100)).toFixed(2)
+            const originalPrice = Number.parseFloat(product.price);
+            const finalPrice = (originalPrice - originalPrice * (product.discount / 100)).toFixed(2);
+            // Check if product.image is valid (not null, undefined, empty string, or empty array after parsing)
+            const hasValidImage = product.image && 
+              (typeof product.image === 'string' ? 
+                product.image.trim() !== '' && JSON.parse(product.image).length > 0 : 
+                Array.isArray(product.image) && product.image.length > 0);
+
             return (
               <motion.div
                 key={product.serial_number}
@@ -538,7 +602,13 @@ export default function Home() {
                       <p className="text-sm text-slate-600 line-through mobile:text-xs">MRP: ₹{originalPrice}</p>
                       <p className="text-xl font-bold text-sky-700 group-hover:text-sky-800 transition-colors duration-500 mobile:text-base">₹{finalPrice} / {product.per}</p>
                     </div>
-                    {product.image && <Carousel media={product.image} />}
+                    {hasValidImage ? (
+                      <Carousel media={product.image} />
+                    ) : (
+                      <div className="w-full h-30 rounded-2xl mb-4 overflow-hidden bg-gray-200 flex items-center justify-center text-slate-600 text-sm font-medium">
+                        No data available
+                      </div>
+                    )}
                     <div className="relative min-h-[3rem] flex items-center justify-center translate-x-3 mobile:min-h-[2rem] w-52">
                       <motion.button
                         onClick={() => navigate("/price-list")}
@@ -559,7 +629,7 @@ export default function Home() {
                 </div>
                 <div className="absolute bottom-0 left-0 right-0 h-px opacity-60" style={{ background: "linear-gradient(90deg, transparent, rgba(2,132,199,0.6), transparent)" }} />
               </motion.div>
-            )
+            );
           })}
         </div>
       </section>
@@ -661,7 +731,9 @@ export default function Home() {
             <div className="w-24 h-1 mx-auto rounded-full" style={{ background: "linear-gradient(90deg, rgba(56,189,248,0.8), rgba(20,184,166,0.6) 50%, rgba(56,189,248,0.8))", boxShadow: "0 4px 15px rgba(56,189,248,0.3)" }}></div>
           </motion.div>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
-            {statsData.map((stat, i) => <StatCard key={i} {...stat} delay={i * 0.2} />)}
+            {statsData.map((stat, i) => (
+              <StatCard key={i} {...stat} delay={i * 0.2} />
+            ))}
           </div>
         </div>
       </section>
@@ -688,48 +760,55 @@ export default function Home() {
           <motion.div initial={{ opacity: 0, y: 30 }} whileInView={{ opacity: 1, y: 0 }} transition={{ duration: 0.8, delay: 0.1 }} viewport={{ once: true }} className="text-center md:text-left">
             <h2 className="text-2xl font-bold mb-6 drop-shadow-sm">Contact Us</h2>
             <div className="space-y-4 text-sky-100">
-              <div><p className="font-semibold text-white mb-2">Address</p><p>Phoenix Crackers<br />Anil Kumar Eye Hospital Opp.<br />Sattur Road<br />Sivakasi</p></div>
-              <div><p className="font-semibold text-white mb-2">Mobile</p><p>+91 63836 59214<br />+91 96554 56167</p></div>
-              <div><p className="font-semibold text-white mb-2">Email</p><p>nivasramasamy27@gmail.com</p></div>
+              <div>
+                <p className="font-semibold text-white mb-2">Address</p>
+                <p>
+                  Phoenix Crackers<br />
+                  Anil Kumar Eye Hospital Opp.<br />
+                  Sattur Road<br />
+                  Sivakasi
+                </p>
+              </div>
+              <div>
+                <p className="font-semibold text-white mb-2">Mobile</p>
+                <p>
+                  +91 63836 59214<br />
+                  +91 96554 56167
+                </p>
+              </div>
+              <div>
+                <p className="font-semibold text-white mb-2">Email</p>
+                <p>nivasramasamy27@gmail.com</p>
+              </div>
             </div>
           </motion.div>
           <motion.div initial={{ opacity: 0, y: 30 }} whileInView={{ opacity: 1, y: 0 }} transition={{ duration: 0.8, delay: 0.2 }} viewport={{ once: true }} className="text-center md:text-left">
             <h2 className="text-2xl font-bold mb-6 drop-shadow-sm">Quick Links</h2>
-            <ul className="space-y-3">{navLinks.map((link) => <li key={link}><a href={link === "Home" ? "/" : `/${link.toLowerCase().replace(/ /g, "-")}`} className="text-sky-200 hover:text-white transition-colors duration-300 font-medium">{link}</a></li>)}</ul>
+            <ul className="space-y-3">
+              {navLinks.map((link) => (
+                <li key={link}>
+                  <a href={link === "Home" ? "/" : `/${link.toLowerCase().replace(/ /g, "-")}`} className="text-sky-200 hover:text-white transition-colors duration-300 font-medium">
+                    {link}
+                  </a>
+                </li>
+              ))}
+            </ul>
           </motion.div>
         </div>
         <motion.div initial={{ opacity: 0, y: 30 }} whileInView={{ opacity: 1, y: 0 }} transition={{ duration: 0.8, delay: 0.3 }} viewport={{ once: true }} className="mt-16 max-w-5xl mx-auto text-sm text-sky-100 leading-relaxed relative z-10 text-center md:text-left">
-          {["As per 2018 Supreme Court order, online sale of firecrackers are not permitted! We value our customers and at the same time, respect jurisdiction. We request you to add your products to the cart and submit the required crackers through the enquiry button. We will contact you within 24 hrs and confirm the order through WhatsApp or phone call. Please add and submit your enquiries and enjoy your Diwali with Fun With Crackers.", "Our License No. ----. Fun With Crackers as a company follows 100% legal & statutory compliances, and all our shops, go-downs are maintained as per the explosive acts. We send the parcels through registered and legal transport service providers as every other major company in Sivakasi is doing."].map((text, i) => (
+          {[
+            "As per 2018 Supreme Court order, online sale of firecrackers are not permitted! We value our customers and at the same time, respect jurisdiction. We request you to add your products to the cart and submit the required crackers through the enquiry button. We will contact you within 24 hrs and confirm the order through WhatsApp or phone call. Please add and submit your enquiries and enjoy your Diwali with Fun With Crackers.",
+            "Our License No. ----. Fun With Crackers as a company follows 100% legal & statutory compliances, and all our shops, go-downs are maintained as per the explosive acts. We send the parcels through registered and legal transport service providers as every other major company in Sivakasi is doing.",
+          ].map((text, i) => (
             <p key={i} className="mb-4 text-sky-100 leading-relaxed p-5 md:p-0">{text}</p>
           ))}
         </motion.div>
         <div className="mt-12 border-t border-sky-700 pt-8 text-center text-sm text-white relative z-10">
-          <p>Copyright © 2025, <span className="text-sky-300 font-semibold">Fun With Crackers</span>. All rights reserved. Developed by <span className="text-sky-300 font-semibold">SPD Solutions</span></p>
+          <p>
+            Copyright © 2025, <span className="text-sky-300 font-semibold">Fun With Crackers</span>. All rights reserved. Developed by <span className="text-sky-300 font-semibold">SPD Solutions</span>
+          </p>
         </div>
       </footer>
-      <style>
-        {`
-          @keyframes shine {
-            0% {
-              transform: translateX(-100%);
-            }
-            100% {
-              transform: translateX(100%);
-            }
-          }
-          @keyframes ping {
-            75%, 100% {
-              transform: scale(2);
-              opacity: 0;
-            }
-          }
-          .details-modal {
-            display: flex !important;
-            visibility: visible !important;
-            opacity: 1 !important;
-          }
-        `}
-      </style>
     </div>
-  )
+  );
 }
