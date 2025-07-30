@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { FaPlus, FaMinus, FaArrowLeft, FaArrowRight, FaInfoCircle } from "react-icons/fa";
+import { FaPlus, FaMinus, FaArrowLeft, FaArrowRight, FaInfoCircle, FaTimes } from "react-icons/fa";
 import Navbar from "../Component/Navbar";
 import { API_BASE_URL } from "../../Config";
 import { toast, ToastContainer } from "react-toastify";
@@ -40,7 +40,72 @@ const BigFireworkAnimation = ({ delay = 0 }) => {
   );
 };
 
-const Carousel = ({ media }) => {
+const ImageModal = ({ media, onClose }) => {
+  const [currentIndex, setCurrentIndex] = useState(0);
+
+  const mediaItems = useMemo(() => {
+    const items = media && typeof media === 'string' ? JSON.parse(media) : (Array.isArray(media) ? media : []);
+    return items.filter(item => !item.startsWith('data:video/')); // Exclude videos
+  }, [media]);
+
+  const handlePrev = () => setCurrentIndex(prev => (prev === 0 ? mediaItems.length - 1 : prev - 1));
+  const handleNext = () => setCurrentIndex(prev => (prev === mediaItems.length - 1 ? 0 : prev + 1));
+
+  if (!mediaItems || mediaItems.length === 0) return null;
+
+  return (
+    <div className="fixed inset-0 bg-black/80 z-60 flex items-center justify-center" onClick={onClose}>
+      <motion.div
+        initial={{ scale: 0.8, opacity: 0 }}
+        animate={{ scale: 1, opacity: 1 }}
+        exit={{ scale: 0.8, opacity: 0 }}
+        className="relative max-w-4xl w-full h-[80vh] mx-4"
+        onClick={e => e.stopPropagation()}
+      >
+        <button
+          onClick={onClose}
+          className="absolute top-4 right-4 text-white text-2xl z-10 hover:text-red-400"
+          aria-label="Close image modal"
+        >
+          <FaTimes />
+        </button>
+        <img
+          src={mediaItems[currentIndex] || "/placeholder.svg"}
+          alt="Enlarged product"
+          className="w-full h-full object-contain rounded-xl"
+        />
+        {mediaItems.length > 1 && (
+          <>
+            <button
+              onClick={handlePrev}
+              className="absolute left-4 top-1/2 transform -translate-y-1/2 w-10 h-10 rounded-full bg-white/80 text-sky-700 flex items-center justify-center text-xl z-10 hover:bg-sky-700 hover:text-white"
+              aria-label="Previous image"
+            >
+              <FaArrowLeft />
+            </button>
+            <button
+              onClick={handleNext}
+              className="absolute right-4 top-1/2 transform -translate-y-1/2 w-10 h-10 rounded-full bg-white/80 text-sky-700 flex items-center justify-center text-xl z-10 hover:bg-sky-700 hover:text-white"
+              aria-label="Next image"
+            >
+              <FaArrowRight />
+            </button>
+            <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 flex gap-2 z-10">
+              {mediaItems.map((_, index) => (
+                <div
+                  key={index}
+                  className={`w-3 h-3 rounded-full ${index === currentIndex ? 'bg-sky-700' : 'bg-gray-300'}`}
+                />
+              ))}
+            </div>
+          </>
+        )}
+      </motion.div>
+    </div>
+  );
+};
+
+const Carousel = ({ media, onImageClick }) => {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isDragging, setIsDragging] = useState(false);
   const [startX, setStartX] = useState(0);
@@ -98,12 +163,17 @@ const Carousel = ({ media }) => {
       {isVideo(mediaItems[currentIndex]) ? (
         <video src={mediaItems[currentIndex]} autoPlay muted loop className="w-full h-full object-contain p-2" />
       ) : (
-        <img src={mediaItems[currentIndex] || "/placeholder.svg"} alt="Product" className="w-full h-full object-contain p-2" />
+        <img
+          src={mediaItems[currentIndex] || "/placeholder.svg"}
+          alt="Product"
+          className="w-full h-full object-contain p-2 cursor-pointer"
+          onClick={onImageClick}
+        />
       )}
       {mediaItems.length > 1 && (
         <>
           <button
-            onClick={handlePrev}
+            onClick={(e) => { e.stopPropagation(); handlePrev(); }}
             className="mobile:hidden sm:flex absolute left-2 top-1/2 transform -translate-y-1/2 w-8 h-8 rounded-full bg-white/80 text-sky-700 flex items-center justify-center text-lg z-10 hover:bg-sky-700 hover:text-white cursor-pointer"
             style={{ boxShadow: "0 4px 10px rgba(0,0,0,0.2)" }}
             aria-label="Previous media"
@@ -111,7 +181,7 @@ const Carousel = ({ media }) => {
             <FaArrowLeft />
           </button>
           <button
-            onClick={handleNext}
+            onClick={(e) => { e.stopPropagation(); handleNext(); }}
             className="mobile:hidden sm:flex absolute right-2 top-1/2 transform -translate-y-1/2 w-8 h-8 rounded-full bg-white/80 text-sky-700 flex items-center justify-center text-lg z-10 hover:bg-sky-700 hover:text-white cursor-pointer"
             style={{ boxShadow: "0 4px 10px rgba(0,0,0,0.2)" }}
             aria-label="Next media"
@@ -154,6 +224,7 @@ const Pricelist = () => {
   const [districts, setDistricts] = useState([]);
   const [selectedProduct, setSelectedProduct] = useState(null);
   const [showDetailsModal, setShowDetailsModal] = useState(false);
+  const [showImageModal, setShowImageModal] = useState(false);
   const [promocodes, setPromocodes] = useState([]);
   const [originalTotal, setOriginalTotal] = useState(0);
   const [totalDiscount, setTotalDiscount] = useState(0);
@@ -408,6 +479,16 @@ const Pricelist = () => {
     setShowDetailsModal(false);
   }, []);
 
+  const handleShowImage = useCallback((product) => {
+    setSelectedProduct(product);
+    setShowImageModal(true);
+  }, []);
+
+  const handleCloseImage = useCallback(() => {
+    setSelectedProduct(null);
+    setShowImageModal(false);
+  }, []);
+
   const totals = useMemo(() => {
     let net = 0, save = 0, total = 0;
     for (const serial in cart) {
@@ -481,7 +562,7 @@ const Pricelist = () => {
   return (
     <>
       <Navbar />
-      <ToastContainer /> {/* Add ToastContainer to render toasts */}
+      <ToastContainer />
       {isCartOpen && <div className="fixed inset-0 bg-black/40 z-30" onClick={() => setIsCartOpen(false)} />}
       {showSuccess && (
         <motion.div className="fixed inset-0 flex items-center justify-center z-60 pointer-events-none" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.5 }}>
@@ -504,7 +585,7 @@ const Pricelist = () => {
                 <h2 className="text-2xl font-bold text-sky-700 drop-shadow-sm">{selectedProduct.productname}</h2>
                 <button onClick={handleCloseDetails} className="text-gray-600 hover:text-red-500 text-xl cursor-pointer" aria-label="Close details modal">×</button>
               </div>
-              <Carousel media={selectedProduct.image} />
+              <Carousel media={selectedProduct.image} onImageClick={() => handleShowImage(selectedProduct)} />
               <div className="mt-4">
                 <h3 className="text-lg font-semibold text-slate-800">Description</h3>
                 <p className="text-sm text-slate-600 mt-2">{selectedProduct.description || "No description available."}</p>
@@ -515,6 +596,11 @@ const Pricelist = () => {
             </div>
           </motion.div>
         </div>
+      )}
+      {showImageModal && selectedProduct && (
+        <AnimatePresence>
+          <ImageModal media={selectedProduct.image} onClose={handleCloseImage} />
+        </AnimatePresence>
       )}
       <main className={`relative pt-28 px-4 sm:px-8 max-w-7xl mx-auto transition-all duration-300 ${isCartOpen ? "mr-80" : ""}`}>
         <section className="rounded-xl px-4 py-3 shadow-inner flex justify-between flex-wrap gap-4 text-sm sm:text-base border border-sky-300 bg-gradient-to-br from-sky-400/80 to-sky-600/90 text-white font-semibold">
@@ -558,7 +644,7 @@ const Pricelist = () => {
                           <p className="text-xl font-bold text-sky-700 group-hover:text-sky-800 transition-colors duration-500">₹{finalPrice} / {product.per}</p>
                         )}
                       </div>
-                      <Carousel media={product.image} />
+                      <Carousel media={product.image} onImageClick={() => handleShowImage(product)} />
                       <div className="relative min-h-[3rem] flex items-end justify-end">
                         <AnimatePresence mode="wait">
                           {count > 0 ? (

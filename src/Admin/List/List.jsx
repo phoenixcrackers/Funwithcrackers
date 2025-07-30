@@ -14,6 +14,7 @@ export default function List() {
   const [products, setProducts] = useState([]);
   const [filteredProducts, setFilteredProducts] = useState([]);
   const [filterType, setFilterType] = useState('all');
+  const [searchQuery, setSearchQuery] = useState(''); // New state for search
   const [productTypes, setProductTypes] = useState([]);
   const [modalIsOpen, setModalIsOpen] = useState(false);
   const [editModalIsOpen, setEditModalIsOpen] = useState(false);
@@ -34,7 +35,7 @@ export default function List() {
     product_type: '',
     description: '',
     box_count: 1,
-    images: [], // Will store File objects for new uploads or URLs for existing images
+    images: [],
   });
   const productsPerPage = 9;
 
@@ -84,13 +85,29 @@ export default function List() {
       }))
       .sort((a, b) => a.serial_number.localeCompare(b.serial_number));
     setProducts(normalizedData);
-    setFilteredProducts(filterType === 'all' ? normalizedData : normalizedData.filter(p => p.product_type === filterType));
+    applyFilters(normalizedData, filterType, searchQuery);
     setToggleStates(normalizedData.reduce((acc, p) => ({
       ...acc,
       [`${p.product_type}-${p.id}`]: p.status === 'on',
       [`fast-${p.product_type}-${p.id}`]: p.fast_running === true,
     }), {}));
   });
+
+  const applyFilters = (productsData, type, query) => {
+    let filtered = productsData;
+    if (type !== 'all') {
+      filtered = filtered.filter(p => p.product_type === type);
+    }
+    if (query) {
+      const lowerQuery = query.toLowerCase();
+      filtered = filtered.filter(p => 
+        p.productname.toLowerCase().includes(lowerQuery) || 
+        p.serial_number.toLowerCase().includes(lowerQuery)
+      );
+    }
+    setFilteredProducts(filtered);
+    setCurrentPage(1);
+  };
 
   const handleToggle = async (product, endpoint, keyPrefix) => {
     const productKey = `${keyPrefix}${product.product_type}-${product.id}`;
@@ -114,9 +131,8 @@ export default function List() {
   }, []);
 
   useEffect(() => {
-    setFilteredProducts(filterType === 'all' ? products : products.filter(p => p.product_type === filterType));
-    setCurrentPage(1);
-  }, [filterType, products]);
+    applyFilters(products, filterType, searchQuery);
+  }, [filterType, searchQuery, products]);
 
   const handleImageChange = (event) => {
     const files = Array.from(event.target.files);
@@ -205,12 +221,9 @@ export default function List() {
     formDataToSend.append('product_type', formData.product_type);
     formDataToSend.append('box_count', Math.max(1, parseInt(formData.box_count) || 1));
 
-    // Handle images
     if (isEdit && formData.images.length > 0 && typeof formData.images[0] === 'string') {
-      // If editing and images are URLs (existing images), send them as JSON
       formDataToSend.append('images', JSON.stringify(formData.images));
     } else {
-      // If new files are uploaded, append each file
       formData.images.forEach(file => formDataToSend.append('images', file));
     }
 
@@ -297,11 +310,11 @@ export default function List() {
 
       doc.setFontSize(16);
       doc.setFont('helvetica', 'bold');
-      doc.text('Madhu Nisha CRACKERS', pageWidth / 2, yOffset, { align: 'center' });
+      doc.text('FUN WITH CRACKERS', pageWidth / 2, yOffset, { align: 'center' });
       yOffset += 10;
       doc.setFontSize(12);
       doc.setFont('helvetica', 'normal');
-      doc.text('Website - www.madhunishacrackers.com', pageWidth / 2, yOffset, { align: 'center' });
+      doc.text('Website - www.funwithcrackers.com', pageWidth / 2, yOffset, { align: 'center' });
       yOffset += 10;
       doc.text('Retail Pricelist - 2025', pageWidth / 2, yOffset, { align: 'center' });
       yOffset += 20;
@@ -311,10 +324,10 @@ export default function List() {
         const typeProducts = products.filter(product => product.product_type === type);
         if (typeProducts.length > 0) {
           tableData.push([{ content: capitalize(type), colSpan: 4, styles: { fontStyle: 'bold', halign: 'left', fillColor: [200, 200, 200] } }]);
-          tableData.push(['SL.NO', 'Product Name', 'Rate', 'Per']);
-          typeProducts.forEach((product, index) => {
+          tableData.push(['Serial No.', 'Product Name', 'Rate', 'Per']);
+          typeProducts.forEach(product => {
             tableData.push([
-              index + 1,
+              product.serial_number,
               product.productname,
               `Rs.${parseFloat(product.price).toFixed(2)}`,
               product.per,
@@ -326,14 +339,14 @@ export default function List() {
 
       autoTable(doc, {
         startY: yOffset,
-        head: [['SL.NO', 'Product Name', 'Rate', 'Per']],
+        head: [['Serial No.', 'Product Name', 'Rate', 'Per']],
         body: tableData,
         theme: 'grid',
         styles: { fontSize: 10, cellPadding: 3 },
         headStyles: { fillColor: [100, 100, 100], textColor: [255, 255, 255] },
         columnStyles: {
-          0: { cellWidth: 20 },
-          1: { cellWidth: 80 },
+          0: { cellWidth: 30 },
+          1: { cellWidth: 70 },
           2: { cellWidth: 40 },
           3: { cellWidth: 30 },
         },
@@ -510,19 +523,33 @@ export default function List() {
         <div className="max-w-5xl mx-auto">
           <h2 className="text-2xl text-center font-bold text-gray-900 dark:text-gray-100 mb-6 mobile:mb-4">List Products</h2>
           {error && <div className="mb-4 mobile:mb-2 text-red-600 dark:text-red-400 text-sm text-center">{error}</div>}
-          <div className="mb-6 mobile:mb-4 hundred:mx-0 flex justify-between items-center">
-            <div>
-              <label htmlFor="product-type-filter" className="block text-sm font-medium text-gray-900 dark:text-gray-300">Filter by Product Type</label>
-              <select
-                id="product-type-filter"
-                value={filterType}
-                onChange={e => setFilterType(e.target.value)}
-                className="mt-2 mobile:mt-1 block w-48 rounded-md bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-900 border-gray-300 dark:border-gray-600 outline-1 outline-gray-300 dark:outline-gray-600 focus:outline-2 focus:outline-indigo-600 dark:focus:outline-blue-500 sm:text-sm"
-                style={{ background: styles.input.background, backgroundDark: styles.input.backgroundDark, border: styles.input.border, borderDark: styles.input.borderDark, backdropFilter: styles.input.backdropFilter }}
-              >
-                <option value="all">All</option>
-                {productTypes.map(type => <option key={type} value={type}>{capitalize(type)}</option>)}
-              </select>
+          <div className="mb-6 mobile:mb-4 hundred:mx-0 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+            <div className="flex flex-col sm:flex-row gap-4 w-full sm:w-auto">
+              <div>
+                <label htmlFor="product-type-filter" className="block text-sm font-medium text-gray-900 dark:text-gray-300">Filter by Product Type</label>
+                <select
+                  id="product-type-filter"
+                  value={filterType}
+                  onChange={e => setFilterType(e.target.value)}
+                  className="mt-2 mobile:mt-1 block w-48 rounded-md bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-900 border-gray-300 dark:border-gray-600 outline-1 outline-gray-300 dark:outline-gray-600 focus:outline-2 focus:outline-indigo-600 dark:focus:outline-blue-500 sm:text-sm"
+                  style={{ background: styles.input.background, backgroundDark: styles.input.backgroundDark, border: styles.input.border, borderDark: styles.input.borderDark, backdropFilter: styles.input.backdropFilter }}
+                >
+                  <option value="all">All</option>
+                  {productTypes.map(type => <option key={type} value={type}>{capitalize(type)}</option>)}
+                </select>
+              </div>
+              <div>
+                <label htmlFor="search-filter" className="block text-sm font-medium text-gray-900 dark:text-gray-300">Search Products</label>
+                <input
+                  id="search-filter"
+                  type="text"
+                  placeholder="Search by name or serial number"
+                  value={searchQuery}
+                  onChange={e => setSearchQuery(e.target.value)}
+                  className="mt-2 mobile:mt-1 block w-48 rounded-md bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-900 border-gray-300 dark:border-gray-600 outline-1 outline-gray-300 dark:outline-gray-600 focus:outline-2 focus:outline-indigo-600 dark:focus:outline-blue-500 sm:text-sm"
+                  style={{ background: styles.input.background, backgroundDark: styles.input.backgroundDark, border: styles.input.border, borderDark: styles.input.borderDark, backdropFilter: styles.input.backdropFilter }}
+                />
+              </div>
             </div>
             <div className="flex space-x-2">
               <button
@@ -646,7 +673,7 @@ export default function List() {
           {totalPages > 1 && (
             <div className="mt-6 mobile:mt-4 flex justify-center items-center space-x-4 mobile:space-x-2">
               <button
-                onClick={() => { setCurrentPage(p => p - 1); window.scrollTo(0, 0); }}
+                onClick={() => { setCurrentPage(p => Math.max(1, p - 1)); window.scrollTo(0, 0); }}
                 disabled={currentPage === 1}
                 className={`p-2 rounded-md ${currentPage === 1 ? 'bg-gray-200 dark:bg-gray-700 text-gray-400 dark:text-gray-500 cursor-not-allowed' : 'text-white dark:text-gray-100 hover:bg-indigo-700 dark:hover:bg-blue-600'}`}
                 style={currentPage !== 1 ? { background: styles.button.background, backgroundDark: styles.button.backgroundDark, border: styles.button.border, borderDark: styles.button.borderDark, boxShadow: styles.button.boxShadow, boxShadowDark: styles.button.boxShadowDark } : {}}
@@ -657,9 +684,9 @@ export default function List() {
                 Page {currentPage} of {totalPages}
               </span>
               <button
-                onClick={() => { setCurrentPage(p => p + 1); window.scrollTo(0, 0); }}
+                onClick={() => { setCurrentPage(p => Math.min(totalPages, p + 1)); window.scrollTo(0, 0); }}
                 disabled={currentPage === totalPages}
-                className={`p-2 rounded-md ${currentPage === totalPages ? 'px-500' : 'text-white dark:text-gray-100 hover:bg-indigo-700 dark:hover:bg-blue-600'}`}
+                className={`p-2 rounded-md ${currentPage === totalPages ? 'bg-gray-200 dark:bg-gray-700 text-gray-400 dark:text-gray-500 cursor-not-allowed' : 'text-white dark:text-gray-100 hover:bg-indigo-700 dark:hover:bg-blue-600'}`}
                 style={currentPage !== totalPages ? { background: styles.button.background, backgroundDark: styles.button.backgroundDark, border: styles.button.border, borderDark: styles.button.borderDark, boxShadow: styles.button.boxShadow, boxShadowDark: styles.button.boxShadowDark } : {}}
               >
                 <FaArrowRight className="h-5 w-5 mobile:h-4 mobile:w-4" />

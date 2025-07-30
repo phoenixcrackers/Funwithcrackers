@@ -656,7 +656,7 @@ export default function Direct() {
     <div className="flex min-h-screen dark:bg-gray-800 bg-gray-50 mobile:flex-col">
       <Sidebar />
       <Logout />
-      <div className="flex-1 md:ml-64 p-6 pt-16 mobile:p-2">
+      <div className="flex-1 hundred:ml-64 p-6 pt-16 mobile:p-2">
         <div className="w-full max-w-5xl mx-auto">
           <h1 className="text-4xl font-bold mb-8 text-center text-gray-800 mobile:text-2xl dark:text-gray-100">Direct Booking</h1>
           {loading && (
