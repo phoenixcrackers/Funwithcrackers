@@ -1,7 +1,6 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { FaPlus, FaMinus, FaArrowLeft, FaArrowRight, FaInfoCircle, FaTimes } from "react-icons/fa";
-import { FaSpinner } from "react-icons/fa"; // Added for loader
+import { FaPlus, FaMinus, FaArrowLeft, FaArrowRight, FaInfoCircle, FaTimes, FaSpinner } from "react-icons/fa";
 import Navbar from "../Component/Navbar";
 import { API_BASE_URL } from "../../Config";
 import { toast, ToastContainer } from "react-toastify";
@@ -46,7 +45,7 @@ const ImageModal = ({ media, onClose }) => {
 
   const mediaItems = useMemo(() => {
     const items = media && typeof media === 'string' ? JSON.parse(media) : (Array.isArray(media) ? media : []);
-    return items.filter(item => !item.startsWith('data:video/')); // Exclude videos
+    return items.filter(item => !item.startsWith('data:video/'));
   }, [media]);
 
   const handlePrev = () => setCurrentIndex(prev => (prev === 0 ? mediaItems.length - 1 : prev - 1));
@@ -208,7 +207,7 @@ const Pricelist = () => {
   const [showSuccess, setShowSuccess] = useState(false);
   const [showErrorModal, setShowErrorModal] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
-  const [isBooking, setIsBooking] = useState(false); // Added for loader state
+  const [isBooking, setIsBooking] = useState(false);
   const [customerDetails, setCustomerDetails] = useState({
     customer_name: "",
     address: "",
@@ -261,7 +260,6 @@ const Pricelist = () => {
         ]);
         setStates(Array.isArray(statesData) ? statesData : []);
 
-        // Natural sort function for case-insensitive sorting with numeric handling
         const naturalSort = (a, b) => {
           const collator = new Intl.Collator(undefined, {
             numeric: true,
@@ -270,7 +268,6 @@ const Pricelist = () => {
           return collator.compare(a.productname, b.productname);
         };
 
-        // Deduplicate and sort products
         const seenSerials = new Set();
         const normalizedProducts = productsData.data
           .filter((p) => {
@@ -296,6 +293,14 @@ const Pricelist = () => {
         setPromocodes(Array.isArray(promocodesData) ? promocodesData : []);
       } catch (err) {
         console.error("Error loading initial data:", err);
+        toast.error("Failed to load initial data", {
+          position: "top-center",
+          autoClose: 5000,
+          hideProgressBar: false,
+          closeOnClick: true,
+          pauseOnHover: true,
+          draggable: true,
+        });
       }
     };
     initializeData();
@@ -306,19 +311,49 @@ const Pricelist = () => {
       fetch(`${API_BASE_URL}/api/locations/states/${customerDetails.state}/districts`)
         .then(res => res.json())
         .then(data => setDistricts(Array.isArray(data) ? data : []))
-        .catch(err => console.error("Error fetching districts:", err));
+        .catch(err => {
+          console.error("Error fetching districts:", err);
+          toast.error("Failed to load districts", {
+            position: "top-center",
+            autoClose: 5000,
+            hideProgressBar: false,
+            closeOnClick: true,
+            pauseOnHover: true,
+            draggable: true,
+          });
+        });
     }
   }, [customerDetails.state]);
 
   useEffect(() => localStorage.setItem("firecracker-cart", JSON.stringify(cart)), [cart]);
 
   const addToCart = useCallback((product) => {
-    if (!product?.serial_number) return console.error("Invalid product or missing serial_number:", product);
+    if (!product?.serial_number) {
+      toast.error("Invalid product or missing serial_number", {
+        position: "top-center",
+        autoClose: 5000,
+        hideProgressBar: false,
+        closeOnClick: true,
+        pauseOnHover: true,
+        draggable: true,
+      });
+      return;
+    }
     setCart(prev => ({ ...prev, [product.serial_number]: (prev[product.serial_number] || 0) + 1 }));
   }, []);
 
   const removeFromCart = useCallback(product => {
-    if (!product?.serial_number) return console.error("Invalid product or missing serial_number:", product);
+    if (!product?.serial_number) {
+      toast.error("Invalid product or missing serial_number", {
+        position: "top-center",
+        autoClose: 5000,
+        hideProgressBar: false,
+        closeOnClick: true,
+        pauseOnHover: true,
+        draggable: true,
+      });
+      return;
+    }
     setCart(prev => {
       const count = (prev[product.serial_number] || 1) - 1;
       const updated = { ...prev };
@@ -329,7 +364,17 @@ const Pricelist = () => {
   }, []);
 
   const updateCartQuantity = useCallback((product, quantity) => {
-    if (!product?.serial_number) return console.error("Invalid product or missing serial_number:", product);
+    if (!product?.serial_number) {
+      toast.error("Invalid product or missing serial_number", {
+        position: "top-center",
+        autoClose: 5000,
+        hideProgressBar: false,
+        closeOnClick: true,
+        pauseOnHover: true,
+        draggable: true,
+      });
+      return;
+    }
     if (quantity < 0) quantity = 0;
     setCart(prev => {
       const updated = { ...prev };
@@ -340,7 +385,7 @@ const Pricelist = () => {
   }, []);
 
   const handleFinalCheckout = async () => {
-    setIsBooking(true); // Show loader
+    setIsBooking(true);
     const order_id = `ORD-${Date.now()}`;
     const selectedProducts = Object.entries(cart).map(([serial, qty]) => {
       const product = products.find(p => p.serial_number === serial);
@@ -401,22 +446,6 @@ const Pricelist = () => {
       return showError(`Minimum order for ${selectedState} is ₹${minOrder}. Your total is ₹${originalTotal}.`);
     }
     try {
-      console.log('Sending booking request:', {
-        order_id,
-        products: selectedProducts,
-        net_rate: parseFloat(totals.net),
-        you_save: parseFloat(totals.save),
-        total: parseFloat(totals.total),
-        promo_discount: parseFloat(totals.promo_discount || '0.00'),
-        customer_type: customerDetails.customer_type,
-        customer_name: customerDetails.customer_name,
-        address: customerDetails.address,
-        mobile_number: mobile,
-        email: customerDetails.email,
-        district: customerDetails.district,
-        state: customerDetails.state,
-        promocode: appliedPromo?.code || null
-      });
       const response = await fetch(`${API_BASE_URL}/api/direct/bookings`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -439,7 +468,6 @@ const Pricelist = () => {
       });
       const data = await response.json();
       if (response.ok) {
-        console.log('Booking response:', data);
         setShowSuccess(true);
         setTimeout(() => setShowSuccess(false), 4000);
         setCart({});
@@ -451,7 +479,6 @@ const Pricelist = () => {
         setOriginalTotal(0);
         setTotalDiscount(0);
 
-        // Download PDF
         const pdfResponse = await fetch(`${API_BASE_URL}/api/direct/invoice/${data.order_id}`, { responseType: 'blob' });
         const blob = await pdfResponse.blob();
         const url = window.URL.createObjectURL(blob);
@@ -464,7 +491,6 @@ const Pricelist = () => {
         document.body.removeChild(link);
         window.URL.revokeObjectURL(url);
 
-        // Show toast notification
         toast.success("Downloaded estimate bill, check downloads", {
           position: "top-center",
           autoClose: 5000,
@@ -472,17 +498,15 @@ const Pricelist = () => {
           closeOnClick: true,
           pauseOnHover: true,
           draggable: true,
-          progress: undefined,
         });
       } else {
-        console.error('Booking failed:', data);
         showError(data.message || "Booking failed. Please try again.");
       }
     } catch (err) {
       console.error("Checkout error:", err);
       showError("Something went wrong during checkout. Please try again.");
     } finally {
-      setIsBooking(false); // Hide loader
+      setIsBooking(false);
     }
   };
 
@@ -585,16 +609,25 @@ const Pricelist = () => {
   }, [promocode, handleApplyPromo]);
 
   const productTypes = useMemo(() => {
-    const types = [...new Set(products.map(p => (p.product_type || "Others").replace(/_/g, " ")))];
+    const types = [...new Set(products
+      .filter(p => p.product_type !== "gift_box_dealers") // Exclude gift_box_dealers
+      .map(p => (p.product_type || "Others").replace(/_/g, " "))
+    )];
     return ["All", ...types.sort()];
   }, [products]);
 
-  const grouped = useMemo(() => products.filter(p => p.product_type !== "gift_box_dealers" && (selectedType === "All" || p.product_type === selectedType.replace(/ /g, "_")) && (!searchTerm || p.productname.toLowerCase().includes(searchTerm.toLowerCase()) || p.serial_number.toLowerCase().includes(searchTerm.toLowerCase()))).reduce((acc, p) => {
-    const key = p.product_type || "Others";
-    acc[key] = acc[key] || [];
-    acc[key].push(p);
-    return acc;
-  }, {}), [products, selectedType, searchTerm]);
+  const grouped = useMemo(() => products
+    .filter(p => p.product_type !== "gift_box_dealers" && // Explicitly exclude gift_box_dealers
+             (selectedType === "All" || p.product_type === selectedType.replace(/ /g, "_")) &&
+             (!searchTerm || 
+              p.productname.toLowerCase().includes(searchTerm.toLowerCase()) || 
+              p.serial_number.toLowerCase().includes(searchTerm.toLowerCase())))
+    .reduce((acc, p) => {
+      const key = p.product_type || "Others";
+      acc[key] = acc[key] || [];
+      acc[key].push(p);
+      return acc;
+    }, {}), [products, selectedType, searchTerm]);
 
   return (
     <>
@@ -647,8 +680,17 @@ const Pricelist = () => {
           <div className="font-bold">Total: ₹{totals.total}</div>
         </section>
         <div className="flex justify-center gap-4 mb-8 mt-8">
-          <select value={selectedType} onChange={e => setSelectedType(e.target.value)} className="px-4 py-3 rounded-xl text-sm text-slate-800 font-medium focus:ring-2 focus:ring-sky-400 focus:border-transparent transition-all duration-300" style={styles.input}>{productTypes.map(type => <option key={type} value={type}>{type}</option>)}</select>
-          <input type="text" placeholder="Search by name or serial number" value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className="rounded-xl px-2 w-1/2 text-sm text-slate-800 font-medium focus:ring-2 focus:ring-sky-400 focus:border-transparent transition-all duration-300" style={styles.input} />
+          <select value={selectedType} onChange={e => setSelectedType(e.target.value)} className="px-4 py-3 rounded-xl text-sm text-slate-800 font-medium focus:ring-2 focus:ring-sky-400 focus:border-transparent transition-all duration-300" style={styles.input}>
+            {productTypes.map(type => <option key={type} value={type}>{type}</option>)}
+          </select>
+          <input
+            type="text"
+            placeholder="Search by name or serial number"
+            value={searchTerm}
+            onChange={e => setSearchTerm(e.target.value)}
+            className="rounded-xl px-2 w-1/2 text-sm text-slate-800 font-medium focus:ring-2 focus:ring-sky-400 focus:border-transparent transition-all duration-300"
+            style={styles.input}
+          />
         </div>
         {Object.entries(grouped).map(([type, items]) => (
           <div key={type} className="mt-12 mb-10">
@@ -661,14 +703,30 @@ const Pricelist = () => {
                 const finalPrice = product.discount > 0 ? formatPrice(originalPrice - discount) : formatPrice(originalPrice);
                 const count = cart[product.serial_number] || 0;
                 return (
-                  <motion.div key={product.serial_number} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} whileHover={{ y: -8, scale: 1.02 }} className="group relative rounded-3xl p-6 overflow-hidden cursor-pointer transition-all duration-500" style={styles.card}>
+                  <motion.div
+                    key={product.serial_number}
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    whileHover={{ y: -8, scale: 1.02 }}
+                    className="group relative rounded-3xl p-6 overflow-hidden cursor-pointer transition-all duration-500"
+                    style={styles.card}
+                  >
                     {product.discount > 0 && (
                       <div className="absolute left-2 top-2 bg-red-500 text-white text-md font-bold px-2 py-1 rounded-br-lg rounded-tl-lg mobile:text-[10px] mobile:px-1.5 mobile:py-0.5">{product.discount}%</div>
                     )}
-                    <motion.button onClick={() => handleShowDetails(product)} className="absolute cursor-pointer right-2 top-2 bg-sky-500 text-white mobile:text-md hundred:text-2xl font-bold hundred:w-8 hundred:h-8 mobile:w-6 mobile:h-6 rounded-full flex items-center justify-center hover:bg-sky-700 transition-all duration-300 z-20 pointer-events-auto" whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }} aria-label="View product details">
+                    <motion.button
+                      onClick={() => handleShowDetails(product)}
+                      className="absolute cursor-pointer right-2 top-2 bg-sky-500 text-white mobile:text-md hundred:text-2xl font-bold hundred:w-8 hundred:h-8 mobile:w-6 mobile:h-6 rounded-full flex items-center justify-center hover:bg-sky-700 transition-all duration-300 z-20 pointer-events-auto"
+                      whileHover={{ scale: 1.1 }}
+                      whileTap={{ scale: 0.9 }}
+                      aria-label="View product details"
+                    >
                       <FaInfoCircle />
                     </motion.button>
-                    <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-700 z-10" style={{ background: "linear-gradient(135deg, rgba(2,132,199,0.3), transparent 50%, rgba(14,165,233,0.2))" }} />
+                    <div
+                      className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-700 z-10"
+                      style={{ background: "linear-gradient(135deg, rgba(2,132,199,0.3), transparent 50%, rgba(14,165,233,0.2))" }}
+                    />
                     <div className="relative z-10 mobile:mt-2">
                       <p className="text-lg mobile:text-sm font-bold text-slate-800 group-hover:text-slate-900 transition-colors duration-500 drop-shadow-sm line-clamp-2 mb-2">{product.productname}</p>
                       <div className="space-y-1 mb-4">
@@ -685,8 +743,23 @@ const Pricelist = () => {
                       <div className="relative min-h-[3rem] flex items-end justify-end">
                         <AnimatePresence mode="wait">
                           {count > 0 ? (
-                            <motion.div key="quantity-controls" initial={{ scale: 0.8, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.8, opacity: 0 }} transition={{ duration: 0.3, ease: "easeOut" }} className="flex items-center justify-between w-full rounded-full p-2" style={styles.button}>
-                              <motion.button onClick={() => removeFromCart(product)} whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }} className="w-8 h-8 cursor-pointer rounded-full bg-white/20 text-white font-bold text-lg flex items-center justify-center transition-all duration-300"><FaMinus /></motion.button>
+                            <motion.div
+                              key="quantity-controls"
+                              initial={{ scale: 0.8, opacity: 0 }}
+                              animate={{ scale: 1, opacity: 1 }}
+                              exit={{ scale: 0.8, opacity: 0 }}
+                              transition={{ duration: 0.3, ease: "easeOut" }}
+                              className="flex items-center justify-between w-full rounded-full p-2"
+                              style={styles.button}
+                            >
+                              <motion.button
+                                onClick={() => removeFromCart(product)}
+                                whileHover={{ scale: 1.1 }}
+                                whileTap={{ scale: 0.9 }}
+                                className="w-8 h-8 cursor-pointer rounded-full bg-white/20 text-white font-bold text-lg flex items-center justify-center transition-all duration-300"
+                              >
+                                <FaMinus />
+                              </motion.button>
                               <motion.input
                                 key={count}
                                 type="number"
@@ -695,17 +768,45 @@ const Pricelist = () => {
                                 min="0"
                                 className="text-white font-bold text-lg px-4 drop-shadow-lg w-16 text-center bg-transparent border-none focus:outline-none"
                               />
-                              <motion.button onClick={() => addToCart(product)} whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }} className="w-8 h-8 cursor-pointer rounded-full bg-white/20 text-white font-bold text-lg flex items-center justify-center transition-all duration-300"><FaPlus /></motion.button>
+                              <motion.button
+                                onClick={() => addToCart(product)}
+                                whileHover={{ scale: 1.1 }}
+                                whileTap={{ scale: 0.9 }}
+                                className="w-8 h-8 cursor-pointer rounded-full bg-white/20 text-white font-bold text-lg flex items-center justify-center transition-all duration-300"
+                              >
+                                <FaPlus />
+                              </motion.button>
                             </motion.div>
                           ) : (
-                            <motion.button key="add-button" onClick={() => addToCart(product)} initial={{ scale: 0.8, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.8, opacity: 0 }} whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }} transition={{ duration: 0.3, ease: "easeOut" }} className="w-12 h-12 cursor-pointer rounded-full text-white font-bold text-xl flex items-center justify-center shadow-lg relative overflow-hidden" style={styles.button}>
-                              <motion.div className="absolute inset-0 rounded-full" initial={{ scale: 0, opacity: 0.5 }} whileTap={{ scale: 2, opacity: 0 }} transition={{ duration: 0.4 }} style={{ background: "rgba(255,255,255,0.3)" }} /><FaPlus />
+                            <motion.button
+                              key="add-button"
+                              onClick={() => addToCart(product)}
+                              initial={{ scale: 0.8, opacity: 0 }}
+                              animate={{ scale: 1, opacity: 1 }}
+                              exit={{ scale: 0.8, opacity: 0 }}
+                              whileHover={{ scale: 1.1 }}
+                              whileTap={{ scale: 0.9 }}
+                              transition={{ duration: 0.3, ease: "easeOut" }}
+                              className="w-12 h-12 cursor-pointer rounded-full text-white font-bold text-xl flex items-center justify-center shadow-lg relative overflow-hidden"
+                              style={styles.button}
+                            >
+                              <motion.div
+                                className="absolute inset-0 rounded-full"
+                                initial={{ scale: 0, opacity: 0.5 }}
+                                whileTap={{ scale: 2, opacity: 0 }}
+                                transition={{ duration: 0.4 }}
+                                style={{ background: "rgba(255,255,255,0.3)" }}
+                              />
+                              <FaPlus />
                             </motion.button>
                           )}
                         </AnimatePresence>
                       </div>
                     </div>
-                    <div className="absolute bottom-0 left-0 right-0 h-px opacity-60" style={{ background: "linear-gradient(90deg, transparent, rgba(2,132,199,0.6), transparent)" }} />
+                    <div
+                      className="absolute bottom-0 left-0 right-0 h-px opacity-60"
+                      style={{ background: "linear-gradient(90deg, transparent, rgba(2,132,199,0.6), transparent)" }}
+                    />
                   </motion.div>
                 );
               })}
@@ -715,24 +816,29 @@ const Pricelist = () => {
       </main>
       {showModal && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center">
-          <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="relative rounded-3xl shadow-lg max-w-md w-full mx-4 overflow-hidden" style={styles.modal}>
+          <motion.div
+            initial={{ scale: 0.9, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            className="relative rounded-3xl shadow-lg max-w-md w-full mx-4 overflow-hidden"
+            style={styles.modal}
+          >
             <div className="p-6">
               <h2 className="text-2xl font-bold mb-6 text-sky-700 drop-shadow-sm">Enter Customer Details</h2>
               <div className="space-y-4">
                 {[
                   { name: "customer_name", type: "text", placeholder: "Customer Name", pattern: null, title: "Please enter customer name" },
                   { name: "address", type: "text", placeholder: "Address", pattern: null, title: "Please enter address" },
-                  { 
-                    name: "mobile_number", 
-                    type: "tel", 
-                    placeholder: "Mobile Number", 
-                    pattern: "[0-9]{10}", 
+                  {
+                    name: "mobile_number",
+                    type: "tel",
+                    placeholder: "Mobile Number",
+                    pattern: "[0-9]{10}",
                     title: "Please enter a valid 10-digit mobile number"
                   },
-                  { 
-                    name: "email", 
-                    type: "email", 
-                    placeholder: "Email", 
+                  {
+                    name: "email",
+                    type: "email",
+                    placeholder: "Email",
                     pattern: null,
                     title: "Please enter a valid email address"
                   }
@@ -756,12 +862,12 @@ const Pricelist = () => {
                   </div>
                 ))}
                 <div className="relative">
-                  <select 
-                    name="state" 
-                    value={customerDetails.state} 
-                    onChange={e => setCustomerDetails(prev => ({ ...prev, state: e.target.value, district: "" }))} 
-                    className="w-full border border-sky-200 px-4 py-3 rounded-xl text-sm focus:ring-2 focus:ring-sky-400 focus:border-transparent transition-all duration-300 peer" 
-                    style={styles.input} 
+                  <select
+                    name="state"
+                    value={customerDetails.state}
+                    onChange={e => setCustomerDetails(prev => ({ ...prev, state: e.target.value, district: "" }))}
+                    className="w-full border border-sky-200 px-4 py-3 rounded-xl text-sm focus:ring-2 focus:ring-sky-400 focus:border-transparent transition-all duration-300 peer"
+                    style={styles.input}
                     required
                   >
                     <option value="">Select State</option>
@@ -773,12 +879,12 @@ const Pricelist = () => {
                 </div>
                 {customerDetails.state && (
                   <div className="relative">
-                    <select 
-                      name="district" 
-                      value={customerDetails.district} 
-                      onChange={handleInputChange} 
-                      className="w-full border border-sky-200 px-4 py-3 rounded-xl text-sm focus:ring-2 focus:ring-sky-400 focus:border-transparent transition-all duration-300 peer" 
-                      style={styles.input} 
+                    <select
+                      name="district"
+                      value={customerDetails.district}
+                      onChange={handleInputChange}
+                      className="w-full border border-sky-200 px-4 py-3 rounded-xl text-sm focus:ring-2 focus:ring-sky-400 focus:border-transparent transition-all duration-300 peer"
+                      style={styles.input}
                       required
                     >
                       <option value="">Select District</option>
@@ -831,17 +937,17 @@ const Pricelist = () => {
                 </div>
               </div>
               <div className="mt-6 flex justify-end gap-3">
-                <button 
-                  onClick={() => setShowModal(false)} 
-                  className="px-6 py-3 text-sm font-semibold rounded-xl transition-all duration-300 cursor-pointer" 
+                <button
+                  onClick={() => setShowModal(false)}
+                  className="px-6 py-3 text-sm font-semibold rounded-xl transition-all duration-300 cursor-pointer"
                   style={{ background: "linear-gradient(135deg, rgba(156,163,175,0.8), rgba(107,114,128,0.9))", color: "white" }}
                   disabled={isBooking}
                 >
                   Cancel
                 </button>
-                <button 
-                  onClick={handleFinalCheckout} 
-                  className="px-6 py-3 text-sm font-semibold rounded-xl text-white transition-all duration-300 cursor-pointer relative flex items-center justify-center" 
+                <button
+                  onClick={handleFinalCheckout}
+                  className="px-6 py-3 text-sm font-semibold rounded-xl text-white transition-all duration-300 cursor-pointer relative flex items-center justify-center"
                   style={{ background: styles.button.background, boxShadow: "0 10px 25px rgba(2,132,199,0.3)" }}
                   disabled={isBooking}
                 >
@@ -859,10 +965,30 @@ const Pricelist = () => {
           </motion.div>
         </div>
       )}
-      <motion.button onClick={() => setIsCartOpen(true)} whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.95 }} className={`fixed cursor-pointer bottom-6 right-6 z-50 text-white rounded-full shadow-xl w-16 h-16 flex items-center justify-center text-2xl transition-all duration-300 ${isCartOpen ? "hidden" : ""}`} style={styles.button}>
-        🛒{Object.keys(cart).length > 0 && <motion.span initial={{ scale: 0 }} animate={{ scale: 1 }} className="absolute -top-2 -right-2 bg-red-500 text-white text-xs w-6 h-6 flex items-center justify-center rounded-full font-bold">{Object.values(cart).reduce((a, b) => a + b, 0)}</motion.span>}
+      <motion.button
+        onClick={() => setIsCartOpen(true)}
+        whileHover={{ scale: 1.1 }}
+        whileTap={{ scale: 0.95 }}
+        className={`fixed cursor-pointer bottom-6 right-6 z-50 text-white rounded-full shadow-xl w-16 h-16 flex items-center justify-center text-2xl transition-all duration-300 ${isCartOpen ? "hidden" : ""}`}
+        style={styles.button}
+      >
+        🛒{Object.keys(cart).length > 0 && (
+          <motion.span
+            initial={{ scale: 0 }}
+            animate={{ scale: 1 }}
+            className="absolute -top-2 -right-2 bg-red-500 text-white text-xs w-6 h-6 flex items-center justify-center rounded-full font-bold"
+          >
+            {Object.values(cart).reduce((a, b) => a + b, 0)}
+          </motion.span>
+        )}
       </motion.button>
-      <motion.aside initial={false} animate={{ x: isCartOpen ? 0 : 320 }} transition={{ duration: 0.4, ease: "easeInOut" }} className="fixed top-0 right-0 w-80 h-full shadow-xl border-l z-50" style={styles.modal}>
+      <motion.aside
+        initial={false}
+        animate={{ x: isCartOpen ? 0 : 320 }}
+        transition={{ duration: 0.4, ease: "easeInOut" }}
+        className="fixed top-0 right-0 w-80 h-full shadow-xl border-l z-50"
+        style={styles.modal}
+      >
         <div className="flex justify-between items-center p-4 border-b border-sky-200">
           <h3 className="text-lg font-bold text-sky-800">Your Cart</h3>
           <button onClick={() => setIsCartOpen(false)} className="text-gray-600 hover:text-red-500 text-xl cursor-pointer">×</button>
@@ -878,7 +1004,12 @@ const Pricelist = () => {
               const priceAfterDiscount = formatPrice(product.price - discount);
               const imageSrc = (product.image && typeof product.image === 'string' ? JSON.parse(product.image) : (Array.isArray(product.image) ? product.image : [])).filter(item => !item.startsWith('data:video/') && !item.startsWith('data:image/gif') && !item.toLowerCase().endsWith('.gif'))[0] || "/placeholder.svg";
               return (
-                <motion.div key={serial} initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} className="flex items-center gap-3 border-b pb-3 border-sky-100">
+                <motion.div
+                  key={serial}
+                  initial={{ opacity: 0, x: 20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  className="flex items-center gap-3 border-b pb-3 border-sky-100"
+                >
                   <div className="w-16 h-16">
                     <img src={imageSrc} alt={product.productname} className="w-full h-full object-contain rounded-lg" />
                   </div>
@@ -886,7 +1017,13 @@ const Pricelist = () => {
                     <p className="text-sm font-semibold text-slate-800">{product.productname}</p>
                     <p className="text-sm text-sky-700 font-bold">₹{priceAfterDiscount} x {qty}</p>
                     <div className="flex items-center gap-2 mt-2">
-                      <button onClick={() => removeFromCart(product)} className="w-7 h-7 text-sm text-white cursor-pointer rounded-full flex items-center justify-center transition-all duration-300" style={styles.button}><FaMinus /></button>
+                      <button
+                        onClick={() => removeFromCart(product)}
+                        className="w-7 h-7 text-sm text-white cursor-pointer rounded-full flex items-center justify-center transition-all duration-300"
+                        style={styles.button}
+                      >
+                        <FaMinus />
+                      </button>
                       <input
                         type="number"
                         value={qty}
@@ -894,7 +1031,13 @@ const Pricelist = () => {
                         min="0"
                         className="text-sm font-medium px-2 w-16 text-center bg-transparent border-none focus:outline-none"
                       />
-                      <button onClick={() => addToCart(product)} className="w-7 h-7 text-sm text-white cursor-pointer rounded-full flex items-center justify-center transition-all duration-300" style={styles.button}><FaPlus /></button>
+                      <button
+                        onClick={() => addToCart(product)}
+                        className="w-7 h-7 text-sm text-white cursor-pointer rounded-full flex items-center justify-center transition-all duration-300"
+                        style={styles.button}
+                      >
+                        <FaPlus />
+                      </button>
                     </div>
                   </div>
                 </motion.div>
@@ -910,10 +1053,6 @@ const Pricelist = () => {
             <div className="animate-marquee inline-block">
               🚚 {states.map(s => `${s.name}: ₹${s.min_rate}`).join(" • ")}
             </div>
-            <style jsx>{`
-              .animate-marquee { display: inline-block; white-space: nowrap; animation: marquee 10s linear infinite; }
-              @keyframes marquee { 0% { transform: translateX(100%); } 100% { transform: translateX(-100%); } }
-            `}</style>
           </div>
           <div>
             <label className="block text-sm font-medium text-slate-700 mb-1">Promocode</label>
@@ -956,14 +1095,28 @@ const Pricelist = () => {
             <p className="font-bold text-sky-800 text-lg">Total: ₹{totals.total}</p>
           </div>
           <div className="flex gap-2">
-            <button onClick={() => setCart({})} className="flex-1 text-white text-sm font-semibold py-3 rounded-xl transition-all duration-300 cursor-pointer" style={{ background: "linear-gradient(135deg, rgba(239,68,68,0.9), rgba(220,38,38,0.9))", boxShadow: "0 5px 15px rgba(239,68,68,0.3)" }}>Clear Cart</button>
-            <button onClick={handleCheckoutClick} className="flex-1 text-white text-sm font-semibold py-3 rounded-xl transition-all duration-300 cursor-pointer" style={{ background: styles.button.background, boxShadow: "0 5px 15px rgba(2,132,199,0.3)" }}>Checkout</button>
+            <button
+              onClick={() => setCart({})}
+              className="flex-1 text-white text-sm font-semibold py-3 rounded-xl transition-all duration-300 cursor-pointer"
+              style={{ background: "linear-gradient(135deg, rgba(239,68,68,0.9), rgba(220,38,38,0.9))", boxShadow: "0 5px 15px rgba(239,68,68,0.3)" }}
+            >
+              Clear Cart
+            </button>
+            <button
+              onClick={handleCheckoutClick}
+              className="flex-1 text-white text-sm font-semibold py-3 rounded-xl transition-all duration-300 cursor-pointer"
+              style={{ background: styles.button.background, boxShadow: "0 5px 15px rgba(2,132,199,0.3)" }}
+            >
+              Checkout
+            </button>
           </div>
         </div>
       </motion.aside>
       <style jsx>{`
         .line-clamp-2 { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
         .details-modal { display: flex !important; visibility: visible !important; opacity: 1 !important; }
+        .animate-marquee { display: inline-block; white-space: nowrap; animation: marquee 10s linear infinite; }
+        @keyframes marquee { 0% { transform: translateX(100%); } 100% { transform: translateX(-100%); } }
       `}</style>
     </>
   );

@@ -320,10 +320,19 @@ export default function List() {
       yOffset += 20;
 
       const tableData = [];
+      let hasActiveProducts = false;
+      
       productTypes.forEach(type => {
-        const typeProducts = products.filter(product => product.product_type === type);
+        const typeProducts = products.filter(product => 
+          product.product_type === type && product.status === 'on'
+        );
         if (typeProducts.length > 0) {
-          tableData.push([{ content: capitalize(type), colSpan: 4, styles: { fontStyle: 'bold', halign: 'left', fillColor: [200, 200, 200] } }]);
+          hasActiveProducts = true;
+          tableData.push([{ 
+            content: capitalize(type), 
+            colSpan: 4, 
+            styles: { fontStyle: 'bold', halign: 'left', fillColor: [200, 200, 200] } 
+          }]);
           tableData.push(['Serial No.', 'Product Name', 'Rate', 'Per']);
           typeProducts.forEach(product => {
             tableData.push([
@@ -336,6 +345,11 @@ export default function List() {
           tableData.push([]);
         }
       });
+
+      if (!hasActiveProducts) {
+        setError('No active products (status: on) available to export');
+        return;
+      }
 
       autoTable(doc, {
         startY: yOffset,

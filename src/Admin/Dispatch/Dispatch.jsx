@@ -126,10 +126,9 @@ export default function Dispatch() {
     });
     autoTable(doc, {
       startY: yOffset + 10,
-      head: [['Sl. No', 'Serial No', 'Product Type', 'Product Name', 'Price', 'Quantity', 'Per']],
+      head: [['Sl. No', 'Product Type', 'Product Name', 'Price', 'Quantity', 'Per']],
       body: (booking.products || []).map((product, index) => [
         index + 1,
-        product.serial_number || 'N/A',
         product.product_type || 'N/A',
         product.productname || 'N/A',
         `Rs.${product.price || '0.00'}`,
