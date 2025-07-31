@@ -571,33 +571,57 @@ const Pricelist = () => {
   }, [cart, products, appliedPromo]);
 
   const handleApplyPromo = useCallback(async (code) => {
-    if (!code) return setAppliedPromo(null);
+    if (!code) {
+      setAppliedPromo(null);
+      return;
+    }
     try {
       const res = await fetch(`${API_BASE_URL}/api/promocodes`);
       const promos = await res.json();
       const found = promos.find(p => p.code.toLowerCase() === code.toLowerCase());
+      
       if (!found) {
         showError("Invalid promocode.");
         setAppliedPromo(null);
         return;
       }
+      
+      // Check minimum order amount
       if (found.min_amount && parseFloat(originalTotal) < found.min_amount) {
         showError(`Minimum order amount for this promocode is ₹${found.min_amount}. Your total is ₹${originalTotal}.`);
         setAppliedPromo(null);
         return;
       }
+      
+      // Check expiration date
       if (found.end_date && new Date(found.end_date) < new Date()) {
         showError("This promocode has expired.");
         setAppliedPromo(null);
         return;
       }
+      
+      // Check product type restriction
+      if (found.product_type) {
+        const cartProductTypes = Object.keys(cart).map(serial => {
+          const product = products.find(p => p.serial_number === serial);
+          return product?.product_type || "Others";
+        });
+        
+        const allMatch = cartProductTypes.every(type => type === found.product_type);
+        if (!allMatch) {
+          showError(`This promocode is only valid for ${found.product_type.replace(/_/g, " ")} products.`);
+          setAppliedPromo(null);
+          return;
+        }
+      }
+      
       setAppliedPromo(found);
     } catch (err) {
       console.error("Promo apply error:", err);
       showError("Could not validate promocode.");
       setAppliedPromo(null);
     }
-  }, [originalTotal]);
+  }, [cart, products, originalTotal]);
 
   useEffect(() => {
     if (debounceTimeout.current) clearTimeout(debounceTimeout.current);
