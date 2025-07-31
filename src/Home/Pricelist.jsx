@@ -616,7 +616,7 @@ const Pricelist = () => {
         {Object.entries(grouped).map(([type, items]) => (
           <div key={type} className="mt-12 mb-10">
             <h2 className="text-3xl text-sky-800 mb-5 font-semibold capitalize border-b-4 border-sky-500 pb-2">{type.replace(/_/g, " ")}</h2>
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-6">
+            <div className="grid mobile:grid-cols-2 onefifty:grid-cols-3 hundred:grid-cols-4 gap-6">
               {items.map(product => {
                 if (!product) return null;
                 const originalPrice = Number.parseFloat(product.price);
