@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { FaPlus, FaMinus, FaArrowLeft, FaArrowRight, FaInfoCircle, FaTimes } from "react-icons/fa";
+import { FaSpinner } from "react-icons/fa"; // Added for loader
 import Navbar from "../Component/Navbar";
 import { API_BASE_URL } from "../../Config";
 import { toast, ToastContainer } from "react-toastify";
@@ -207,6 +208,7 @@ const Pricelist = () => {
   const [showSuccess, setShowSuccess] = useState(false);
   const [showErrorModal, setShowErrorModal] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
+  const [isBooking, setIsBooking] = useState(false); // Added for loader state
   const [customerDetails, setCustomerDetails] = useState({
     customer_name: "",
     address: "",
@@ -338,6 +340,7 @@ const Pricelist = () => {
   }, []);
 
   const handleFinalCheckout = async () => {
+    setIsBooking(true); // Show loader
     const order_id = `ORD-${Date.now()}`;
     const selectedProducts = Object.entries(cart).map(([serial, qty]) => {
       const product = products.find(p => p.serial_number === serial);
@@ -354,17 +357,49 @@ const Pricelist = () => {
         status: product.status
       };
     });
-    if (!selectedProducts.length) return showError("Your cart is empty.");
-    if (!customerDetails.customer_name) return showError("Customer name is required.");
-    if (!customerDetails.address) return showError("Address is required.");
-    if (!customerDetails.district) return showError("District is required.");
-    if (!customerDetails.state) return showError("Please select a state.");
-    if (!customerDetails.mobile_number) return showError("Mobile number is required.");
+    if (!selectedProducts.length) {
+      setIsBooking(false);
+      return showError("Your cart is empty.");
+    }
+    if (!customerDetails.customer_name.trim()) {
+      setIsBooking(false);
+      return showError("Customer name is required.");
+    }
+    if (!customerDetails.address.trim()) {
+      setIsBooking(false);
+      return showError("Address is required.");
+    }
+    if (!customerDetails.district.trim()) {
+      setIsBooking(false);
+      return showError("District is required.");
+    }
+    if (!customerDetails.state.trim()) {
+      setIsBooking(false);
+      return showError("Please select a state.");
+    }
+    if (!customerDetails.mobile_number.trim()) {
+      setIsBooking(false);
+      return showError("Mobile number is required.");
+    }
+    if (!customerDetails.email.trim()) {
+      setIsBooking(false);
+      return showError("Email is required.");
+    }
     const mobile = customerDetails.mobile_number.replace(/\D/g, '').slice(-10);
-    if (mobile.length !== 10) return showError("Mobile number must be 10 digits.");
-    const selectedState = customerDetails.state?.trim();
+    if (mobile.length !== 10) {
+      setIsBooking(false);
+      return showError("Mobile number must be 10 digits.");
+    }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(customerDetails.email)) {
+      setIsBooking(false);
+      return showError("Please enter a valid email address.");
+    }
+    const selectedState = customerDetails.state.trim();
     const minOrder = states.find(s => s.name === selectedState)?.min_rate;
-    if (minOrder && parseFloat(originalTotal) < minOrder) return showError(`Minimum order for ${selectedState} is ₹${minOrder}. Your total is ₹${originalTotal}.`);
+    if (minOrder && parseFloat(originalTotal) < minOrder) {
+      setIsBooking(false);
+      return showError(`Minimum order for ${selectedState} is ₹${minOrder}. Your total is ₹${originalTotal}.`);
+    }
     try {
       console.log('Sending booking request:', {
         order_id,
@@ -446,6 +481,8 @@ const Pricelist = () => {
     } catch (err) {
       console.error("Checkout error:", err);
       showError("Something went wrong during checkout. Please try again.");
+    } finally {
+      setIsBooking(false); // Hide loader
     }
   };
 
@@ -682,21 +719,76 @@ const Pricelist = () => {
             <div className="p-6">
               <h2 className="text-2xl font-bold mb-6 text-sky-700 drop-shadow-sm">Enter Customer Details</h2>
               <div className="space-y-4">
-                {["customer_name", "address", "mobile_number", "email"].map(field => (
-                  <input
-                    key={field}
-                    name={field}
-                    type={field === "email" ? "email" : "text"}
-                    placeholder={field.replace(/_/g, " ").toUpperCase()}
-                    value={customerDetails[field]}
-                    onChange={handleInputChange}
-                    className="w-full border border-sky-200 px-4 py-3 rounded-xl text-sm focus:ring-2 focus:ring-sky-400 focus:border-transparent transition-all duration-300"
-                    style={styles.input}
-                    required={field !== "email"}
-                  />
+                {[
+                  { name: "customer_name", type: "text", placeholder: "Customer Name", pattern: null, title: "Please enter customer name" },
+                  { name: "address", type: "text", placeholder: "Address", pattern: null, title: "Please enter address" },
+                  { 
+                    name: "mobile_number", 
+                    type: "tel", 
+                    placeholder: "Mobile Number", 
+                    pattern: "[0-9]{10}", 
+                    title: "Please enter a valid 10-digit mobile number"
+                  },
+                  { 
+                    name: "email", 
+                    type: "email", 
+                    placeholder: "Email", 
+                    pattern: null,
+                    title: "Please enter a valid email address"
+                  }
+                ].map(field => (
+                  <div key={field.name} className="relative">
+                    <input
+                      name={field.name}
+                      type={field.type}
+                      placeholder={field.placeholder.toUpperCase()}
+                      value={customerDetails[field.name]}
+                      onChange={handleInputChange}
+                      className="w-full border border-sky-200 px-4 py-3 rounded-xl text-sm focus:ring-2 focus:ring-sky-400 focus:border-transparent transition-all duration-300 peer"
+                      style={styles.input}
+                      required
+                      pattern={field.pattern}
+                      title={field.title}
+                    />
+                    <p className="text-red-500 text-xs mt-1 hidden peer-invalid:block">
+                      {field.title}
+                    </p>
+                  </div>
                 ))}
-                <select name="state" value={customerDetails.state} onChange={e => setCustomerDetails(prev => ({ ...prev, state: e.target.value, district: "" }))} className="w-full border border-sky-200 px-4 py-3 rounded-xl text-sm focus:ring-2 focus:ring-sky-400 focus:border-transparent transition-all duration-300" style={styles.input} required><option value="">Select State</option>{states.map(s => <option key={s.name} value={s.name}>{s.name}</option>)}</select>
-                {customerDetails.state && <select name="district" value={customerDetails.district} onChange={handleInputChange} className="w-full border border-sky-200 px-4 py-3 rounded-xl text-sm focus:ring-2 focus:ring-sky-400 focus:border-transparent transition-all duration-300" style={styles.input} required><option value="">Select District</option>{districts.map(d => <option key={d.id} value={d.name}>{d.name}</option>)}</select>}
+                <div className="relative">
+                  <select 
+                    name="state" 
+                    value={customerDetails.state} 
+                    onChange={e => setCustomerDetails(prev => ({ ...prev, state: e.target.value, district: "" }))} 
+                    className="w-full border border-sky-200 px-4 py-3 rounded-xl text-sm focus:ring-2 focus:ring-sky-400 focus:border-transparent transition-all duration-300 peer" 
+                    style={styles.input} 
+                    required
+                  >
+                    <option value="">Select State</option>
+                    {states.map(s => <option key={s.name} value={s.name}>{s.name}</option>)}
+                  </select>
+                  <p className="text-red-500 text-xs mt-1 hidden peer-invalid:block">
+                    Please select a state
+                  </p>
+                </div>
+                {customerDetails.state && (
+                  <div className="relative">
+                    <select 
+                      name="district" 
+                      value={customerDetails.district} 
+                      onChange={handleInputChange} 
+                      className="w-full border border-sky-200 px-4 py-3 rounded-xl text-sm focus:ring-2 focus:ring-sky-400 focus:border-transparent transition-all duration-300 peer" 
+                      style={styles.input} 
+                      required
+                    >
+                      <option value="">Select District</option>
+                      {districts.map(d => <option key={d.id} value={d.name}>{d.name}</option>)}
+                    </select>
+                    <p className="text-red-500 text-xs mt-1 hidden peer-invalid:block">
+                      Please select a district
+                    </p>
+                  </div>
+                )}
                 <div>
                   <label className="block text-sm font-medium text-slate-700 mb-1">Promocode</label>
                   <select
@@ -739,8 +831,29 @@ const Pricelist = () => {
                 </div>
               </div>
               <div className="mt-6 flex justify-end gap-3">
-                <button onClick={() => setShowModal(false)} className="px-6 py-3 text-sm font-semibold rounded-xl transition-all duration-300 cursor-pointer" style={{ background: "linear-gradient(135deg, rgba(156,163,175,0.8), rgba(107,114,128,0.9))", color: "white" }}>Cancel</button>
-                <button onClick={handleFinalCheckout} className="px-6 py-3 text-sm font-semibold rounded-xl text-white transition-all duration-300 cursor-pointer" style={{ background: styles.button.background, boxShadow: "0 10px 25px rgba(2,132,199,0.3)" }}>Confirm Booking</button>
+                <button 
+                  onClick={() => setShowModal(false)} 
+                  className="px-6 py-3 text-sm font-semibold rounded-xl transition-all duration-300 cursor-pointer" 
+                  style={{ background: "linear-gradient(135deg, rgba(156,163,175,0.8), rgba(107,114,128,0.9))", color: "white" }}
+                  disabled={isBooking}
+                >
+                  Cancel
+                </button>
+                <button 
+                  onClick={handleFinalCheckout} 
+                  className="px-6 py-3 text-sm font-semibold rounded-xl text-white transition-all duration-300 cursor-pointer relative flex items-center justify-center" 
+                  style={{ background: styles.button.background, boxShadow: "0 10px 25px rgba(2,132,199,0.3)" }}
+                  disabled={isBooking}
+                >
+                  {isBooking ? (
+                    <>
+                      <FaSpinner className="animate-spin mr-2" />
+                      Booking...
+                    </>
+                  ) : (
+                    'Confirm Booking'
+                  )}
+                </button>
               </div>
             </div>
           </motion.div>
