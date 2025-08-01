@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { FaPlus, FaMinus, FaArrowLeft, FaArrowRight, FaInfoCircle, FaTimes, FaSpinner } from "react-icons/fa";
+import { FaPlus, FaMinus, FaArrowLeft, FaArrowRight, FaInfoCircle, FaTimes } from "react-icons/fa";
 import Navbar from "../Component/Navbar";
 import { API_BASE_URL } from "../../Config";
 import { toast, ToastContainer } from "react-toastify";
@@ -363,27 +363,6 @@ const Pricelist = () => {
     });
   }, []);
 
-  const updateCartQuantity = useCallback((product, quantity) => {
-    if (!product?.serial_number) {
-      toast.error("Invalid product or missing serial_number", {
-        position: "top-center",
-        autoClose: 5000,
-        hideProgressBar: false,
-        closeOnClick: true,
-        pauseOnHover: true,
-        draggable: true,
-      });
-      return;
-    }
-    if (quantity < 0) quantity = 0;
-    setCart(prev => {
-      const updated = { ...prev };
-      if (quantity === 0) delete updated[product.serial_number];
-      else updated[product.serial_number] = quantity;
-      return updated;
-    });
-  }, []);
-
   const handleFinalCheckout = async () => {
     setIsBooking(true);
     const order_id = `ORD-${Date.now()}`;
@@ -551,23 +530,29 @@ const Pricelist = () => {
   }, []);
 
   const totals = useMemo(() => {
-    let net = 0, save = 0, total = 0;
+    let net = 0, save = 0, total = 0, productDiscount = 0, promoDiscount = 0;
     for (const serial in cart) {
       const qty = cart[serial], product = products.find(p => p.serial_number === serial);
       if (!product) continue;
       const originalPrice = Number.parseFloat(product.price), discount = originalPrice * (product.discount / 100), priceAfterDiscount = originalPrice - discount;
       net += originalPrice * qty;
-      save += discount * qty;
+      productDiscount += discount * qty;
       total += priceAfterDiscount * qty;
     }
     setOriginalTotal(total);
-    setTotalDiscount(save);
+    setTotalDiscount(productDiscount);
     if (appliedPromo) {
-      const promoDiscount = (total * appliedPromo.discount) / 100;
+      promoDiscount = (total * appliedPromo.discount) / 100;
       total -= promoDiscount;
-      save += promoDiscount;
     }
-    return { net: formatPrice(net), save: formatPrice(save), total: formatPrice(total), promo_discount: appliedPromo ? formatPrice((originalTotal * appliedPromo.discount) / 100) : '0.00' };
+    save = productDiscount + promoDiscount;
+    return { 
+      net: formatPrice(net), 
+      save: formatPrice(save), 
+      total: formatPrice(total), 
+      promo_discount: formatPrice(promoDiscount),
+      product_discount: formatPrice(productDiscount)
+    };
   }, [cart, products, appliedPromo]);
 
   const handleApplyPromo = useCallback(async (code) => {
@@ -586,21 +571,18 @@ const Pricelist = () => {
         return;
       }
       
-      // Check minimum order amount
       if (found.min_amount && parseFloat(originalTotal) < found.min_amount) {
         showError(`Minimum order amount for this promocode is ₹${found.min_amount}. Your total is ₹${originalTotal}.`);
         setAppliedPromo(null);
         return;
       }
       
-      // Check expiration date
       if (found.end_date && new Date(found.end_date) < new Date()) {
         showError("This promocode has expired.");
         setAppliedPromo(null);
         return;
       }
       
-      // Check product type restriction
       if (found.product_type) {
         const cartProductTypes = Object.keys(cart).map(serial => {
           const product = products.find(p => p.serial_number === serial);
@@ -634,14 +616,14 @@ const Pricelist = () => {
 
   const productTypes = useMemo(() => {
     const types = [...new Set(products
-      .filter(p => p.product_type !== "gift_box_dealers") // Exclude gift_box_dealers
+      .filter(p => p.product_type !== "gift_box_dealers")
       .map(p => (p.product_type || "Others").replace(/_/g, " "))
     )];
     return ["All", ...types.sort()];
   }, [products]);
 
   const grouped = useMemo(() => products
-    .filter(p => p.product_type !== "gift_box_dealers" && // Explicitly exclude gift_box_dealers
+    .filter(p => p.product_type !== "gift_box_dealers" &&
              (selectedType === "All" || p.product_type === selectedType.replace(/ /g, "_")) &&
              (!searchTerm || 
               p.productname.toLowerCase().includes(searchTerm.toLowerCase()) || 
@@ -784,14 +766,7 @@ const Pricelist = () => {
                               >
                                 <FaMinus />
                               </motion.button>
-                              <motion.input
-                                key={count}
-                                type="number"
-                                value={count}
-                                onChange={(e) => updateCartQuantity(product, parseInt(e.target.value) || 0)}
-                                min="0"
-                                className="text-white font-bold text-lg px-4 drop-shadow-lg w-16 text-center bg-transparent border-none focus:outline-none"
-                              />
+                              <span className="text-white font-bold text-lg px-4 drop-shadow-lg w-16 text-center">{count}</span>
                               <motion.button
                                 onClick={() => addToCart(product)}
                                 whileHover={{ scale: 1.1 }}
@@ -955,35 +930,58 @@ const Pricelist = () => {
                 </div>
                 <div className="text-sm text-slate-700 space-y-1">
                   <p>Net Rate: ₹{totals.net}</p>
-                  <p>You Save: ₹{totals.save}</p>
+                  <p>Product Discount: ₹{totals.product_discount}</p>
                   {appliedPromo && <p>Promocode ({appliedPromo.code}): -₹{totals.promo_discount}</p>}
                   <p className="font-bold text-sky-800 text-lg">Total: ₹{totals.total}</p>
                 </div>
               </div>
               <div className="mt-6 flex justify-end gap-3">
-                <button
+                <motion.button
                   onClick={() => setShowModal(false)}
-                  className="px-6 py-3 text-sm font-semibold rounded-xl transition-all duration-300 cursor-pointer"
+                  whileHover={{ scale: isBooking ? 1 : 1.05 }}
+                  whileTap={{ scale: isBooking ? 1 : 0.95 }}
+                  className={`px-6 py-3 text-sm font-semibold rounded-xl transition-all duration-300 cursor-pointer ${isBooking ? "opacity-75 cursor-not-allowed" : ""}`}
                   style={{ background: "linear-gradient(135deg, rgba(156,163,175,0.8), rgba(107,114,128,0.9))", color: "white" }}
                   disabled={isBooking}
                 >
                   Cancel
-                </button>
-                <button
+                </motion.button>
+                <motion.button
                   onClick={handleFinalCheckout}
-                  className="px-6 py-3 text-sm font-semibold rounded-xl text-white transition-all duration-300 cursor-pointer relative flex items-center justify-center"
+                  whileHover={{ scale: isBooking ? 1 : 1.05 }}
+                  whileTap={{ scale: isBooking ? 1 : 0.95 }}
+                  className={`px-6 py-3 text-sm font-semibold rounded-xl text-white transition-all duration-300 cursor-pointer relative flex items-center justify-center ${isBooking ? "opacity-75 cursor-not-allowed" : ""}`}
                   style={{ background: styles.button.background, boxShadow: "0 10px 25px rgba(2,132,199,0.3)" }}
                   disabled={isBooking}
                 >
                   {isBooking ? (
                     <>
-                      <FaSpinner className="animate-spin mr-2" />
+                      <svg
+                        className="animate-spin h-5 w-5 text-white mr-2"
+                        xmlns="http://www.w3.org/2000/svg"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                      >
+                        <circle
+                          className="opacity-25"
+                          cx="12"
+                          cy="12"
+                          r="10"
+                          stroke="currentColor"
+                          strokeWidth="4"
+                        ></circle>
+                        <path
+                          className="opacity-75"
+                          fill="currentColor"
+                          d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                        ></path>
+                      </svg>
                       Booking...
                     </>
                   ) : (
                     'Confirm Booking'
                   )}
-                </button>
+                </motion.button>
               </div>
             </div>
           </motion.div>
@@ -1048,13 +1046,7 @@ const Pricelist = () => {
                       >
                         <FaMinus />
                       </button>
-                      <input
-                        type="number"
-                        value={qty}
-                        onChange={(e) => updateCartQuantity(product, parseInt(e.target.value) || 0)}
-                        min="0"
-                        className="text-sm font-medium px-2 w-16 text-center bg-transparent border-none focus:outline-none"
-                      />
+                      <span className="text-sm font-medium px-2 w-16 text-center">{qty}</span>
                       <button
                         onClick={() => addToCart(product)}
                         className="w-7 h-7 text-sm text-white cursor-pointer rounded-full flex items-center justify-center transition-all duration-300"
@@ -1114,7 +1106,7 @@ const Pricelist = () => {
           </div>
           <div className="text-sm text-slate-700 space-y-1">
             <p>Net Rate: ₹{totals.net}</p>
-            <p>You Save: ₹{totals.save}</p>
+            <p>Product Discount: ₹{totals.product_discount}</p>
             {appliedPromo && <p>Promocode ({appliedPromo.code}): -₹{totals.promo_discount}</p>}
             <p className="font-bold text-sky-800 text-lg">Total: ₹{totals.total}</p>
           </div>
