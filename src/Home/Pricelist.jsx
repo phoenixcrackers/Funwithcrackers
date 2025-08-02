@@ -5,8 +5,10 @@ import Navbar from "../Component/Navbar";
 import { API_BASE_URL } from "../../Config";
 import { toast, ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
-import "../App.css";
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
 import need from "../default.jpg";
+import "../App.css";
 
 const BigFireworkAnimation = ({ delay = 0 }) => {
   const screenWidth = typeof window !== "undefined" ? window.innerWidth : 1920;
@@ -87,7 +89,7 @@ const ImageModal = ({ media, onClose }) => {
           <FaTimes />
         </button>
         <img
-          src={mediaItems[currentIndex] || "/placeholder.svg"}
+          src={mediaItems[currentIndex] || need}
           alt="Enlarged product"
           className="w-full h-full object-contain rounded-xl"
         />
@@ -166,9 +168,11 @@ const Carousel = ({ media, onImageClick }) => {
   };
 
   if (!mediaItems || mediaItems.length === 0) {
-    return  <div className="w-full h-30 rounded-2xl mb-4 overflow-hidden bg-sky-300 flex items-center justify-center">
-              <img src={need} />
-            </div>;
+    return (
+      <div className="w-full h-30 rounded-2xl mb-4 overflow-hidden bg-sky-300 flex items-center justify-center">
+        <img src={need} alt="Default product" />
+      </div>
+    );
   }
 
   return (
@@ -183,7 +187,7 @@ const Carousel = ({ media, onImageClick }) => {
         <video src={mediaItems[currentIndex]} autoPlay muted loop className="w-full h-full object-contain p-2" />
       ) : (
         <img
-          src={mediaItems[currentIndex] || "/placeholder.svg"}
+          src={mediaItems[currentIndex] || need}
           alt="Product"
           className="w-full h-full object-contain p-2 cursor-pointer"
           onClick={onImageClick}
@@ -263,6 +267,73 @@ const Pricelist = () => {
   const formatPrice = (price) => {
     const num = Number.parseFloat(price);
     return Number.isInteger(num) ? num.toString() : num.toFixed(2);
+  };
+
+  const capitalize = str => str ? str.split('_').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ') : '';
+
+  const downloadPDF = () => {
+    try {
+      if (!products.length || !productTypes.length) {
+        showError('No products or product types available to export');
+        return;
+      }
+
+      const doc = new jsPDF();
+      const pageWidth = doc.internal.pageSize.getWidth();
+      let yOffset = 20;
+
+      doc.setFontSize(16);
+      doc.setFont('helvetica', 'bold');
+      doc.text('FUN WITH CRACKERS', pageWidth / 2, yOffset, { align: 'center' });
+      yOffset += 10;
+      doc.setFontSize(12);
+      doc.setFont('helvetica', 'normal');
+      doc.text('Website - www.funwithcrackers.com', pageWidth / 2, yOffset, { align: 'center' });
+      yOffset += 10;
+      doc.text('Retail Pricelist - 2025', pageWidth / 2, yOffset, { align: 'center' });
+      yOffset += 20;
+
+      const tableData = [];
+      productTypes
+        .filter(type => type !== "All")
+        .forEach(type => {
+          const typeKey = type.replace(/ /g, "_");
+          const typeProducts = products.filter(product => product.product_type === typeKey);
+          if (typeProducts.length > 0) {
+            tableData.push([{ content: capitalize(type), colSpan: 4, styles: { fontStyle: 'bold', halign: 'left', fillColor: [200, 200, 200] } }]);
+            tableData.push(['Serial No.', 'Product Name', 'Rate', 'Per']);
+            typeProducts.forEach(product => {
+              tableData.push([
+                product.serial_number,
+                product.productname,
+                `Rs.${formatPrice(product.price)}`,
+                product.per,
+              ]);
+            });
+            tableData.push([]);
+          }
+        });
+
+      autoTable(doc, {
+        startY: yOffset,
+        head: [['Serial No.', 'Product Name', 'Rate', 'Per']],
+        body: tableData,
+        theme: 'grid',
+        styles: { fontSize: 10, cellPadding: 3 },
+        headStyles: { fillColor: [2, 132, 199], textColor: [255, 255, 255] },
+        columnStyles: { 0: { cellWidth: 30 }, 1: { cellWidth: 70 }, 2: { cellWidth: 40 }, 3: { cellWidth: 30 } },
+        didDrawCell: (data) => {
+          if (data.row.section === 'body' && data.cell.raw && data.cell.raw.colSpan === 4) {
+            data.cell.styles.cellPadding = 5;
+            data.cell.styles.fontSize = 12;
+          }
+        },
+      });
+
+      doc.save('Retail_Pricelist_2025.pdf');
+    } catch (err) {
+      showError('Failed to generate PDF: ' + err.message);
+    }
   };
 
   useEffect(() => {
@@ -577,7 +648,7 @@ const Pricelist = () => {
       total += priceAfterDiscount * qty;
 
       // Apply promocode discount only to matching product types
-      if (appliedPromo && (!appliedPromo.product_type || product.product_type === appliedPromo.product_type)) {
+      if (appliedPromo && product.product_type === appliedPromo.product_type) {
         const productTotal = priceAfterDiscount * qty;
         promoDiscount += (productTotal * appliedPromo.discount) / 100;
       }
@@ -598,6 +669,7 @@ const Pricelist = () => {
   const handleApplyPromo = useCallback(async (code) => {
     if (!code) {
       setAppliedPromo(null);
+      setPromocode("");
       return;
     }
     try {
@@ -608,31 +680,35 @@ const Pricelist = () => {
       if (!found) {
         showError("Invalid promocode.");
         setAppliedPromo(null);
+        setPromocode("");
         return;
       }
       
       if (found.min_amount && parseFloat(originalTotal) < found.min_amount) {
         showError(`Minimum order amount for this promocode is ₹${found.min_amount}. Your total is ₹${originalTotal}.`);
         setAppliedPromo(null);
+        setPromocode("");
         return;
       }
       
       if (found.end_date && new Date(found.end_date) < new Date()) {
         showError("This promocode has expired.");
         setAppliedPromo(null);
+        setPromocode("");
         return;
       }
       
+      // Allow promocode application even if cart has mixed product types
       if (found.product_type) {
         const cartProductTypes = Object.keys(cart).map(serial => {
           const product = products.find(p => p.serial_number === serial);
           return product?.product_type || "Others";
         });
         
-        const allMatch = cartProductTypes.every(type => type === found.product_type);
-        if (!allMatch) {
-          showError(`This promocode is only valid for ${found.product_type.replace(/_/g, " ")} products.`);
+        if (!cartProductTypes.includes(found.product_type)) {
+          showError(`This promocode is only valid for ${found.product_type.replace(/_/g, " ")} products, and none are in your cart.`);
           setAppliedPromo(null);
+          setPromocode("");
           return;
         }
       }
@@ -642,6 +718,7 @@ const Pricelist = () => {
       console.error("Promo apply error:", err);
       showError("Could not validate promocode.");
       setAppliedPromo(null);
+      setPromocode("");
     }
   }, [cart, products, originalTotal]);
 
@@ -747,6 +824,21 @@ const Pricelist = () => {
             style={styles.input}
           />
         </div>
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="flex justify-center mb-8"
+        >
+          <motion.button
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+            onClick={downloadPDF}
+            className="px-8 py-3 text-sm font-semibold rounded-xl text-white transition-all duration-300 cursor-pointer"
+            style={{ background: styles.button.background, boxShadow: "0 10px 25px rgba(2,132,199,0.3)" }}
+          >
+            Download Pricelist
+          </motion.button>
+        </motion.div>
         {Object.entries(grouped).map(([type, items]) => (
           <div key={type} className="mt-12 mb-10">
             <h2 className="text-3xl text-sky-800 mb-5 font-semibold capitalize border-b-4 border-sky-500 pb-2">{type.replace(/_/g, " ")}</h2>
@@ -833,7 +925,7 @@ const Pricelist = () => {
                               animate={{ scale: 1, opacity: 1 }}
                               exit={{ scale: 0.8, opacity: 0 }}
                               whileHover={{ scale: 1.1 }}
-                              whileTap={{ scale: 0.9 }}
+                              whileTap={{ scale: 0.95 }}
                               transition={{ duration: 0.3, ease: "easeOut" }}
                               className="w-12 h-12 cursor-pointer rounded-full text-white font-bold text-xl flex items-center justify-center shadow-lg relative overflow-hidden"
                               style={styles.button}
@@ -1073,7 +1165,7 @@ const Pricelist = () => {
               if (!product) return null;
               const discount = (product.price * product.discount) / 100;
               const priceAfterDiscount = formatPrice(product.price - discount);
-              const imageSrc = (product.image && typeof product.image === 'string' ? JSON.parse(product.image) : (Array.isArray(product.image) ? product.image : [])).filter(item => !item.startsWith('data:video/') && !item.startsWith('data:image/gif') && !item.toLowerCase().endsWith('.gif'))[0] || "/placeholder.svg";
+              const imageSrc = (product.image && typeof product.image === 'string' ? JSON.parse(product.image) : (Array.isArray(product.image) ? product.image : [])).filter(item => !item.startsWith('data:video/') && !item.startsWith('data:image/gif') && !item.toLowerCase().endsWith('.gif'))[0] || need;
               return (
                 <motion.div
                   key={serial}
