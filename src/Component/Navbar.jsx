@@ -23,7 +23,7 @@ export default function Navbar() {
           animate={{ opacity: 1, x: 0 }}
           className="text-xl md:text-2xl lg:text-3xl font-bold tracking-tight text-white drop-shadow-sm"
         >
-          <span className="hidden sm:inline">Fun With Firecrackers</span>
+          <span className="hidden sm:inline">Fun With Crackers</span>
           <span className="sm:hidden">Fun With Crackers</span>
         </motion.h1>
 
