@@ -268,7 +268,6 @@ const Pricelist = () => {
   useEffect(() => {
     const initializeData = async () => {
       try {
-        // Set timeout for network warning (e.g., 5 seconds)
         loadingTimeout.current = setTimeout(() => {
           setShowNetworkWarning(true);
         }, 5000);
@@ -318,8 +317,8 @@ const Pricelist = () => {
 
         setProducts(normalizedProducts);
         setPromocodes(Array.isArray(promocodesData) ? promocodesData : []);
-        setIsLoading(false); // Data fetched, hide loader
-        clearTimeout(loadingTimeout.current); // Clear timeout
+        setIsLoading(false);
+        clearTimeout(loadingTimeout.current);
       } catch (err) {
         console.error("Error loading initial data:", err);
         toast.error("Failed to load initial data", {
@@ -330,7 +329,7 @@ const Pricelist = () => {
           pauseOnHover: true,
           draggable: true,
         });
-        setIsLoading(false); // Hide loader on error
+        setIsLoading(false);
         clearTimeout(loadingTimeout.current);
       }
     };
@@ -567,19 +566,25 @@ const Pricelist = () => {
   const totals = useMemo(() => {
     let net = 0, save = 0, total = 0, productDiscount = 0, promoDiscount = 0;
     for (const serial in cart) {
-      const qty = cart[serial], product = products.find(p => p.serial_number === serial);
+      const qty = cart[serial];
+      const product = products.find(p => p.serial_number === serial);
       if (!product) continue;
-      const originalPrice = Number.parseFloat(product.price), discount = originalPrice * (product.discount / 100), priceAfterDiscount = originalPrice - discount;
+      const originalPrice = Number.parseFloat(product.price);
+      const discount = originalPrice * (product.discount / 100);
+      const priceAfterDiscount = originalPrice - discount;
       net += originalPrice * qty;
       productDiscount += discount * qty;
       total += priceAfterDiscount * qty;
+
+      // Apply promocode discount only to matching product types
+      if (appliedPromo && (!appliedPromo.product_type || product.product_type === appliedPromo.product_type)) {
+        const productTotal = priceAfterDiscount * qty;
+        promoDiscount += (productTotal * appliedPromo.discount) / 100;
+      }
     }
     setOriginalTotal(total);
     setTotalDiscount(productDiscount);
-    if (appliedPromo) {
-      promoDiscount = (total * appliedPromo.discount) / 100;
-      total -= promoDiscount;
-    }
+    total -= promoDiscount;
     save = productDiscount + promoDiscount;
     return { 
       net: formatPrice(net), 
