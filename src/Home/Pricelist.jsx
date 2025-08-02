@@ -6,6 +6,7 @@ import { API_BASE_URL } from "../../Config";
 import { toast, ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import "../App.css";
+import need from "../default.jpg"
 
 const BigFireworkAnimation = ({ delay = 0 }) => {
   const screenWidth = typeof window !== "undefined" ? window.innerWidth : 1920;
@@ -149,7 +150,9 @@ const Carousel = ({ media, onImageClick }) => {
   };
 
   if (!mediaItems || mediaItems.length === 0) {
-    return <div className="w-full h-30 rounded-2xl mb-4 overflow-hidden bg-gray-200 flex items-center justify-center">No media available</div>;
+    return  <div className="w-full h-30 rounded-2xl mb-4 overflow-hidden bg-sky-300 flex items-center justify-center">
+              <img src={need} />
+            </div>;
   }
 
   return (

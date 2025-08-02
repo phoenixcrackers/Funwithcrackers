@@ -7,6 +7,7 @@ import { FaInfoCircle, FaArrowLeft, FaArrowRight } from "react-icons/fa";
 import Navbar from "../Component/Navbar";
 import "../App.css";
 import { API_BASE_URL } from "../../Config";
+import need from "../default.jpg"
 
 const categories = [
   { name: "Sparklers", icon: Sparkles },
@@ -606,7 +607,7 @@ export default function Home() {
                       <Carousel media={product.image} />
                     ) : (
                       <div className="w-full h-30 rounded-2xl mb-4 overflow-hidden bg-gray-200 flex items-center justify-center text-slate-600 text-sm font-medium">
-                        No data available
+                        <img alt="image" src={need  } />
                       </div>
                     )}
                     <div className="relative min-h-[3rem] flex items-center justify-center translate-x-3 mobile:min-h-[2rem] w-52">
@@ -739,7 +740,7 @@ export default function Home() {
       </section>
       <footer className="px-4 sm:px-6 py-16 mobile:-translate-y-70 mobile:-mb-60 mb-10 relative">
         <div className="absolute inset-0 rounded-3xl mx-4" style={{ background: "linear-gradient(135deg, rgba(15,23,42,0.9), rgba(30,41,59,0.9))", backdropFilter: "blur(20px)", border: "1px solid rgba(125,211,252,0.2)", boxShadow: "0 25px 45px rgba(15,23,42,0.3)" }}></div>
-        <div className="max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-3 gap-12 relative z-10 text-white hundred:ml-[23%] onefifty:ml-[15%]">
+        <div className="max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-3 gap-12 relative z-10 text-white hundred:ml-[23%] tab:ml-[10%]">
           <motion.div initial={{ opacity: 0, y: 30 }} whileInView={{ opacity: 1, y: 0 }} transition={{ duration: 0.8 }} viewport={{ once: true }} className="text-center md:text-left">
             <h2 className="text-2xl font-bold mb-4 drop-shadow-sm">Our Profile</h2>
             <p className="text-sky-200 mb-2 font-semibold">Fun With Crackers</p>
@@ -795,7 +796,7 @@ export default function Home() {
             </ul>
           </motion.div>
         </div>
-        <motion.div initial={{ opacity: 0, y: 30 }} whileInView={{ opacity: 1, y: 0 }} transition={{ duration: 0.8, delay: 0.3 }} viewport={{ once: true }} className="mt-16 max-w-5xl mx-auto text-sm text-sky-100 leading-relaxed relative z-10 text-center md:text-left">
+        <motion.div initial={{ opacity: 0, y: 30 }} whileInView={{ opacity: 1, y: 0 }} transition={{ duration: 0.8, delay: 0.3 }} viewport={{ once: true }} className="mt-16 max-w-5xl mx-auto text-sm text-sky-100 leading-relaxed relative z-10 text-center md:text-center">
           {[
             "As per 2018 Supreme Court order, online sale of firecrackers are not permitted! We value our customers and at the same time, respect jurisdiction. We request you to add your products to the cart and submit the required crackers through the enquiry button. We will contact you within 24 hrs and confirm the order through WhatsApp or phone call. Please add and submit your enquiries and enjoy your Diwali with Fun With Crackers.",
             "Our License No. ----. Fun With Crackers as a company follows 100% legal & statutory compliances, and all our shops, go-downs are maintained as per the explosive acts. We send the parcels through registered and legal transport service providers as every other major company in Sivakasi is doing.",
