@@ -48,6 +48,12 @@ const styles = {
     border: "1px solid rgba(125,211,252,0.4)",
     boxShadow: "0 15px 35px rgba(2,132,199,0.3), inset 0 1px 0 rgba(255,255,255,0.2)",
   },
+  shopNowButton: {
+    background: "linear-gradient(135deg, rgba(239,68,68,0.9), rgba(220,38,38,0.95))",
+    backdropFilter: "blur(15px)",
+    border: "1px solid rgba(252,165,165,0.4)",
+    boxShadow: "0 15px 35px rgba(239,68,68,0.3), inset 0 1px 0 rgba(255,255,255,0.2)",
+  },
   modal: {
     background: "linear-gradient(135deg, rgba(255,255,255,0.95), rgba(240,249,255,0.9))",
     backdropFilter: "blur(20px)",
@@ -510,7 +516,7 @@ export default function Home() {
   return (
     <div
       ref={containerRef}
-      className="min-h-screen text-slate-800 overflow-x-hidden"
+      className="min-h-screen text-slate-800 overflow-x-hidden relative"
       style={{
         background: "linear-gradient(135deg, #fef7ff 0%, #f0f9ff 25%, #ecfdf5 50%, #fef3c7 75%, #fef7ff 100%)",
         position: "relative",
@@ -607,7 +613,7 @@ export default function Home() {
                       <Carousel media={product.image} />
                     ) : (
                       <div className="w-full h-30 rounded-2xl mb-4 overflow-hidden bg-gray-200 flex items-center justify-center text-slate-600 text-sm font-medium">
-                        <img alt="image" src={need  } />
+                        <img alt="image" src={need} />
                       </div>
                     )}
                     <div className="relative min-h-[3rem] flex items-center justify-center translate-x-3 mobile:min-h-[2rem] w-52">
@@ -810,6 +816,23 @@ export default function Home() {
           </p>
         </div>
       </footer>
+      <motion.button
+        initial={{ opacity: 0, scale: 0 }}
+        animate={{ opacity: 1, scale: 1 }}
+        whileHover={{ scale: 1.1 }}
+        whileTap={{ scale: 0.9 }}
+        transition={{ duration: 0.3, ease: "easeOut" }}
+        className="fixed bottom-6 right-6 hundred:w-30 hundred:h-30 mobile:w-20 mobile:h-20 rounded-full text-white font-semibold text-sm flex items-center justify-center transition-all duration-300 z-50"
+        style={styles.shopNowButton}
+        onClick={() => navigate("/price-list")}
+        onMouseEnter={(e) => Object.assign(e.currentTarget.style, { 
+          background: "linear-gradient(135deg, rgba(220,38,38,1), rgba(239,68,68,1))", 
+          boxShadow: "0 8px 24px rgba(239,68,68,0.4)" 
+        })}
+        onMouseLeave={(e) => Object.assign(e.currentTarget.style, styles.shopNowButton)}
+      >
+        Shop Now
+      </motion.button>
     </div>
   );
 }
