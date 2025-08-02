@@ -6,7 +6,7 @@ import { API_BASE_URL } from "../../Config";
 import { toast, ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import "../App.css";
-import need from "../default.jpg"
+import need from "../default.jpg";
 
 const BigFireworkAnimation = ({ delay = 0 }) => {
   const screenWidth = typeof window !== "undefined" ? window.innerWidth : 1920;
@@ -40,6 +40,22 @@ const BigFireworkAnimation = ({ delay = 0 }) => {
     </div>
   );
 };
+
+const Loader = ({ showWarning }) => (
+  <div className="fixed inset-0 bg-white/90 z-70 flex items-center justify-center">
+    <motion.div
+      className="flex flex-col items-center gap-4"
+      initial={{ opacity: 0, scale: 0.8 }}
+      animate={{ opacity: 1, scale: 1 }}
+      transition={{ duration: 0.5 }}
+    >
+      <div className="loader-spinner w-16 h-16 border-4 border-t-sky-500 border-gray-200 rounded-full animate-spin"></div>
+      <p className="text-lg font-semibold text-sky-700">
+        {showWarning ? "Your network is slow. Please check your internet and try again." : "Loading products..."}
+      </p>
+    </motion.div>
+  </div>
+);
 
 const ImageModal = ({ media, onClose }) => {
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -232,7 +248,10 @@ const Pricelist = () => {
   const [promocodes, setPromocodes] = useState([]);
   const [originalTotal, setOriginalTotal] = useState(0);
   const [totalDiscount, setTotalDiscount] = useState(0);
+  const [isLoading, setIsLoading] = useState(true);
+  const [showNetworkWarning, setShowNetworkWarning] = useState(false);
   const debounceTimeout = useRef(null);
+  const loadingTimeout = useRef(null);
 
   const styles = {
     card: { background: "linear-gradient(135deg, rgba(255,255,255,0.4), rgba(224,242,254,0.3), rgba(186,230,253,0.2))", backdropFilter: "blur(20px)", border: "1px solid rgba(2,132,199,0.3)", boxShadow: "0 25px 45px rgba(2,132,199,0.1), inset 0 1px 0 rgba(255,255,255,0.4), inset 0 -1px 0 rgba(2,132,199,0.1)" },
@@ -249,6 +268,11 @@ const Pricelist = () => {
   useEffect(() => {
     const initializeData = async () => {
       try {
+        // Set timeout for network warning (e.g., 5 seconds)
+        loadingTimeout.current = setTimeout(() => {
+          setShowNetworkWarning(true);
+        }, 5000);
+
         const savedCart = localStorage.getItem("firecracker-cart");
         if (savedCart) setCart(JSON.parse(savedCart));
         const [statesRes, productsRes, promocodesRes] = await Promise.all([
@@ -294,6 +318,8 @@ const Pricelist = () => {
 
         setProducts(normalizedProducts);
         setPromocodes(Array.isArray(promocodesData) ? promocodesData : []);
+        setIsLoading(false); // Data fetched, hide loader
+        clearTimeout(loadingTimeout.current); // Clear timeout
       } catch (err) {
         console.error("Error loading initial data:", err);
         toast.error("Failed to load initial data", {
@@ -304,9 +330,15 @@ const Pricelist = () => {
           pauseOnHover: true,
           draggable: true,
         });
+        setIsLoading(false); // Hide loader on error
+        clearTimeout(loadingTimeout.current);
       }
     };
     initializeData();
+
+    return () => {
+      if (loadingTimeout.current) clearTimeout(loadingTimeout.current);
+    };
   }, []);
 
   useEffect(() => {
@@ -637,6 +669,15 @@ const Pricelist = () => {
       acc[key].push(p);
       return acc;
     }, {}), [products, selectedType, searchTerm]);
+
+  if (isLoading) {
+    return (
+      <>
+        <ToastContainer />
+        <Loader showWarning={showNetworkWarning} />
+      </>
+    );
+  }
 
   return (
     <>
@@ -1136,6 +1177,7 @@ const Pricelist = () => {
         .details-modal { display: flex !important; visibility: visible !important; opacity: 1 !important; }
         .animate-marquee { display: inline-block; white-space: nowrap; animation: marquee 10s linear infinite; }
         @keyframes marquee { 0% { transform: translateX(100%); } 100% { transform: translateX(-100%); } }
+        .loader-spinner { border-top-color: #0284c7; }
       `}</style>
     </>
   );
