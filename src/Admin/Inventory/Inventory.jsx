@@ -12,7 +12,8 @@ export default function Inventory() {
   const [productType, setProductType] = useState('');
   const [newProductType, setNewProductType] = useState('');
   const [productTypes, setProductTypes] = useState([]);
-  const [images, setImages] = useState([]);
+  const [images, setImages] = useState([]); // New images (Files)
+  const [existingImages, setExistingImages] = useState([]); // Existing Cloudinary URLs
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [discountWarning, setDiscountWarning] = useState('');
@@ -92,25 +93,25 @@ export default function Inventory() {
     const allowedVideoTypes = ['video/mp4', 'video/webm', 'video/ogg'];
     const allowedTypes = [...allowedImageTypes, ...allowedVideoTypes];
 
-    const validFiles = [];
-
-    for (const file of files) {
+    const validFiles = files.filter((file) => {
       const fileType = file.type.toLowerCase();
       if (!allowedTypes.includes(fileType)) {
         setError('Only JPG, PNG, GIF images and MP4, WebM, Ogg videos are allowed');
-        return;
+        return false;
       }
-
       if (file.size > 5 * 1024 * 1024) {
         setError('Each file must be less than 5MB');
-        return;
+        return false;
       }
-
-      validFiles.push(file);
-    }
+      return true;
+    });
 
     setError('');
     setImages(validFiles);
+  };
+
+  const handleDeleteExistingImage = (index) => {
+    setExistingImages((prev) => prev.filter((_, idx) => idx !== index));
   };
 
   const handleProductTypeChange = (event) => {
@@ -118,6 +119,7 @@ export default function Inventory() {
     setValues({ description: '' });
     setFocused({});
     setImages([]);
+    setExistingImages([]);
     setError('');
     setSuccess('');
     setDiscountWarning('');
@@ -169,6 +171,7 @@ export default function Inventory() {
         setProductType('');
         setValues({ description: '' });
         setImages([]);
+        setExistingImages([]);
         setFocused({});
         setDiscountWarning('');
       }
@@ -199,10 +202,10 @@ export default function Inventory() {
     formData.append('discount', values.discount);
     formData.append('description', values.description || '');
     formData.append('product_type', productType);
-
-    if (Array.isArray(images) && images.length > 0) {
-      images.forEach(file => formData.append('images', file));
+    if (existingImages.length > 0) {
+      formData.append('existingImages', JSON.stringify(existingImages));
     }
+    images.forEach((file) => formData.append('images', file));
 
     try {
       const response = await fetch(`${API_BASE_URL}/api/products`, {
@@ -216,6 +219,7 @@ export default function Inventory() {
       setSuccess('Product saved successfully!');
       setValues({ description: '' });
       setImages([]);
+      setExistingImages([]);
       setFocused({});
       setDiscountWarning('');
       event.target.reset();
@@ -231,6 +235,25 @@ export default function Inventory() {
       .split('_')
       .map(word => word.charAt(0).toUpperCase() + word.slice(1))
       .join(' ');
+  };
+
+  const renderMedia = (media, idx, sizeClass) => {
+    const isVideo = media.includes('/video/');
+    return isVideo ? (
+      <video
+        key={idx}
+        src={media}
+        controls
+        className={`${sizeClass} object-cover rounded-md inline-block mx-1`}
+      />
+    ) : (
+      <img
+        key={idx}
+        src={media || '/placeholder.svg'}
+        alt={`media-${idx}`}
+        className={`${sizeClass} object-cover rounded-md inline-block mx-1`}
+      />
+    );
   };
 
   const renderFormFields = () => {
@@ -378,6 +401,46 @@ export default function Inventory() {
               className="block w-full text-sm text-gray-900 dark:text-gray-100 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 dark:file:bg-gray-700 file:text-indigo-600 dark:file:text-gray-200 hover:file:bg-indigo-100 dark:hover:file:bg-gray-600"
             />
           </div>
+          {existingImages.length > 0 && (
+            <div className="mt-2">
+              <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">Existing images (click × to delete):</p>
+              <div className="flex flex-wrap gap-2">
+                {existingImages.map((url, idx) => (
+                  <div key={idx} className="relative">
+                    {renderMedia(url, idx, 'h-20 w-20')}
+                    <button
+                      type="button"
+                      onClick={() => handleDeleteExistingImage(idx)}
+                      className="absolute -top-2 -right-2 bg-red-500 hover:bg-red-600 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs font-bold shadow-lg"
+                      title="Delete this image"
+                    >
+                      ×
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+          {images.length > 0 && (
+            <div className="mt-2">
+              <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">New images (will be uploaded):</p>
+              <div className="flex flex-wrap gap-2">
+                {images.map((file, idx) => (
+                  <div key={idx} className="relative">
+                    {renderMedia(URL.createObjectURL(file), idx, 'h-20 w-20')}
+                    <button
+                      type="button"
+                      onClick={() => setImages((prev) => prev.filter((_, index) => index !== idx))}
+                      className="absolute -top-2 -right-2 bg-red-500 hover:bg-red-600 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs font-bold shadow-lg"
+                      title="Remove this new image"
+                    >
+                      ×
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       </>
     );
@@ -484,6 +547,7 @@ export default function Inventory() {
                     onClick={() => {
                       setValues({ description: '' });
                       setImages([]);
+                      setExistingImages([]);
                       setProductType('');
                       setFocused({});
                       setDiscountWarning('');
