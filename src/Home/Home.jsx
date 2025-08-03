@@ -8,6 +8,7 @@ import Navbar from "../Component/Navbar";
 import "../App.css";
 import { API_BASE_URL } from "../../Config";
 import need from "../default.jpg"
+import cont from '../cont.jpg'
 
 const categories = [
   { name: "Sparklers", icon: Sparkles },
@@ -646,7 +647,7 @@ export default function Home() {
           <motion.div initial={{ opacity: 0, x: -100 }} whileInView={{ opacity: 1, x: 0 }} transition={{ duration: 1 }} viewport={{ once: true }} className="relative md:translate-x-60 mobile:ml-5">
             <div className="absolute -inset-4 rounded-3xl transform rotate-3 w-96 mobile:w-92" style={{ background: "linear-gradient(135deg, rgba(56,189,248,0.2), rgba(125,211,252,0.3))", backdropFilter: "blur(10px)" }}></div>
             <div className="relative rounded-3xl w-84" style={{ ...styles.card, border: "1px solid rgba(125,211,252,0.3)" }}>
-              <img src="/cont.png" alt="Diwali Poster" className="w-84 h-96 object-cover rounded-2xl hover:scale-105 transition-all duration-700" />
+              <img src={cont} alt="Diwali Poster" className="w-84 h-96 object-cover rounded-2xl hover:scale-105 transition-all duration-700" />
             </div>
           </motion.div>
           <motion.div initial={{ opacity: 0, x: 100 }} whileInView={{ opacity: 1, x: 0 }} transition={{ duration: 1 }} viewport={{ once: true }} className="space-y-8">

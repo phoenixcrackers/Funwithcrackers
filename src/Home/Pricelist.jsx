@@ -46,10 +46,10 @@ const BigFireworkAnimation = ({ delay = 0 }) => {
 const Loader = ({ showWarning }) => (
   <div className="fixed inset-0 bg-white/90 z-70 flex items-center justify-center">
     <motion.div
-      className="flex flex-col items-center gap-4"
       initial={{ opacity: 0, scale: 0.8 }}
       animate={{ opacity: 1, scale: 1 }}
       transition={{ duration: 0.5 }}
+      className="flex flex-col items-center gap-4"
     >
       <div className="loader-spinner w-16 h-16 border-4 border-t-sky-500 border-gray-200 rounded-full animate-spin"></div>
       <p className="text-lg font-semibold text-sky-700">
@@ -265,7 +265,7 @@ const Pricelist = () => {
   };
 
   const formatPrice = (price) => {
-    const num = Number.parseFloat(price);
+    const num = Number.parseFloat(price) || 0;
     return Number.isInteger(num) ? num.toString() : num.toFixed(2);
   };
 
@@ -330,7 +330,7 @@ const Pricelist = () => {
         },
       });
 
-      doc.save('Retail_Pricelist_2025.pdf');
+      doc.save('FWC_Pricelist_2025.pdf');
     } catch (err) {
       showError('Failed to generate PDF: ' + err.message);
     }
@@ -510,24 +510,20 @@ const Pricelist = () => {
       setIsBooking(false);
       return showError("Mobile number is required.");
     }
-    if (!customerDetails.email.trim()) {
-      setIsBooking(false);
-      return showError("Email is required.");
-    }
     const mobile = customerDetails.mobile_number.replace(/\D/g, '').slice(-10);
     if (mobile.length !== 10) {
       setIsBooking(false);
       return showError("Mobile number must be 10 digits.");
     }
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(customerDetails.email)) {
+    if (customerDetails.email.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(customerDetails.email)) {
       setIsBooking(false);
       return showError("Please enter a valid email address.");
     }
     const selectedState = customerDetails.state.trim();
     const minOrder = states.find(s => s.name === selectedState)?.min_rate;
-    if (minOrder && parseFloat(originalTotal) < minOrder) {
+    if (minOrder && parseFloat(totals.total) < minOrder) {
       setIsBooking(false);
-      return showError(`Minimum order for ${selectedState} is ₹${minOrder}. Your total is ₹${originalTotal}.`);
+      return showError(`Minimum order for ${selectedState} is ₹${minOrder}. Your total is ₹${totals.total}.`);
     }
     try {
       const response = await fetch(`${API_BASE_URL}/api/direct/bookings`, {
@@ -555,11 +551,11 @@ const Pricelist = () => {
         setShowSuccess(true);
         setTimeout(() => setShowSuccess(false), 4000);
         setCart({});
+        setAppliedPromo(null);
+        setPromocode("");
         setIsCartOpen(false);
         setShowModal(false);
         setCustomerDetails({ customer_name: "", address: "", district: "", state: "", mobile_number: "", email: "", customer_type: "User" });
-        setAppliedPromo(null);
-        setPromocode("");
         setOriginalTotal(0);
         setTotalDiscount(0);
 
@@ -640,22 +636,25 @@ const Pricelist = () => {
       const qty = cart[serial];
       const product = products.find(p => p.serial_number === serial);
       if (!product) continue;
-      const originalPrice = Number.parseFloat(product.price);
-      const discount = originalPrice * (product.discount / 100);
-      const priceAfterDiscount = originalPrice - discount;
+      const originalPrice = Number.parseFloat(product.price) || 0;
+      const discount = originalPrice * (Number.parseFloat(product.discount) / 100 || 0);
+      const priceAfterProductDiscount = originalPrice - discount;
       net += originalPrice * qty;
       productDiscount += discount * qty;
-      total += priceAfterDiscount * qty;
+      let itemTotal = priceAfterProductDiscount * qty;
 
-      // Apply promocode discount only to matching product types
-      if (appliedPromo && product.product_type === appliedPromo.product_type) {
-        const productTotal = priceAfterDiscount * qty;
-        promoDiscount += (productTotal * appliedPromo.discount) / 100;
+      // Apply promocode discount if applicable
+      if (appliedPromo) {
+        const promoDiscountRate = Number.parseFloat(appliedPromo.discount) || 0;
+        const isApplicable = !appliedPromo.product_type || product.product_type === appliedPromo.product_type;
+        if (isApplicable) {
+          const promoDiscountAmount = (itemTotal * promoDiscountRate) / 100;
+          promoDiscount += promoDiscountAmount;
+          itemTotal -= promoDiscountAmount;
+        }
       }
+      total += itemTotal;
     }
-    setOriginalTotal(total);
-    setTotalDiscount(productDiscount);
-    total -= promoDiscount;
     save = productDiscount + promoDiscount;
     return { 
       net: formatPrice(net), 
@@ -684,8 +683,8 @@ const Pricelist = () => {
         return;
       }
       
-      if (found.min_amount && parseFloat(originalTotal) < found.min_amount) {
-        showError(`Minimum order amount for this promocode is ₹${found.min_amount}. Your total is ₹${originalTotal}.`);
+      if (found.min_amount && parseFloat(totals.total) < found.min_amount) {
+        showError(`Minimum order amount for this promocode is ₹${found.min_amount}. Your total is ₹${totals.total}.`);
         setAppliedPromo(null);
         setPromocode("");
         return;
@@ -698,14 +697,13 @@ const Pricelist = () => {
         return;
       }
       
-      // Allow promocode application even if cart has mixed product types
+      // Check if promocode is applicable to at least one product in the cart
       if (found.product_type) {
         const cartProductTypes = Object.keys(cart).map(serial => {
           const product = products.find(p => p.serial_number === serial);
           return product?.product_type || "Others";
         });
-        
-        if (!cartProductTypes.includes(found.product_type)) {
+        if (!cartProductTypes.some(type => type === found.product_type)) {
           showError(`This promocode is only valid for ${found.product_type.replace(/_/g, " ")} products, and none are in your cart.`);
           setAppliedPromo(null);
           setPromocode("");
@@ -714,19 +712,31 @@ const Pricelist = () => {
       }
       
       setAppliedPromo(found);
+      toast.success(`Promocode ${found.code} applied successfully! Discount: ${found.discount}%`, {
+        position: "top-center",
+        autoClose: 3000,
+        hideProgressBar: false,
+        closeOnClick: true,
+        pauseOnHover: true,
+        draggable: true,
+      });
     } catch (err) {
       console.error("Promo apply error:", err);
       showError("Could not validate promocode.");
       setAppliedPromo(null);
       setPromocode("");
     }
-  }, [cart, products, originalTotal]);
+  }, [cart, products, totals.total]);
 
   useEffect(() => {
     if (debounceTimeout.current) clearTimeout(debounceTimeout.current);
     debounceTimeout.current = setTimeout(() => {
       if (promocode && promocode !== "custom") handleApplyPromo(promocode);
-      else setAppliedPromo(null);
+      else if (promocode === "custom") {
+        // Handle custom code input without immediate validation
+      } else {
+        setAppliedPromo(null);
+      }
     }, 500);
     return () => clearTimeout(debounceTimeout.current);
   }, [promocode, handleApplyPromo]);
@@ -966,24 +976,31 @@ const Pricelist = () => {
               <h2 className="text-2xl font-bold mb-6 text-sky-700 drop-shadow-sm">Enter Customer Details</h2>
               <div className="space-y-4">
                 {[
-                  { name: "customer_name", type: "text", placeholder: "Customer Name", pattern: null, title: "Please enter customer name" },
-                  { name: "address", type: "text", placeholder: "Address", pattern: null, title: "Please enter address" },
+                  { name: "customer_name", type: "text", placeholder: "Customer Name", pattern: null, title: "Please enter customer name", required: true },
+                  { name: "address", type: "text", placeholder: "Address", pattern: null, title: "Please enter address", required: true },
                   {
                     name: "mobile_number",
                     type: "tel",
                     placeholder: "Mobile Number",
                     pattern: "[0-9]{10}",
-                    title: "Please enter a valid 10-digit mobile number"
+                    title: "Please enter a valid 10-digit mobile number",
+                    required: true
                   },
                   {
                     name: "email",
                     type: "email",
                     placeholder: "Email",
                     pattern: null,
-                    title: "Please enter a valid email address"
+                    title: "Please enter a valid email address",
+                    required: false
                   }
                 ].map(field => (
                   <div key={field.name} className="relative">
+                    <div className="flex items-center">
+                      <label className="block text-sm font-medium text-slate-700 mb-1">
+                        {field.placeholder} {field.required && <span className="text-red-500">*</span>}
+                      </label>
+                    </div>
                     <input
                       name={field.name}
                       type={field.type}
@@ -992,7 +1009,7 @@ const Pricelist = () => {
                       onChange={handleInputChange}
                       className="w-full border border-sky-200 px-4 py-3 rounded-xl text-sm focus:ring-2 focus:ring-sky-400 focus:border-transparent transition-all duration-300 peer"
                       style={styles.input}
-                      required
+                      required={field.required}
                       pattern={field.pattern}
                       title={field.title}
                     />
@@ -1002,6 +1019,11 @@ const Pricelist = () => {
                   </div>
                 ))}
                 <div className="relative">
+                  <div className="flex items-center">
+                    <label className="block text-sm font-medium text-slate-700 mb-1">
+                      State <span className="text-red-500">*</span>
+                    </label>
+                  </div>
                   <select
                     name="state"
                     value={customerDetails.state}
@@ -1019,6 +1041,11 @@ const Pricelist = () => {
                 </div>
                 {customerDetails.state && (
                   <div className="relative">
+                    <div className="flex items-center">
+                      <label className="block text-sm font-medium text-slate-700 mb-1">
+                        District <span className="text-red-500">*</span>
+                      </label>
+                    </div>
                     <select
                       name="district"
                       value={customerDetails.district}
@@ -1253,7 +1280,7 @@ const Pricelist = () => {
           </div>
           <div className="flex gap-2">
             <button
-              onClick={() => setCart({})}
+              onClick={() => { setCart({}); setAppliedPromo(null); setPromocode(""); }}
               className="flex-1 text-white text-sm font-semibold py-3 rounded-xl transition-all duration-300 cursor-pointer"
               style={{ background: "linear-gradient(135deg, rgba(239,68,68,0.9), rgba(220,38,38,0.9))", boxShadow: "0 5px 15px rgba(239,68,68,0.3)" }}
             >
