@@ -280,7 +280,7 @@ const Carousel = ({ media, onImageClick }) => {
 
   return (
     <div
-      className="relative w-full h-30 rounded-2xl mb-4 overflow-hidden select-none"
+      className="relative w-full h-40 rounded-2xl mb-4 overflow-hidden select-none"
       style={{ background: "linear-gradient(135deg, rgba(255,255,255,0.6), rgba(240,249,255,0.4))", backdropFilter: "blur(10px)", border: "1px solid rgba(2,132,199,0.2)" }}
       onTouchStart={handleTouchStart}
       onTouchMove={handleTouchMove}
