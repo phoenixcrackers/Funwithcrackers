@@ -61,14 +61,63 @@ const Loader = ({ showWarning }) => (
 
 const ImageModal = ({ media, onClose }) => {
   const [currentIndex, setCurrentIndex] = useState(0);
+  const videoRef = useRef(null);
 
   const mediaItems = useMemo(() => {
     const items = media && typeof media === 'string' ? JSON.parse(media) : (Array.isArray(media) ? media : []);
-    return items.filter(item => !item.startsWith('data:video/'));
+    return items;
   }, [media]);
 
-  const handlePrev = () => setCurrentIndex(prev => (prev === 0 ? mediaItems.length - 1 : prev - 1));
-  const handleNext = () => setCurrentIndex(prev => (prev === mediaItems.length - 1 ? 0 : prev + 1));
+  const isVideo = (media) => typeof media === 'string' && (media.includes('/video/') || media.startsWith('data:video/'));
+
+  const renderMedia = (media, idx) => {
+    const src = typeof media === 'string' ? media : '';
+    if (isVideo(src)) {
+      return (
+        <video
+          key={idx}
+          ref={videoRef}
+          src={src}
+          controls
+          autoPlay
+          muted
+          loop
+          playsInline
+          className="w-full h-full object-contain rounded-xl"
+          onError={(e) => console.error("Video load error in modal:", e)}
+          onLoad={() => {
+            if (videoRef.current) {
+              videoRef.current.load();
+              videoRef.current.play().catch(err => console.error("Video playback error in modal:", err));
+            }
+          }}
+        />
+      );
+    }
+    return (
+      <img
+        key={idx}
+        src={src || need}
+        alt={`media-${idx}`}
+        className="w-full h-full object-contain rounded-xl"
+      />
+    );
+  };
+
+  const handlePrev = () => {
+    setCurrentIndex(prev => (prev === 0 ? mediaItems.length - 1 : prev - 1));
+  };
+
+  const handleNext = () => {
+    setCurrentIndex(prev => (prev === mediaItems.length - 1 ? 0 : prev + 1));
+  };
+
+  useEffect(() => {
+    if (videoRef.current && isVideo(mediaItems[currentIndex])) {
+      videoRef.current.load();
+      videoRef.current.play().catch(err => console.error("Video playback error in modal:", err));
+    }
+  }, [currentIndex, mediaItems]);
 
   if (!mediaItems || mediaItems.length === 0) return null;
 
@@ -88,24 +137,20 @@ const ImageModal = ({ media, onClose }) => {
         >
           <FaTimes />
         </button>
-        <img
-          src={mediaItems[currentIndex] || need}
-          alt="Enlarged product"
-          className="w-full h-full object-contain rounded-xl"
-        />
+        {renderMedia(mediaItems[currentIndex], currentIndex)}
         {mediaItems.length > 1 && (
           <>
             <button
               onClick={handlePrev}
               className="absolute left-4 top-1/2 transform -translate-y-1/2 w-10 h-10 rounded-full bg-white/80 text-sky-700 flex items-center justify-center text-xl z-10 hover:bg-sky-700 hover:text-white"
-              aria-label="Previous image"
+              aria-label="Previous media"
             >
               <FaArrowLeft />
             </button>
             <button
               onClick={handleNext}
               className="absolute right-4 top-1/2 transform -translate-y-1/2 w-10 h-10 rounded-full bg-white/80 text-sky-700 flex items-center justify-center text-xl z-10 hover:bg-sky-700 hover:text-white"
-              aria-label="Next image"
+              aria-label="Next media"
             >
               <FaArrowRight />
             </button>
@@ -128,14 +173,15 @@ const Carousel = ({ media, onImageClick }) => {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isDragging, setIsDragging] = useState(false);
   const [startX, setStartX] = useState(0);
+  const videoRef = useRef(null);
 
   const mediaItems = useMemo(() => {
     const items = media && typeof media === 'string' ? JSON.parse(media) : (Array.isArray(media) ? media : []);
     return items.sort((a, b) => {
       const aStr = typeof a === 'string' ? a : '';
       const bStr = typeof b === 'string' ? b : '';
-      const isAVideo = aStr.startsWith('data:video/');
-      const isBVideo = bStr.startsWith('data:video/');
+      const isAVideo = aStr.includes('/video/') || aStr.startsWith('data:video/');
+      const isBVideo = bStr.includes('/video/') || bStr.startsWith('data:video/');
       const isAGif = aStr.startsWith('data:image/gif') || aStr.toLowerCase().endsWith('.gif');
       const isBGif = bStr.startsWith('data:image/gif') || bStr.toLowerCase().endsWith('.gif');
       const isAImage = aStr.startsWith('data:image/') && !isAGif;
@@ -144,10 +190,50 @@ const Carousel = ({ media, onImageClick }) => {
     });
   }, [media]);
 
-  const isVideo = (item) => typeof item === 'string' && item.startsWith('data:video/');
+  const isVideo = (media) => typeof media === 'string' && (media.includes('/video/') || media.startsWith('data:video/'));
 
-  const handlePrev = () => setCurrentIndex(prev => (prev === 0 ? mediaItems.length - 1 : prev - 1));
-  const handleNext = () => setCurrentIndex(prev => (prev === mediaItems.length - 1 ? 0 : prev + 1));
+  const renderMedia = (media, idx) => {
+    const src = typeof media === 'string' ? media : '';
+    if (isVideo(src)) {
+      return (
+        <video
+          key={idx}
+          ref={videoRef}
+          src={src}
+          controls
+          autoPlay
+          muted
+          loop
+          playsInline
+          className="w-full h-full object-contain p-2"
+          onError={(e) => console.error("Video load error:", e)}
+          onLoad={() => {
+            if (videoRef.current) {
+              videoRef.current.load();
+              videoRef.current.play().catch(err => console.error("Video playback error:", err));
+            }
+          }}
+        />
+      );
+    }
+    return (
+      <img
+        key={idx}
+        src={src || need}
+        alt={`media-${idx}`}
+        className="w-full h-full object-contain p-2 cursor-pointer"
+        onClick={onImageClick}
+      />
+    );
+  };
+
+  const handlePrev = () => {
+    setCurrentIndex(prev => (prev === 0 ? mediaItems.length - 1 : prev - 1));
+  };
+
+  const handleNext = () => {
+    setCurrentIndex(prev => (prev === mediaItems.length - 1 ? 0 : prev + 1));
+  };
 
   const handleTouchStart = (e) => {
     setIsDragging(true);
@@ -167,6 +253,13 @@ const Carousel = ({ media, onImageClick }) => {
     else if (diffX < -50) handlePrev();
   };
 
+  useEffect(() => {
+    if (videoRef.current && isVideo(mediaItems[currentIndex])) {
+      videoRef.current.load();
+      videoRef.current.play().catch(err => console.error("Video playback error:", err));
+    }
+  }, [currentIndex, mediaItems]);
+
   if (!mediaItems || mediaItems.length === 0) {
     return (
       <div className="w-full h-30 rounded-2xl mb-4 overflow-hidden bg-sky-300 flex items-center justify-center">
@@ -183,16 +276,7 @@ const Carousel = ({ media, onImageClick }) => {
       onTouchMove={handleTouchMove}
       onTouchEnd={handleTouchEnd}
     >
-      {isVideo(mediaItems[currentIndex]) ? (
-        <video src={mediaItems[currentIndex]} autoPlay muted loop className="w-full h-full object-contain p-2" />
-      ) : (
-        <img
-          src={mediaItems[currentIndex] || need}
-          alt="Product"
-          className="w-full h-full object-contain p-2 cursor-pointer"
-          onClick={onImageClick}
-        />
-      )}
+      {renderMedia(mediaItems[currentIndex], currentIndex)}
       {mediaItems.length > 1 && (
         <>
           <button
@@ -643,7 +727,6 @@ const Pricelist = () => {
       productDiscount += discount * qty;
       let itemTotal = priceAfterProductDiscount * qty;
 
-      // Apply promocode discount if applicable
       if (appliedPromo) {
         const promoDiscountRate = Number.parseFloat(appliedPromo.discount) || 0;
         const isApplicable = !appliedPromo.product_type || product.product_type === appliedPromo.product_type;
@@ -697,7 +780,6 @@ const Pricelist = () => {
         return;
       }
       
-      // Check if promocode is applicable to at least one product in the cart
       if (found.product_type) {
         const cartProductTypes = Object.keys(cart).map(serial => {
           const product = products.find(p => p.serial_number === serial);
@@ -733,7 +815,6 @@ const Pricelist = () => {
     debounceTimeout.current = setTimeout(() => {
       if (promocode && promocode !== "custom") handleApplyPromo(promocode);
       else if (promocode === "custom") {
-        // Handle custom code input without immediate validation
       } else {
         setAppliedPromo(null);
       }
@@ -1192,7 +1273,7 @@ const Pricelist = () => {
               if (!product) return null;
               const discount = (product.price * product.discount) / 100;
               const priceAfterDiscount = formatPrice(product.price - discount);
-              const imageSrc = (product.image && typeof product.image === 'string' ? JSON.parse(product.image) : (Array.isArray(product.image) ? product.image : [])).filter(item => !item.startsWith('data:video/') && !item.startsWith('data:image/gif') && !item.toLowerCase().endsWith('.gif'))[0] || need;
+              const imageSrc = (product.image && typeof product.image === 'string' ? JSON.parse(product.image) : (Array.isArray(product.image) ? product.image : [])).filter(item => !item.includes('/video/') && !item.startsWith('data:video/') && !item.startsWith('data:image/gif') && !item.toLowerCase().endsWith('.gif'))[0] || need;
               return (
                 <motion.div
                   key={serial}
