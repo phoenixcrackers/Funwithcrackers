@@ -65,6 +65,17 @@ export default function Navbar() {
             className="relative text-sky-100 hover:text-white transition-colors duration-300 group cursor-pointer drop-shadow-sm px-2 py-1"
             initial={{ opacity: 0, y: -10 }}
             animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.2 }}
+            onClick={() => { navigate("/status", { replace: true }); window.scrollTo(0, 0); }}
+          >
+            Track Order
+            <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-white group-hover:w-full transition-all duration-300 rounded-full"></span>
+          </motion.a>
+
+          <motion.a
+            className="relative text-sky-100 hover:text-white transition-colors duration-300 group cursor-pointer drop-shadow-sm px-2 py-1"
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.3 }}
             onClick={() => { navigate("/safety-tips", { replace: true }); window.scrollTo(0, 0); }}
           >
@@ -129,6 +140,13 @@ export default function Navbar() {
               onClick={() => { navigate("/price-list", { replace: true }); window.scrollTo(0, 0); setMenuOpen(false); }}
             >
               Price List
+            </a>
+
+            <a
+              className="block cursor-pointer text-sm font-medium text-sky-100 hover:text-white px-3 py-2 rounded-lg transition-all duration-300 hover:bg-white/10 text-center"
+              onClick={() => { navigate("/status", { replace: true }); window.scrollTo(0, 0); setMenuOpen(false); }}
+            >
+              Track Order
             </a>
 
             <a

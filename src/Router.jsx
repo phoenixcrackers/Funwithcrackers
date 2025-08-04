@@ -17,6 +17,7 @@ import Contact from './Home/Contact';
 import Pricelist from './Home/Pricelist';
 import Promocode from './Admin/Promo/Promocode'
 import SalesAnalysis from './Admin/Sales/SalesAnalysis';
+import Status from './Home/Status';
 
 const AllRoutes = () => {
   return (
@@ -27,6 +28,7 @@ const AllRoutes = () => {
       <Route path="/about-us" element={<About />} />
       <Route path="/contact-us" element={<Contact />} />
       <Route path="/price-list" element={<Pricelist />} />
+      <Route path="/status" element={<Status />} />
       
       <Route element={<ProtectedRoute />}>
         <Route path="/inventory" element={<Inventory />} />
