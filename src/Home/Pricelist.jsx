@@ -65,7 +65,17 @@ const ImageModal = ({ media, onClose }) => {
 
   const mediaItems = useMemo(() => {
     const items = media && typeof media === 'string' ? JSON.parse(media) : (Array.isArray(media) ? media : []);
-    return items;
+    return items.sort((a, b) => {
+      const aStr = typeof a === 'string' ? a : '';
+      const bStr = typeof b === 'string' ? b : '';
+      const isAVideo = aStr.includes('/video/') || aStr.startsWith('data:video/');
+      const isBVideo = bStr.includes('/video/') || bStr.startsWith('data:video/');
+      const isAGif = aStr.startsWith('data:image/gif') || aStr.toLowerCase().endsWith('.gif');
+      const isBGif = bStr.startsWith('data:image/gif') || bStr.toLowerCase().endsWith('.gif');
+      const isAImage = aStr.startsWith('data:image/') && !isAGif;
+      const isBImage = bStr.startsWith('data:image/') && !isBGif;
+      return (isAImage ? 0 : isAVideo ? 1 : isAGif ? 2 : 3) - (isBImage ? 0 : isBVideo ? 1 : isBGif ? 2 : 3);
+    });
   }, [media]);
 
   const isVideo = (media) => typeof media === 'string' && (media.includes('/video/') || media.startsWith('data:video/'));
@@ -184,9 +194,9 @@ const Carousel = ({ media, onImageClick }) => {
       const isBVideo = bStr.includes('/video/') || bStr.startsWith('data:video/');
       const isAGif = aStr.startsWith('data:image/gif') || aStr.toLowerCase().endsWith('.gif');
       const isBGif = bStr.startsWith('data:image/gif') || bStr.toLowerCase().endsWith('.gif');
-      const isAImage = aStr.startsWith('data:image/') && !isAGif;
-      const isBImage = bStr.startsWith('data:image/') && !isBGif;
-      return (isAImage ? 0 : isAGif ? 1 : isAVideo ? 2 : 3) - (isBImage ? 0 : isBGif ? 1 : isBVideo ? 2 : 3);
+      const isAImage = !isAVideo && !isAGif;
+      const isBImage = !isBVideo && !isBGif;
+      return (isAImage ? 0 : isAVideo ? 1 : isAGif ? 2 : 3) - (isBImage ? 0 : isBVideo ? 1 : isBGif ? 2 : 3);
     });
   }, [media]);
 
@@ -789,7 +799,6 @@ const Pricelist = () => {
           showError(`This promocode is only valid for ${found.product_type.replace(/_/g, " ")} products, and none are in your cart.`);
           setAppliedPromo(null);
           setPromocode("");
-          return;
         }
       }
       
