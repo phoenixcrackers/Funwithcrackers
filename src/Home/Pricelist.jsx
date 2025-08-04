@@ -1059,12 +1059,12 @@ const Pricelist = () => {
           <motion.div
             initial={{ scale: 0.9, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
-            className="relative rounded-3xl shadow-lg max-w-md w-full mx-4 overflow-hidden"
+            className="relative rounded-3xl shadow-lg max-w-7xl tab:max-w-md onefifty:max-w-4xl w-full mx-4 overflow-hidden"
             style={styles.modal}
           >
             <div className="p-6">
               <h2 className="text-2xl font-bold mb-6 text-sky-700 drop-shadow-sm">Enter Customer Details</h2>
-              <div className="space-y-4">
+              <div className="space-y-4 grid hundred:grid-cols-2 onefifty:grid-cols-2 onefifty:gap-2 mobile:grid-cols-1 mobile:gap-0 mobile:space-y-0 gap-2">
                 {[
                   { name: "customer_name", type: "text", placeholder: "Customer Name", pattern: null, title: "Please enter customer name", required: true },
                   { name: "address", type: "text", placeholder: "Address", pattern: null, title: "Please enter address", required: true },
