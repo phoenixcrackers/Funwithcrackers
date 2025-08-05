@@ -1,5 +1,3 @@
-"use client"
-
 import { useState, useEffect } from "react"
 import Modal from "react-modal"
 import Sidebar from "../Sidebar/Sidebar"
@@ -22,12 +20,16 @@ export default function List() {
   const [editModalIsOpen, setEditModalIsOpen] = useState(false)
   const [addModalIsOpen, setAddModalIsOpen] = useState(false)
   const [deleteModalIsOpen, setDeleteModalIsOpen] = useState(false)
+  const [rateChangeModalIsOpen, setRateChangeModalIsOpen] = useState(false)
+  const [confirmRateChangeModalIsOpen, setConfirmRateChangeModalIsOpen] = useState(false)
   const [selectedProduct, setSelectedProduct] = useState(null)
   const [productToDelete, setProductToDelete] = useState(null)
   const [error, setError] = useState("")
   const [discountWarning, setDiscountWarning] = useState("")
   const [toggleStates, setToggleStates] = useState({})
   const [currentPage, setCurrentPage] = useState(1)
+  const [rateChangeSearchQuery, setRateChangeSearchQuery] = useState("")
+  const [editedRates, setEditedRates] = useState({})
   const [formData, setFormData] = useState({
     productname: "",
     serial_number: "",
@@ -39,7 +41,7 @@ export default function List() {
     box_count: 1,
     images: [],
     existingImages: [],
-    imagesToDelete: [], // Add this new field
+    imagesToDelete: [],
   })
 
   const productsPerPage = 9
@@ -118,6 +120,17 @@ export default function List() {
     setCurrentPage(1)
   }
 
+  const applyRateChangeFilter = () => {
+    let filtered = products
+    if (rateChangeSearchQuery) {
+      const lowerQuery = rateChangeSearchQuery.toLowerCase()
+      filtered = filtered.filter(
+        (p) => p.productname.toLowerCase().includes(lowerQuery) || p.serial_number.toLowerCase().includes(lowerQuery),
+      )
+    }
+    return filtered
+  }
+
   const handleToggle = async (product, endpoint, keyPrefix) => {
     const productKey = `${keyPrefix}${product.product_type}-${product.id}`
     const tableName = product.product_type.toLowerCase().replace(/\s+/g, "_")
@@ -148,8 +161,8 @@ export default function List() {
     applyFilters(products, filterType, searchQuery)
   }, [filterType, searchQuery, products])
 
-  const handleImageChange = (event) => {
-    const files = Array.from(event.target.files)
+  const handleImageChange = (e) => {
+    const files = Array.from(e.target.files)
     const allowedImageTypes = ["image/jpeg", "image/jpg", "image/png", "image/gif"]
     const allowedVideoTypes = ["video/mp4", "video/webm", "video/ogg"]
     const allowedTypes = [...allowedImageTypes, ...allowedVideoTypes]
@@ -236,20 +249,13 @@ export default function List() {
     formDataToSend.append("product_type", formData.product_type)
     formDataToSend.append("box_count", Math.max(1, Number.parseInt(formData.box_count) || 1))
 
-    // Handle images for edit vs add
     if (isEdit) {
-      // For edit: send remaining existing images and new images
       const remainingExistingImages = formData.existingImages || []
-
-      // Send existing images that weren't deleted
       if (remainingExistingImages.length > 0) {
         formDataToSend.append("existingImages", JSON.stringify(remainingExistingImages))
       }
-
-      // Add new images using the same 'images' field that multer expects
       formData.images.forEach((file) => formDataToSend.append("images", file))
     } else {
-      // For add operation, just append new images
       formData.images.forEach((file) => formDataToSend.append("images", file))
     }
 
@@ -311,8 +317,12 @@ export default function List() {
     setEditModalIsOpen(false)
     setAddModalIsOpen(false)
     setDeleteModalIsOpen(false)
+    setRateChangeModalIsOpen(false)
+    setConfirmRateChangeModalIsOpen(false)
     setSelectedProduct(null)
     setProductToDelete(null)
+    setEditedRates({})
+    setRateChangeSearchQuery("")
     setError("")
     setDiscountWarning("")
     setFormData({
@@ -339,56 +349,82 @@ export default function List() {
       : ""
 
   const downloadPDF = () => {
-    try {
-      if (!products.length || !productTypes.length) {
-        setError("No products or product types available to export")
-        return
-      }
+    if (!products.length || !productTypes.length) {
+      setError("No products or product types available to export")
+      return
+    }
+    setConfirmRateChangeModalIsOpen(true)
+  }
 
+  const generatePDF = () => {
+    try {
       const doc = new jsPDF()
       const pageWidth = doc.internal.pageSize.getWidth()
       let yOffset = 20
 
+      // Add company details
       doc.setFontSize(16)
       doc.setFont("helvetica", "bold")
-      doc.text("FUN WITH CRACKERS", pageWidth / 2, yOffset, { align: "center" })
-      yOffset += 10
+      doc.text("PHOENIX CRACKERS", pageWidth / 2, yOffset, { align: "center" })
+      yOffset += 8
 
       doc.setFontSize(12)
       doc.setFont("helvetica", "normal")
-      doc.text("Website - www.funwithcrackers.com", pageWidth / 2, yOffset, { align: "center" })
-      yOffset += 10
-      doc.text("Retail Pricelist - 2025", pageWidth / 2, yOffset, { align: "center" })
+      doc.text("Sivakasi", pageWidth / 2, yOffset, { align: "center" })
+      yOffset += 8
+      doc.text("Website: www.funwithcrackers.com", pageWidth / 2, yOffset, { align: "center" })
+      yOffset += 8
+      doc.text("Pricelist 2025", pageWidth / 2, yOffset, { align: "center" })
       yOffset += 20
 
+      // Prepare table data
       const tableData = []
+      let serialNumber = 1
       let hasActiveProducts = false
 
       productTypes.forEach((type) => {
-        const typeProducts = products.filter((product) => product.product_type === type && product.status === "on")
+        const typeProducts = products
+          .filter((product) => product.product_type === type && product.status === "on")
+          .sort((a, b) => a.productname.localeCompare(b.productname))
 
         if (typeProducts.length > 0) {
           hasActiveProducts = true
           tableData.push([
             {
               content: capitalize(type),
-              colSpan: 4,
+              colSpan: 7,
               styles: { fontStyle: "bold", halign: "left", fillColor: [200, 200, 200] },
             },
           ])
 
-          tableData.push(["Serial No.", "Product Name", "Rate", "Per"])
+          tableData.push(["S.No", "Product No.", "Product", "Net Rate", "Per", "Quantity", "Amount"])
 
           typeProducts.forEach((product) => {
+            const productKey = `${product.product_type}-${product.id}`
+            let rate = editedRates[productKey]
+              ? Number.parseFloat(editedRates[productKey])
+              : Number.parseFloat(product.net_rate || product.price)
+            
+            // Multiply by 5 for products named "10*10" or ending with "setout" (case-insensitive)
+            if (editedRates[productKey] && (
+              product.productname.toLowerCase() === "10*10" ||
+              product.productname.toLowerCase().endsWith("setout")
+            )) {
+              rate *= 5
+            }
+
             tableData.push([
+              serialNumber++,
               product.serial_number,
               product.productname,
-              `Rs.${Number.parseFloat(product.price).toFixed(2)}`,
+              `Rs.${Math.floor(rate)}`,
               product.per,
+              "", // Quantity (empty)
+              "", // Amount (empty)
             ])
           })
 
-          tableData.push([])
+          tableData.push([]) // Add empty row for spacing
         }
       })
 
@@ -397,32 +433,210 @@ export default function List() {
         return
       }
 
+      // Generate table
       autoTable(doc, {
         startY: yOffset,
-        head: [["Serial No.", "Product Name", "Rate", "Per"]],
+        head: [["S.No", "Product No.", "Product", "Net Rate", "Per", "Quantity", "Amount"]],
         body: tableData,
         theme: "grid",
         styles: { fontSize: 10, cellPadding: 3 },
         headStyles: { fillColor: [100, 100, 100], textColor: [255, 255, 255] },
         columnStyles: {
-          0: { cellWidth: 30 },
-          1: { cellWidth: 70 },
-          2: { cellWidth: 40 },
-          3: { cellWidth: 30 },
+          0: { cellWidth: 15 }, // S.No
+          1: { cellWidth: 25 }, // Product No.
+          2: { cellWidth: 50 }, // Product
+          3: { cellWidth: 30 }, // Net Rate
+          4: { cellWidth: 20 }, // Per
+          5: { cellWidth: 25 }, // Quantity
+          6: { cellWidth: 25 }, // Amount
         },
         didDrawCell: (data) => {
-          if (data.row.section === "body" && data.cell.raw && data.cell.raw.colSpan === 4) {
+          if (data.row.section === "body" && data.cell.raw && data.cell.raw.colSpan === 7) {
             data.cell.styles.cellPadding = 5
             data.cell.styles.fontSize = 12
           }
         },
       })
 
-      doc.save("Retail_Pricelist_2025.pdf")
+      doc.save("Pricelist_2025.pdf")
+      closeModal()
     } catch (err) {
       setError("Failed to generate PDF: " + err.message)
     }
   }
+
+  const handleRateChangeSubmit = (e) => {
+    e.preventDefault()
+    setError("")
+    // Validate that all edited rates are valid numbers
+    for (const productKey in editedRates) {
+      const rateValue = Number.parseFloat(editedRates[productKey])
+      if (isNaN(rateValue) || rateValue < 0) {
+        setError(`Invalid rate for product ${productKey}. Please enter a valid positive number.`)
+        return
+      }
+    }
+    if (Object.keys(editedRates).length === 0) {
+      setError("Please edit at least one product rate")
+      return
+    }
+    generatePDF()
+  }
+
+  const handleRateChangeInput = (product, value) => {
+    const productKey = `${product.product_type}-${product.id}`
+    if (value === "") {
+      // Remove the rate if the input is cleared
+      setEditedRates((prev) => {
+        const newRates = { ...prev }
+        delete newRates[productKey]
+        return newRates
+      })
+    } else {
+      setEditedRates((prev) => ({
+        ...prev,
+        [productKey]: value,
+      }))
+    }
+  }
+
+  const clearAllRates = () => {
+    setEditedRates({})
+  }
+
+  const renderRateChangeModal = () => (
+    <div className="bg-white dark:bg-gray-900 rounded-lg p-6 mobile:p-3 max-w-4xl w-full">
+      <h2 className="text-lg sm:text-xl font-semibold text-gray-900 dark:text-gray-100 mb-4 mobile:mb-2 text-center">
+        Change Product Rates
+      </h2>
+      <form onSubmit={handleRateChangeSubmit}>
+        <div className="space-y-4 mobile:space-y-2">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Search Product</label>
+            <input
+              type="text"
+              value={rateChangeSearchQuery}
+              onChange={(e) => setRateChangeSearchQuery(e.target.value)}
+              placeholder="Search by name or serial number"
+              className="mt-1 text-md px-2 h-8 mobile:mt-0.5 block w-full rounded-md bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-900 border-gray-300 dark:border-gray-600 shadow-sm focus:border-indigo-600 dark:focus:border-blue-500 focus:ring-indigo-600 dark:focus:ring-blue-500 sm:text-sm"
+              style={{
+                background: styles.input.background,
+                backgroundDark: styles.input.backgroundDark,
+                border: styles.input.border,
+                borderDark: styles.input.borderDark,
+                backdropFilter: styles.input.backdropFilter,
+              }}
+            />
+          </div>
+          <div className="max-h-48 overflow-y-auto">
+            {applyRateChangeFilter().length > 0 ? (
+              <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                <thead className="bg-gray-50 dark:bg-gray-800">
+                  <tr>
+                    <th className="px-4 py-2 text-left text-xs font-medium text-gray-900 dark:text-gray-100 uppercase tracking-wider">
+                      Product Name
+                    </th>
+                    <th className="px-4 py-2 text-left text-xs font-medium text-gray-900 dark:text-gray-100 uppercase tracking-wider">
+                      Serial Number
+                    </th>
+                    <th className="px-4 py-2 text-left text-xs font-medium text-gray-900 dark:text-gray-100 uppercase tracking-wider">
+                      Net Rate
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="bg-white dark:bg-gray-900 divide-y divide-gray-200 dark:divide-gray-700">
+                  {applyRateChangeFilter().map((product) => {
+                    const productKey = `${product.product_type}-${product.id}`
+                    const defaultRate = Number.parseFloat(product.net_rate || product.price).toFixed(2)
+                    return (
+                      <tr key={productKey}>
+                        <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100">
+                          {product.productname}
+                        </td>
+                        <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100">
+                          {product.serial_number}
+                        </td>
+                        <td className="px-4 py-2 whitespace-nowrap">
+                          <input
+                            type="number"
+                            value={editedRates[productKey] !== undefined ? editedRates[productKey] : defaultRate}
+                            onChange={(e) => handleRateChangeInput(product, e.target.value)}
+                            placeholder="Enter new rate"
+                            className="text-md px-2 h-8 block w-24 rounded-md bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-900 border-gray-300 dark:border-gray-600 shadow-sm focus:border-indigo-600 dark:focus:border-blue-500 focus:ring-indigo-600 dark:focus:ring-blue-500 sm:text-sm"
+                            style={{
+                              background: styles.input.background,
+                              backgroundDark: styles.input.backgroundDark,
+                              border: styles.input.border,
+                              borderDark: styles.input.borderDark,
+                              backdropFilter: styles.input.backdropFilter,
+                            }}
+                            step="0.01"
+                          />
+                        </td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
+            ) : (
+              <p className="text-sm text-gray-600 dark:text-gray-400">No products found</p>
+            )}
+          </div>
+          {error && <p className="text-sm text-red-600 dark:text-red-400">{error}</p>}
+          <div className="mt-6 mobile:mt-3 flex justify-end space-x-2 mobile:space-x-1">
+            <button
+              type="button"
+              onClick={clearAllRates}
+              className="rounded-md px-4 mobile:px-3 py-2 mobile:py-1 text-sm font-semibold text-white dark:text-gray-100 shadow-sm hover:bg-red-700 dark:hover:bg-red-600"
+              style={{
+                background: styles.button.background
+                  .replace("2,132,199", "220,38,38")
+                  .replace("14,165,233", "239,68,68"),
+                backgroundDark: styles.button.backgroundDark
+                  .replace("59,130,246", "220,38,38")
+                  .replace("37,99,235", "200,35,35"),
+                border: styles.button.border.replace("125,211,252", "252,165,165"),
+                borderDark: styles.button.borderDark.replace("147,197,253", "252,165,165"),
+                boxShadow: styles.button.boxShadow.replace("2,132,199", "220,38,38"),
+                boxShadowDark: styles.button.boxShadowDark.replace("59,130,246", "220,38,38"),
+              }}
+            >
+              Clear All
+            </button>
+            <button
+              type="button"
+              onClick={closeModal}
+              className="rounded-md px-4 mobile:px-3 py-2 mobile:py-1 text-sm font-semibold text-white dark:text-gray-100 shadow-sm hover:bg-gray-700 dark:hover:bg-gray-600"
+              style={{
+                background: styles.button.background,
+                backgroundDark: styles.button.backgroundDark,
+                border: styles.button.border,
+                borderDark: styles.button.borderDark,
+                boxShadow: styles.button.boxShadow,
+                boxShadowDark: styles.button.boxShadowDark,
+              }}
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              className="rounded-md px-4 mobile:px-3 py-2 mobile:py-1 text-sm font-semibold text-white dark:text-gray-100 shadow-sm hover:bg-indigo-700 dark:hover:bg-blue-600"
+              style={{
+                background: styles.button.background,
+                backgroundDark: styles.button.backgroundDark,
+                border: styles.button.border,
+                borderDark: styles.button.borderDark,
+                boxShadow: styles.button.boxShadow,
+                boxShadowDark: styles.button.boxShadowDark,
+              }}
+            >
+              Save
+            </button>
+          </div>
+        </div>
+      </form>
+    </div>
+  )
 
   const renderMedia = (media, idx, sizeClass) => {
     let src
@@ -507,7 +721,6 @@ export default function List() {
             </div>
           )}
 
-          {/* Two fields per row layout */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Product Name</label>
@@ -637,25 +850,6 @@ export default function List() {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Description</label>
-            <textarea
-              name="description"
-              value={formData.description}
-              onChange={handleInputChange}
-              className="mt-1 text-md px-2 mobile:mt-0.5 block w-full rounded-md bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-900 border-gray-300 dark:border-gray-600 shadow-sm focus:border-indigo-600 dark:focus:border-blue-500 focus:ring-indigo-600 dark:focus:ring-blue-500 sm:text-sm"
-              style={{
-                background: styles.input.background,
-                backgroundDark: styles.input.backgroundDark,
-                border: styles.input.border,
-                borderDark: styles.input.borderDark,
-                backdropFilter: styles.input.backdropFilter,
-              }}
-              rows="2"
-              placeholder="Enter product description"
-            />
-          </div>
-
-          <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
               {isEdit ? "Manage Images" : "Images"}
             </label>
@@ -668,7 +862,6 @@ export default function List() {
               className="mt-1 mobile:mt-0.5 block w-full text-sm text-gray-900 dark:text-gray-900 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 dark:file:bg-gray-700 file:text-indigo-600 dark:file:text-gray-200 hover:file:bg-indigo-100 dark:hover:file:bg-gray-600"
             />
 
-            {/* Show existing images for edit mode with delete buttons */}
             {isEdit && formData.existingImages.length > 0 && (
               <div className="mt-2">
                 <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">Current images (click × to delete):</p>
@@ -690,7 +883,6 @@ export default function List() {
               </div>
             )}
 
-            {/* Show new images if selected */}
             {formData.images.length > 0 && (
               <div className="mt-2">
                 <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">
@@ -859,11 +1051,11 @@ export default function List() {
                   backgroundDark: styles.button.backgroundDark,
                   border: styles.button.border,
                   borderDark: styles.button.borderDark,
-                  boxShadow: styles.button.boxShadow,
+                  boxShadow: styles.button.boxShot,
                   boxShadowDark: styles.button.boxShadowDark,
                 }}
               >
-                Download Pricelist
+                Pricelist 2025
               </button>
             </div>
           </div>
@@ -873,7 +1065,7 @@ export default function List() {
               No products found
             </p>
           ) : (
-            <div className="grid onefifty:grid-cols-3 hundred:translate-x-0 mobile:grid-cols-1 hundred:mx-0 onefifty:mt-10 onefifty:mx-10 hundred:grid-cols-3 gap-6 mobile:gap-4 justify-center">
+            <div className="grid onefifty:grid-cols-3 hundred:translate-x-0 mobile:grid-cols-1 hundred:grid-cols-3 gap-6 mobile:gap-4 justify-center">
               {currentProducts.map((product) => {
                 const productKey = `${product.product_type}-${product.id}`
                 return (
@@ -987,9 +1179,9 @@ export default function List() {
                               product_type: product.product_type,
                               description: product.description || "",
                               box_count: product.box_count,
-                              images: [], // Reset new images
-                              existingImages: product.images || [], // Store existing images separately
-                              imagesToDelete: [], // Reset deleted images tracker
+                              images: [],
+                              existingImages: product.images || [],
+                              imagesToDelete: [],
                             })
                             setEditModalIsOpen(true)
                           }}
@@ -1079,7 +1271,6 @@ export default function List() {
             </div>
           )}
 
-          {/* View Modal */}
           <Modal
             isOpen={modalIsOpen}
             onRequestClose={closeModal}
@@ -1152,7 +1343,6 @@ export default function List() {
             )}
           </Modal>
 
-          {/* Edit Modal */}
           <Modal
             isOpen={editModalIsOpen}
             onRequestClose={closeModal}
@@ -1162,7 +1352,6 @@ export default function List() {
             {renderModalForm(true)}
           </Modal>
 
-          {/* Add Modal */}
           <Modal
             isOpen={addModalIsOpen}
             onRequestClose={closeModal}
@@ -1172,7 +1361,6 @@ export default function List() {
             {renderModalForm(false)}
           </Modal>
 
-          {/* Delete Modal */}
           <Modal
             isOpen={deleteModalIsOpen}
             onRequestClose={closeModal}
@@ -1220,6 +1408,66 @@ export default function List() {
                 </button>
               </div>
             </div>
+          </Modal>
+
+          <Modal
+            isOpen={confirmRateChangeModalIsOpen}
+            onRequestClose={closeModal}
+            className="fixed inset-0 flex items-center justify-center p-4 mobile:p-2"
+            overlayClassName="fixed inset-0 bg-black/50 dark:bg-black/70"
+          >
+            <div className="bg-white dark:bg-gray-900 rounded-lg p-6 mobile:p-3 max-w-sm w-full">
+              <div className="flex items-center justify-center mb-4">
+                <FaExclamationTriangle className="text-blue-600 dark:text-blue-400 h-8 w-8" />
+              </div>
+              <h2 className="text-lg sm:text-xl font-semibold text-gray-900 dark:text-gray-100 mb-4 mobile:mb-2 text-center">
+                Would you like to change the rate of the product?
+              </h2>
+              <div className="flex justify-center space-x-4 mobile:space-x-2">
+                <button
+                  onClick={() => {
+                    setConfirmRateChangeModalIsOpen(false)
+                    setRateChangeModalIsOpen(true)
+                  }}
+                  className="rounded-md px-3 mobile:px-2 py-2 mobile:py-1 text-xs sm:text-sm font-semibold text-white dark:text-gray-100 shadow-sm hover:bg-indigo-700 dark:hover:bg-blue-600"
+                  style={{
+                    background: styles.button.background,
+                    backgroundDark: styles.button.backgroundDark,
+                    border: styles.button.border,
+                    borderDark: styles.button.borderDark,
+                    boxShadow: styles.button.boxShadow,
+                    boxShadowDark: styles.button.boxShadowDark,
+                  }}
+                >
+                  Yes
+                </button>
+                <button
+                  onClick={() => {
+                    setConfirmRateChangeModalIsOpen(false)
+                    generatePDF()
+                  }}
+                  className="rounded-md px-3 mobile:px-2 py-2 mobile:py-1 text-xs sm:text-sm font-semibold text-white dark:text-gray-100 shadow-sm hover:bg-gray-700 dark:hover:bg-gray-600"
+                  style={{
+                    background: styles.button.background,
+                    backgroundDark: styles.button.backgroundDark,
+                    border: styles.button.borderDark,
+                    boxShadow: styles.button.boxShadow,
+                    boxShadowDark: styles.button.boxShadowDark,
+                  }}
+                >
+                  No
+                </button>
+              </div>
+            </div>
+          </Modal>
+
+          <Modal
+            isOpen={rateChangeModalIsOpen}
+            onRequestClose={closeModal}
+            className="fixed inset-0 flex items-center justify-center p-4 mobile:p-2"
+            overlayClassName="fixed inset-0 bg-black/50 dark:bg-black/70"
+          >
+            {renderRateChangeModal()}
           </Modal>
         </div>
       </div>
