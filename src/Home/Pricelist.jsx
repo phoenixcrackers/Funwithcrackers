@@ -365,10 +365,188 @@ const Pricelist = () => {
 
   const capitalize = str => str ? str.split('_').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ') : '';
 
-  const downloadPDF = () => {
+  // const downloadPDF = async () => {
+  //   try {
+  //     // Fetch all products without status filter
+  //     const productsRes = await fetch(`${API_BASE_URL}/api/products`);
+  //     const productsData = await productsRes.json();
+
+  //     // Normalize products
+  //     const naturalSort = (a, b) => {
+  //       const collator = new Intl.Collator(undefined, {
+  //         numeric: true,
+  //         sensitivity: "base",
+  //       });
+  //       return collator.compare(a.productname, b.productname);
+  //     };
+
+  //     const serialSort = (a, b) => {
+  //       const collator = new Intl.Collator(undefined, {
+  //         numeric: true,
+  //         sensitivity: "base",
+  //       });
+  //       return collator.compare(a.serial_number, b.serial_number);
+  //     };
+
+  //     const seenSerials = new Set();
+  //     const normalizedProducts = productsData.data
+  //       .filter((p) => {
+  //         if (seenSerials.has(p.serial_number)) {
+  //           console.warn(`Duplicate serial_number found: ${p.serial_number}`);
+  //           return false;
+  //         }
+  //         seenSerials.add(p.serial_number);
+  //         return true;
+  //       })
+  //       .map((product) => ({
+  //         ...product,
+  //         images: product.image
+  //           ? typeof product.image === "string"
+  //             ? JSON.parse(product.image)
+  //             : product.image
+  //           : [],
+  //       }))
+  //       .sort(naturalSort);
+
+  //     if (!normalizedProducts.length) {
+  //       showError('No products available to export');
+  //       return;
+  //     }
+
+  //     const doc = new jsPDF();
+  //     const pageWidth = doc.internal.pageSize.getWidth();
+  //     let yOffset = 20;
+
+  //     doc.setFontSize(16);
+  //     doc.setFont('helvetica', 'bold');
+  //     doc.text('FUN WITH CRACKERS', pageWidth / 2, yOffset, { align: 'center' });
+  //     yOffset += 10;
+  //     doc.setFontSize(12);
+  //     doc.setFont('helvetica', 'normal');
+  //     doc.text('Website - www.funwithcrackers.com', pageWidth / 2, yOffset, { align: 'center' });
+  //     yOffset += 10;
+  //     doc.text('Retail Pricelist - 2025', pageWidth / 2, yOffset, { align: 'center' });
+  //     yOffset += 20;
+
+  //     const tableData = [];
+  //     let slNo = 1;
+  //     const orderedTypes = [
+  //       "One sound crackers",
+  //       "Ground Chakkar",
+  //       "Flower Pots",
+  //       "Twinkling Star",
+  //       "Rockets",
+  //       "Bombs",
+  //       "Repeating Shots",
+  //       "Comets Sky Shots",
+  //       "Fancy pencil varieties",
+  //       "Fountain and Fancy Novelties",
+  //       "Matches",
+  //       "Guns and Caps",
+  //       "Sparklers",
+  //       "Gift Boxes"
+  //     ];
+
+  //     orderedTypes.forEach(type => {
+  //       const typeKey = type.replace(/ /g, "_").toLowerCase();
+  //       const typeProducts = normalizedProducts
+  //         .filter(product => product.product_type.toLowerCase() === typeKey)
+  //         .sort(serialSort); // Sort by serial_number within each product type
+  //       if (typeProducts.length > 0) {
+  //         tableData.push([{ content: type, colSpan: 7, styles: { fontStyle: 'bold', halign: 'left', fillColor: [200, 200, 200] } }]);
+  //         tableData.push(['Sl No.', 'Product No.', 'Product Name', 'Rate', 'Per', 'Quantity', 'Amount']);
+  //         typeProducts.forEach(product => {
+  //           tableData.push([
+  //             slNo++,
+  //             product.serial_number,
+  //             product.productname,
+  //             `Rs.${formatPrice(product.price)}`,
+  //             product.per,
+  //             '', // Empty Quantity column
+  //             ''  // Empty Amount column
+  //           ]);
+  //         });
+  //         tableData.push([]);
+  //       }
+  //     });
+
+  //     autoTable(doc, {
+  //       startY: yOffset,
+  //       head: [['Sl No.', 'Product No.', 'Product Name', 'Rate', 'Per', 'Quantity', 'Amount']],
+  //       body: tableData,
+  //       theme: 'grid',
+  //       styles: { fontSize: 10, cellPadding: 3 },
+  //       headStyles: { fillColor: [2, 132, 199], textColor: [255, 255, 255] },
+  //       columnStyles: { 
+  //         0: { cellWidth: 15 }, 
+  //         1: { cellWidth: 30 }, 
+  //         2: { cellWidth: 50 }, 
+  //         3: { cellWidth: 30 }, 
+  //         4: { cellWidth: 20 }, 
+  //         5: { cellWidth: 20 }, 
+  //         6: { cellWidth: 20 } 
+  //       },
+  //       didDrawCell: (data) => {
+  //         if (data.row.section === 'body' && data.cell.raw && data.cell.raw.colSpan === 7) {
+  //           data.cell.styles.cellPadding = 5;
+  //           data.cell.styles.fontSize = 12;
+  //         }
+  //       },
+  //     });
+
+  //     doc.save('FWC_Pricelist_2025.pdf');
+  //   } catch (err) {
+  //     showError('Failed to generate PDF: ' + err.message);
+  //   }
+  // };
+
+  const downloadPDF = async () => {
     try {
-      if (!products.length || !productTypes.length) {
-        showError('No products or product types available to export');
+      // Fetch all products without status filter
+      const productsRes = await fetch(`${API_BASE_URL}/api/products`);
+      const productsData = await productsRes.json();
+
+      // Normalize products
+      const naturalSort = (a, b) => {
+        const collator = new Intl.Collator(undefined, {
+          numeric: true,
+          sensitivity: "base",
+        });
+        return collator.compare(a.productname, b.productname);
+      };
+
+      const serialSort = (a, b) => {
+        const collator = new Intl.Collator(undefined, {
+          numeric: true,
+          sensitivity: "base",
+        });
+        return collator.compare(a.serial_number, b.serial_number);
+      };
+
+      const seenSerials = new Set();
+      const normalizedProducts = productsData.data
+        .filter((p) => {
+          if (seenSerials.has(p.serial_number)) {
+            console.warn(`Duplicate serial_number found: ${p.serial_number}`);
+            return false;
+          }
+          seenSerials.add(p.serial_number);
+          return p.status === "on"; // Only include products with status "on"
+        })
+        .map((product) => ({
+          ...product,
+          images: product.image
+            ? typeof product.image === "string"
+              ? JSON.parse(product.image)
+              : product.image
+            : [],
+          price: parseFloat(product.price) || 0, // Ensure price is a number
+          discount: parseFloat(product.discount) || 0 // Ensure discount is a number
+        }))
+        .sort(naturalSort);
+
+      if (!normalizedProducts.length) {
+        showError('No products available to export');
         return;
       }
 
@@ -388,36 +566,65 @@ const Pricelist = () => {
       yOffset += 20;
 
       const tableData = [];
-      productTypes
-        .filter(type => type !== "All")
-        .forEach(type => {
-          const typeKey = type.replace(/ /g, "_");
-          const typeProducts = products.filter(product => product.product_type === typeKey);
-          if (typeProducts.length > 0) {
-            tableData.push([{ content: capitalize(type), colSpan: 4, styles: { fontStyle: 'bold', halign: 'left', fillColor: [200, 200, 200] } }]);
-            tableData.push(['Serial No.', 'Product Name', 'Rate', 'Per']);
-            typeProducts.forEach(product => {
-              tableData.push([
-                product.serial_number,
-                product.productname,
-                `Rs.${formatPrice(product.price)}`,
-                product.per,
-              ]);
-            });
-            tableData.push([]);
-          }
-        });
+      let slNo = 1;
+      const orderedTypes = [
+        "One sound crackers",
+        "Ground Chakkar",
+        "Flower Pots",
+        "Twinkling Star",
+        "Rockets",
+        "Bombs",
+        "Repeating Shots",
+        "Comets Sky Shots",
+        "Fancy pencil varieties",
+        "Fountain and Fancy Novelties",
+        "Matches",
+        "Guns and Caps",
+        "Sparklers",
+        "Gift Boxes"
+      ];
+
+      orderedTypes.forEach(type => {
+        const typeKey = type.replace(/ /g, "_").toLowerCase();
+        const typeProducts = normalizedProducts
+          .filter(product => product.product_type.toLowerCase() === typeKey)
+          .sort(serialSort);
+        if (typeProducts.length > 0) {
+          tableData.push([{ content: type, colSpan: 6, styles: { fontStyle: 'bold', halign: 'left', fillColor: [200, 200, 200] } }]);
+          tableData.push(['Sl No.', 'Prod No.', 'Product Name', 'Rate', 'Discounted Rate', 'Per']);
+          typeProducts.forEach(product => {
+            const dis = product.price*(product.discount/100)
+            const discountedRate = product.price - dis;
+            tableData.push([
+              slNo++,
+              product.serial_number,
+              product.productname,
+              `Rs.${formatPrice(product.price)}`,
+              `Rs.${formatPrice(discountedRate)}`,
+              product.per
+            ]);
+          });
+          tableData.push([]);
+        }
+      });
 
       autoTable(doc, {
         startY: yOffset,
-        head: [['Serial No.', 'Product Name', 'Rate', 'Per']],
+        head: [['Sl No.', 'Prod No.', 'Product Name', 'Rate', 'Discounted Rate', 'Per']],
         body: tableData,
         theme: 'grid',
         styles: { fontSize: 10, cellPadding: 3 },
         headStyles: { fillColor: [2, 132, 199], textColor: [255, 255, 255] },
-        columnStyles: { 0: { cellWidth: 30 }, 1: { cellWidth: 70 }, 2: { cellWidth: 40 }, 3: { cellWidth: 30 } },
+        columnStyles: { 
+          0: { cellWidth: 15 }, 
+          1: { cellWidth: 20 }, 
+          2: { cellWidth: 70 }, 
+          3: { cellWidth: 20 },
+          4: { cellWidth: 30 }, 
+          5: { cellWidth: 25 }
+        },
         didDrawCell: (data) => {
-          if (data.row.section === 'body' && data.cell.raw && data.cell.raw.colSpan === 4) {
+          if (data.row.section === 'body' && data.cell.raw && data.cell.raw.colSpan === 5) {
             data.cell.styles.cellPadding = 5;
             data.cell.styles.fontSize = 12;
           }
@@ -832,25 +1039,71 @@ const Pricelist = () => {
   }, [promocode, handleApplyPromo]);
 
   const productTypes = useMemo(() => {
-    const types = [...new Set(products
+    const orderedTypes = [
+      "One sound crackers",
+      "Ground Chakkar",
+      "Flower Pots",
+      "Twinkling Star",
+      "Rockets",
+      "Bombs",
+      "Repeating Shots",
+      "Comets Sky Shots",
+      "Fancy pencil varieties",
+      "Fountain and Fancy Novelties",
+      "Matches",
+      "Guns and Caps",
+      "Sparklers",
+      "Gift Boxes"
+    ];
+    const availableTypes = [...new Set(products
       .filter(p => p.product_type !== "gift_box_dealers")
-      .map(p => (p.product_type || "Others").replace(/_/g, " "))
+      .map(p => p.product_type || "Others")
     )];
-    return ["All", ...types.sort()];
+    const filteredOrderedTypes = orderedTypes.filter(type => 
+      availableTypes.includes(type.replace(/ /g, "_").toLowerCase())
+    );
+    return ["All", ...filteredOrderedTypes];
   }, [products]);
 
-  const grouped = useMemo(() => products
-    .filter(p => p.product_type !== "gift_box_dealers" &&
-             (selectedType === "All" || p.product_type === selectedType.replace(/ /g, "_")) &&
-             (!searchTerm || 
-              p.productname.toLowerCase().includes(searchTerm.toLowerCase()) || 
-              p.serial_number.toLowerCase().includes(searchTerm.toLowerCase())))
-    .reduce((acc, p) => {
-      const key = p.product_type || "Others";
-      acc[key] = acc[key] || [];
-      acc[key].push(p);
-      return acc;
-    }, {}), [products, selectedType, searchTerm]);
+  const grouped = useMemo(() => {
+    const orderedTypes = [
+      "One sound crackers",
+      "Ground Chakkar",
+      "Flower Pots",
+      "Twinkling Star",
+      "Rockets",
+      "Bombs",
+      "Repeating Shots",
+      "Comets Sky Shots",
+      "Fancy pencil varieties",
+      "Fountain and Fancy Novelties",
+      "Matches",
+      "Guns and Caps",
+      "Sparklers",
+      "Gift Boxes"
+    ];
+    const result = products
+      .filter(p => p.product_type !== "gift_box_dealers" &&
+                   (selectedType === "All" || p.product_type === selectedType.replace(/ /g, "_").toLowerCase()) &&
+                   (!searchTerm || 
+                    p.productname.toLowerCase().includes(searchTerm.toLowerCase()) || 
+                    p.serial_number.toLowerCase().includes(searchTerm.toLowerCase())))
+      .reduce((acc, p) => {
+        const key = p.product_type || "Others";
+        acc[key] = acc[key] || [];
+        acc[key].push(p);
+        return acc;
+      }, {});
+    const orderedResult = {};
+    orderedTypes
+      .map(type => type.replace(/ /g, "_").toLowerCase())
+      .forEach(type => {
+        if (result[type]) {
+          orderedResult[type] = result[type];
+        }
+      });
+    return orderedResult;
+  }, [products, selectedType, searchTerm]);
 
   if (isLoading) {
     return (
