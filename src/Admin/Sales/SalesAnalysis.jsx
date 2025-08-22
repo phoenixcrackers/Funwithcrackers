@@ -15,9 +15,10 @@ class ErrorBoundary extends React.Component {
 
   render() {
     if (this.state.hasError) {
+      console.error('ErrorBoundary caught:', this.state.error);
       return (
         <div className="bg-red-100 border border-red-400 text-red-700 px-6 py-3 rounded-lg text-center shadow-md">
-          An error occurred. Please try again or contact support.
+          An error occurred: {this.state.error?.message || 'Unknown error'}. Please try again or contact support.
         </div>
       );
     }
@@ -38,8 +39,17 @@ export default function SalesAnalysis() {
       setLoading(true);
       try {
         const response = await axios.get(`${API_BASE_URL}/api/sales-analysis/detailed`);
+        if (!response.data || typeof response.data !== 'object') {
+          throw new Error('Invalid response format');
+        }
+        const expectedFields = ['products', 'cities', 'trends', 'profitability', 'quotations', 'customer_types', 'cancellations'];
+        if (!expectedFields.every(field => field in response.data)) {
+          console.warn('Missing fields in response:', response.data);
+          throw new Error('Incomplete data received from server');
+        }
         setSalesData(response.data);
       } catch (err) {
+        console.error('Fetch error:', err);
         setError(`Failed to fetch sales data: ${err.message}`);
       } finally {
         setLoading(false);
@@ -50,70 +60,83 @@ export default function SalesAnalysis() {
 
   useEffect(() => {
     if (salesData) {
+      console.log('Fetched salesData:', salesData);
       // Destroy existing charts
       Object.values(chartsRef.current).forEach(chart => chart?.destroy());
 
       // Sales Trends Over Time (Line Chart)
       const salesCtx = document.getElementById('salesTrendChart')?.getContext('2d');
       if (salesCtx) {
-        chartsRef.current.salesTrendChart = new Chart(salesCtx, {
-          type: 'line',
-          data: {
-            labels: salesData.trends.map(t => t.month),
-            datasets: [{
-              label: 'Revenue (Rs)',
-              data: salesData.trends.map(t => t.revenue),
-              borderColor: 'rgba(75, 192, 192, 1)',
-              backgroundColor: 'rgba(75, 192, 192, 0.2)',
-              fill: true,
-              tension: 0.4
-            }]
-          },
-          options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            scales: {
-              y: {
-                beginAtZero: true,
-                ticks: {
-                  callback: value => '₹' + value.toLocaleString('en-IN')
-                }
-              }
+        if (!salesData.trends?.length) {
+          console.warn('No trends data available for salesTrendChart');
+        } else {
+          chartsRef.current.salesTrendChart = new Chart(salesCtx, {
+            type: 'line',
+            data: {
+              labels: salesData.trends.map(t => t.month),
+              datasets: [{
+                label: 'Revenue (Rs)',
+                data: salesData.trends.map(t => t.revenue),
+                borderColor: 'rgba(75, 192, 192, 1)',
+                backgroundColor: 'rgba(75, 192, 192, 0.2)',
+                fill: true,
+                tension: 0.4
+              }]
             },
-            plugins: { legend: { position: 'bottom' } }
-          }
-        });
+            options: {
+              responsive: true,
+              maintainAspectRatio: false,
+              scales: {
+                y: {
+                  beginAtZero: true,
+                  ticks: {
+                    callback: value => '₹' + value.toLocaleString('en-IN')
+                  }
+                }
+              },
+              plugins: { legend: { position: 'bottom' } }
+            }
+          });
+        }
+      } else {
+        console.warn('Canvas #salesTrendChart not found');
       }
 
       // Customer Type Analysis (Bar Chart)
       const customerCtx = document.getElementById('customerTypeChart')?.getContext('2d');
       if (customerCtx) {
-        chartsRef.current.customerTypeChart = new Chart(customerCtx, {
-          type: 'bar',
-          data: {
-            labels: salesData.customer_types.map(ct => ct.customer_type),
-            datasets: [{
-              label: 'Revenue (Rs)',
-              data: salesData.customer_types.map(ct => ct.revenue),
-              backgroundColor: 'rgba(54, 162, 235, 0.6)',
-              borderColor: 'rgba(54, 162, 235, 1)',
-              borderWidth: 1
-            }]
-          },
-          options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            scales: {
-              y: {
-                beginAtZero: true,
-                ticks: {
-                  callback: value => '₹' + value.toLocaleString('en-IN')
-                }
-              }
+        if (!salesData.customer_types?.length) {
+          console.warn('No customer_types data available for customerTypeChart');
+        } else {
+          chartsRef.current.customerTypeChart = new Chart(customerCtx, {
+            type: 'bar',
+            data: {
+              labels: salesData.customer_types.map(ct => ct.customer_type),
+              datasets: [{
+                label: 'Revenue (Rs)',
+                data: salesData.customer_types.map(ct => ct.revenue),
+                backgroundColor: 'rgba(54, 162, 235, 0.6)',
+                borderColor: 'rgba(54, 162, 235, 1)',
+                borderWidth: 1
+              }]
             },
-            plugins: { legend: { position: 'bottom' } }
-          }
-        });
+            options: {
+              responsive: true,
+              maintainAspectRatio: false,
+              scales: {
+                y: {
+                  beginAtZero: true,
+                  ticks: {
+                    callback: value => '₹' + value.toLocaleString('en-IN')
+                  }
+                }
+              },
+              plugins: { legend: { position: 'bottom' } }
+            }
+          });
+        }
+      } else {
+        console.warn('Canvas #customerTypeChart not found');
       }
 
       // Quotation Conversion Rates (Pie Chart)
@@ -125,9 +148,9 @@ export default function SalesAnalysis() {
             labels: ['Pending', 'Booked', 'Canceled'],
             datasets: [{
               data: [
-                salesData.quotations?.pending.count || 0,
-                salesData.quotations?.booked.count || 0,
-                salesData.quotations?.canceled.count || 0
+                salesData.quotations?.pending?.count || 0,
+                salesData.quotations?.booked?.count || 0,
+                salesData.quotations?.canceled?.count || 0
               ],
               backgroundColor: [
                 'rgba(255, 206, 86, 0.6)',
@@ -142,13 +165,50 @@ export default function SalesAnalysis() {
             plugins: { legend: { position: 'bottom' } }
           }
         });
+      } else {
+        console.warn('Canvas #quotationChart not found');
+      }
+
+      // Regional Demand (Bar Chart) - Added for better visualization
+      const regionalCtx = document.getElementById('regionalDemandChart')?.getContext('2d');
+      if (regionalCtx && salesData.cities?.length) {
+        chartsRef.current.regionalDemandChart = new Chart(regionalCtx, {
+          type: 'bar',
+          data: {
+            labels: salesData.cities.map(c => c.district),
+            datasets: [{
+              label: 'Revenue (Rs)',
+              data: salesData.cities.map(c => c.revenue),
+              backgroundColor: 'rgba(153, 102, 255, 0.6)',
+              borderColor: 'rgba(153, 102, 255, 1)',
+              borderWidth: 1
+            }]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+              y: {
+                beginAtZero: true,
+                ticks: { callback: value => '₹' + value.toLocaleString('en-IN') }
+              }
+            },
+            plugins: { legend: { position: 'bottom' } }
+          }
+        });
+      } else {
+        console.warn('Canvas #regionalDemandChart not found or no data');
       }
     }
   }, [salesData]);
 
   const formatValue = (value) => {
     const numValue = Number(value);
-    return isNaN(numValue) ? '0.00' : numValue.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    if (isNaN(numValue)) {
+      console.warn('Invalid value for formatting:', value);
+      return '0.00';
+    }
+    return numValue.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   };
 
   const calculatePercentage = (value, total) => {
@@ -159,8 +219,10 @@ export default function SalesAnalysis() {
   // Pagination for Product Performance
   const indexOfLastItem = currentPage * itemsPerPage;
   const indexOfFirstItem = indexOfLastItem - itemsPerPage;
-  const currentProducts = salesData?.products.slice(indexOfFirstItem, indexOfLastItem);
-  const totalPages = Math.ceil((salesData?.products.length || 0) / itemsPerPage);
+  const currentProducts = Array.isArray(salesData?.products)
+    ? salesData.products.slice(indexOfFirstItem, indexOfLastItem)
+    : [];
+  const totalPages = Math.ceil((Array.isArray(salesData?.products) ? salesData.products.length : 0) / itemsPerPage);
 
   const paginate = (pageNumber) => setCurrentPage(pageNumber);
 
@@ -193,6 +255,9 @@ export default function SalesAnalysis() {
                   <div className="h-64">
                     <canvas id="salesTrendChart" className="w-full h-full"></canvas>
                   </div>
+                  {!salesData.trends?.length && !loading && (
+                    <div className="text-center text-gray-500">No trends data available</div>
+                  )}
                   <table className="w-full border-collapse mt-4">
                     <thead>
                       <tr className="bg-gray-200 dark:bg-gray-700">
@@ -232,7 +297,7 @@ export default function SalesAnalysis() {
                       </tr>
                     </thead>
                     <tbody>
-                      {currentProducts?.length > 0 ? (
+                      {currentProducts.length > 0 ? (
                         currentProducts.map((p, index) => (
                           <tr key={index}>
                             <td className="border p-2 dark:text-gray-100">{p.productname}</td>
@@ -285,6 +350,9 @@ export default function SalesAnalysis() {
                 {/* Regional Demand */}
                 <div className="bg-white dark:bg-gray-800 p-4 rounded-lg shadow-lg">
                   <h2 className="text-xl font-semibold mb-4 text-gray-900 dark:text-gray-100">Regional Demand</h2>
+                  <div className="h-64">
+                    <canvas id="regionalDemandChart" className="w-full h-full"></canvas>
+                  </div>
                   <table className="w-full border-collapse">
                     <thead>
                       <tr className="bg-gray-200 dark:bg-gray-700">
@@ -355,13 +423,13 @@ export default function SalesAnalysis() {
                     </thead>
                     <tbody>
                       {['pending', 'booked', 'canceled'].map(status => {
-                        const total = salesData.quotations.pending.count + salesData.quotations.booked.count + salesData.quotations.canceled.count;
+                        const total = (salesData.quotations.pending?.count || 0) + (salesData.quotations.booked?.count || 0) + (salesData.quotations.canceled?.count || 0);
                         return (
                           <tr key={status}>
                             <td className="border p-2 dark:text-gray-100">{status.charAt(0).toUpperCase() + status.slice(1)}</td>
-                            <td className="border p-2 text-right dark:text-gray-100">{salesData.quotations[status].count}</td>
-                            <td className="border p-2 text-right dark:text-gray-100">{calculatePercentage(salesData.quotations[status].count, total)}</td>
-                            <td className="border p-2 text-right dark:text-gray-100">₹{formatValue(salesData.quotations[status].revenue)}</td>
+                            <td className="border p-2 text-right dark:text-gray-100">{salesData.quotations[status]?.count || 0}</td>
+                            <td className="border p-2 text-right dark:text-gray-100">{calculatePercentage(salesData.quotations[status]?.count || 0, total)}</td>
+                            <td className="border p-2 text-right dark:text-gray-100">₹{formatValue(salesData.quotations[status]?.revenue || 0)}</td>
                           </tr>
                         );
                       })}

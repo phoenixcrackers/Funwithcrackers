@@ -10,6 +10,16 @@ import { FaEdit, FaArrowRight, FaTrash } from 'react-icons/fa';
 
 // Set app element for accessibility
 Modal.setAppElement("#root")
+const getEffectivePrice = (item, customerId, customers = []) => {
+  if (!Array.isArray(customers) || !customerId) {
+    return Number(item.price) // fallback to normal price
+  }
+  const customer = customers.find((c) => c.id.toString() === customerId)
+  return customer?.customer_type === "Customer"
+    ? Number(item.dprice) || Number(item.price)
+    : Number(item.price)
+}
+
 
 // Error Boundary Component
 class QuotationTableErrorBoundary extends React.Component {
@@ -50,7 +60,11 @@ const QuotationTable = ({
   calculateTotal,
   styles,
   isModal = false,
+  selectedCustomer,
+  modalSelectedCustomer,
+  customers,
 }) => (
+
   <div className="space-y-4">
     <div className="flex flex-col items-center mobile:w-full">
       <label
@@ -134,7 +148,10 @@ const QuotationTable = ({
               >
                 <td className="text-center border-r mobile:p-1">{item.productname}</td>
                 <td className="text-center border-r mobile:p-1">{item.product_type}</td>
-                <td className="text-center border-r mobile:p-1">₹{Number.parseFloat(item.price).toFixed(2)}</td>
+                <td className="text-center border-r mobile:p-1">
+                  ₹{getEffectivePrice(item, isModal ? modalSelectedCustomer : selectedCustomer, customers).toFixed(2)}
+                </td>
+
                 <td className="text-center border-r mobile:p-1">
                   <input
                     type="number"
@@ -147,6 +164,7 @@ const QuotationTable = ({
                     className="w-20 text-center bg-transparent border border-gray-300 rounded p-1 focus:outline-none focus:ring-2 focus:ring-blue-600"
                   />
                 </td>
+
                 <td className="text-center border-r mobile:p-1">
                   <input
                     type="number"
@@ -158,9 +176,15 @@ const QuotationTable = ({
                     className="w-16 text-center border border-gray-300 rounded p-1 focus:outline-none focus:ring-2 focus:ring-blue-600"
                   />
                 </td>
+
                 <td className="text-center border-r mobile:p-1">
-                  ₹{(item.price * (1 - item.discount / 100) * item.quantity).toFixed(2)}
+                  ₹{(
+                    getEffectivePrice(item, isModal ? modalSelectedCustomer : selectedCustomer, customers) *
+                    (1 - item.discount / 100) *
+                    item.quantity
+                  ).toFixed(2)}
                 </td>
+
                 <td className="text-center border-r mobile:p-1">
                   <button
                     onClick={() => removeFromCart(item.id, item.product_type, isModal)}
@@ -180,19 +204,20 @@ const QuotationTable = ({
           )}
         </tbody>
       </table>
-      {cart.length > 0 && (
-        <>
-          <div className="text-xl text-center mt-4 font-bold text-gray-900 dark:text-gray-100 mobile:text-base mobile:mt-2">
-            Net Rate: ₹{calculateNetRate(cart)}
-          </div>
-          <div className="text-xl text-center mt-2 font-bold text-gray-900 dark:text-gray-100 mobile:text-base mobile:mt-1">
-            You Save: ₹{calculateYouSave(cart)}
-          </div>
-          <div className="text-xl text-center mt-2 font-bold text-gray-900 dark:text-gray-100 mobile:text-base mobile:mt-1">
-            Total: ₹{calculateTotal(cart)}
-          </div>
-        </>
-      )}
+  {cart.length > 0 && (
+  <>
+    <div className="text-xl text-center mt-4 font-bold text-gray-900 dark:text-gray-100 mobile:text-base mobile:mt-2">
+      Net Rate: ₹{calculateNetRate(cart, isModal ? modalSelectedCustomer : selectedCustomer)}
+    </div>
+    <div className="text-xl text-center mt-2 font-bold text-gray-900 dark:text-gray-100 mobile:text-base mobile:mt-1">
+      You Save: ₹{calculateYouSave(cart, isModal ? modalSelectedCustomer : selectedCustomer)}
+    </div>
+    <div className="text-xl text-center mt-2 font-bold text-gray-900 dark:text-gray-100 mobile:text-base mobile:mt-1">
+      Total: ₹{calculateTotal(cart, isModal ? modalSelectedCustomer : selectedCustomer)}
+    </div>
+  </>
+)}
+
     </div>
   </div>
 )
@@ -242,23 +267,27 @@ const FormFields = ({
         ))}
       </select>
     </div>
-    <QuotationTableErrorBoundary>
-      <QuotationTable
-        cart={modalCart}
-        products={products}
-        selectedProduct={modalSelectedProduct}
-        setSelectedProduct={setModalSelectedProduct}
-        addToCart={addToCart}
-        updateQuantity={updateQuantity}
-        updateDiscount={updateDiscount}
-        removeFromCart={removeFromCart}
-        calculateNetRate={calculateNetRate}
-        calculateYouSave={calculateYouSave}
-        calculateTotal={calculateTotal}
-        styles={styles}
-        isModal={true}
-      />
-    </QuotationTableErrorBoundary>
+<QuotationTableErrorBoundary>
+  <QuotationTable
+    cart={modalCart}
+    products={products}
+    selectedProduct={modalSelectedProduct}
+    setSelectedProduct={setModalSelectedProduct}
+    addToCart={addToCart}
+    updateQuantity={updateQuantity}
+    updateDiscount={updateDiscount}
+    removeFromCart={removeFromCart}
+    calculateNetRate={calculateNetRate}
+    calculateYouSave={calculateYouSave}
+    calculateTotal={calculateTotal}
+    styles={styles}
+    isModal={true}
+    modalSelectedCustomer={modalSelectedCustomer}
+    customers={customers}
+  />
+</QuotationTableErrorBoundary>
+
+
     <div className="flex justify-end space-x-3">
       <button
         type="button"
@@ -328,61 +357,88 @@ export default function Direct() {
     }
   }
 
-  useEffect(() => {
-    const fetchData = async () => {
-      setLoading(true)
-      try {
-        const [customersResponse, productsResponse, quotationsResponse] = await Promise.all([
-          axios.get(`${API_BASE_URL}/api/direct/customers`),
-          axios.get(`${API_BASE_URL}/api/direct/aproducts`),
-          axios.get(`${API_BASE_URL}/api/direct/quotations`),
-        ])
-        setCustomers(Array.isArray(customersResponse.data) ? customersResponse.data : [])
-        setProducts(Array.isArray(productsResponse.data) ? productsResponse.data : [])
-        setQuotations(Array.isArray(quotationsResponse.data) ? quotationsResponse.data : [])
-      } catch (err) {
-        setError(`Failed to fetch data: ${err.message}`)
-      } finally {
-        setLoading(false)
-      }
+useEffect(() => {
+  const fetchData = async () => {
+    setLoading(true)
+    try {
+      const [customersResponse, productsResponse, quotationsResponse] = await Promise.all([
+        axios.get(`${API_BASE_URL}/api/direct/customers`),
+        axios.get(`${API_BASE_URL}/api/direct/aproducts`),
+        axios.get(`${API_BASE_URL}/api/direct/quotations`),
+      ])
+      setCustomers(Array.isArray(customersResponse.data) ? customersResponse.data : [])
+      setProducts(Array.isArray(productsResponse.data) ? productsResponse.data : [])
+      setQuotations(Array.isArray(quotationsResponse.data) ? quotationsResponse.data : [])
+
+      // 🔎 Debug log full products from API
+      console.log("Products API Response:", productsResponse.data)
+    } catch (err) {
+      setError(`Failed to fetch data: ${err.message}`)
+    } finally {
+      setLoading(false)
     }
-    fetchData()
-    const intervalId = setInterval(fetchQuotations, 30000)
-    return () => clearInterval(intervalId)
-  }, [])
-
-  const addToCart = (isModal = false) => {
-    const targetCart = isModal ? modalCart : cart
-    const setTargetCart = isModal ? setModalCart : setCart
-    const targetSelectedProduct = isModal ? modalSelectedProduct : selectedProduct
-    const setTargetSelectedProduct = isModal ? setModalSelectedProduct : setSelectedProduct
-
-    if (!targetSelectedProduct) {
-      setError("Please select a product")
-      return
-    }
-
-    const [id, type] = targetSelectedProduct.value.split("-")
-    const product = products.find((p) => p.id.toString() === id && p.product_type === type)
-
-    if (!product) {
-      setError("Product not found")
-      return
-    }
-
-    setTargetCart((prev) => {
-      const exists = prev.find((item) => item.id === product.id && item.product_type === product.product_type)
-      return exists
-        ? prev.map((item) =>
-            item.id === product.id && item.product_type === product.product_type
-              ? { ...item, quantity: item.quantity + 1 }
-              : item,
-          )
-        : [...prev, { ...product, quantity: 1, discount: Number.parseFloat(product.discount) || 0 }]
-    })
-    setTargetSelectedProduct(null)
-    setError("")
   }
+  fetchData()
+  const intervalId = setInterval(fetchQuotations, 30000)
+  return () => clearInterval(intervalId)
+}, [])
+
+
+const addToCart = (isModal = false) => {
+  const targetCart = isModal ? modalCart : cart
+  const setTargetCart = isModal ? setModalCart : setCart
+  const targetSelectedProduct = isModal ? modalSelectedProduct : selectedProduct
+  const setTargetSelectedProduct = isModal ? setModalSelectedProduct : setSelectedProduct
+  const targetCustomerId = isModal ? modalSelectedCustomer : selectedCustomer
+
+  if (!targetSelectedProduct) {
+    setError("Please select a product")
+    return
+  }
+
+  const [id, type] = targetSelectedProduct.value.split("-")
+  const product = products.find((p) => p.id.toString() === id && p.product_type === type)
+
+  if (!product) {
+    setError("Product not found")
+    return
+  }
+
+  // 🔑 Get customer type
+  const customer = customers.find((c) => c.id.toString() === targetCustomerId)
+  const effectivePrice = customer?.customer_type === "Customer" 
+    ? Number(product.dprice) || Number(product.price) 
+    : Number(product.price)
+
+  // 🔎 Debug log after selecting product & customer
+  console.log("Selected Customer:", customer)
+  console.log("Selected Product:", product)
+  console.log("Effective Price used:", effectivePrice)
+
+  setTargetCart((prev) => {
+    const exists = prev.find((item) => item.id === product.id && item.product_type === product.product_type)
+    return exists
+      ? prev.map((item) =>
+          item.id === product.id && item.product_type === product.product_type
+            ? { ...item, quantity: item.quantity + 1 }
+            : item,
+        )
+      : [
+          ...prev,
+          {
+            ...product,
+            basePrice: Number(product.price),
+            dprice: Number(product.dprice),
+            quantity: 1,
+            discount: Number.parseFloat(product.discount) || 0,
+          },
+        ]
+  })
+  setTargetSelectedProduct(null)
+  setError("")
+}
+
+
 
   const updateQuantity = (id, type, quantity, isModal = false) => {
     const setTargetCart = isModal ? setModalCart : setCart
@@ -409,17 +465,39 @@ export default function Direct() {
     setTargetCart((prev) => prev.filter((item) => !(item.id === id && item.product_type === type)))
   }
 
-  const calculateNetRate = (targetCart = []) =>
-    targetCart.reduce((total, item) => total + item.price * item.quantity, 0).toFixed(2)
-  const calculateYouSave = (targetCart = []) =>
-    targetCart.reduce((total, item) => total + item.price * (item.discount / 100) * item.quantity, 0).toFixed(2)
-  const calculateTotal = (targetCart = []) => {
-    const subtotal = targetCart.reduce(
-      (total, item) => total + item.price * (1 - item.discount / 100) * item.quantity,
-      0,
+const calculateNetRate = (targetCart = [], customerId) =>
+  targetCart
+    .reduce(
+      (total, item) =>
+        total + getEffectivePrice(item, customerId, customers) * item.quantity,
+      0
     )
-    return subtotal.toFixed(2)
-  }
+    .toFixed(2)
+
+const calculateYouSave = (targetCart = [], customerId) =>
+  targetCart
+    .reduce(
+      (total, item) =>
+        total +
+        getEffectivePrice(item, customerId, customers) *
+          (item.discount / 100) *
+          item.quantity,
+      0
+    )
+    .toFixed(2)
+
+const calculateTotal = (targetCart = [], customerId) =>
+  targetCart
+    .reduce(
+      (total, item) =>
+        total +
+        getEffectivePrice(item, customerId, customers) *
+          (1 - item.discount / 100) *
+          item.quantity,
+      0
+    )
+    .toFixed(2)
+
 
   const createQuotation = async () => {
     if (!selectedCustomer || !cart.length) return setError("Customer and products are required")
@@ -434,14 +512,21 @@ export default function Direct() {
       const payload = {
         customer_id: Number(selectedCustomer),
         quotation_id,
-        products: cart.map((item) => ({
-          id: item.id,
-          product_type: item.product_type,
-          productname: item.productname,
-          price: Number.parseFloat(item.price) || 0,
-          discount: Number.parseFloat(item.discount) || 0,
-          quantity: Number.parseInt(item.quantity) || 0,
-        })),
+   products: cart.map((item) => {
+  const customer = customers.find((c) => c.id.toString() === selectedCustomer)
+  const effectivePrice = customer?.customer_type === "Customer"
+    ? Number(item.dprice) || Number(item.price)
+    : Number(item.price)
+  return {
+    id: item.id,
+    product_type: item.product_type,
+    productname: item.productname,
+    price: effectivePrice,
+    discount: Number.parseFloat(item.discount) || 0,
+    quantity: Number.parseInt(item.quantity) || 0,
+  }
+}),
+
         net_rate: Number.parseFloat(calculateNetRate(cart)),
         you_save: Number.parseFloat(calculateYouSave(cart)),
         total: Number.parseFloat(calculateTotal(cart)),
@@ -533,7 +618,7 @@ export default function Direct() {
           id: item.id,
           product_type: item.product_type,
           productname: item.productname,
-          price: Number.parseFloat(item.price) || 0,
+price: getEffectivePrice(item, selectedCustomer, customers),
           discount: Number.parseFloat(item.discount) || 0,
           quantity: Number.parseInt(item.quantity) || 0,
         })),
@@ -655,7 +740,7 @@ export default function Direct() {
           id: item.id,
           product_type: item.product_type,
           productname: item.productname,
-          price: Number.parseFloat(item.price) || 0,
+price: getEffectivePrice(item, selectedCustomer, customers),
           discount: Number.parseFloat(item.discount) || 0,
           quantity: Number.parseInt(item.quantity) || 0,
         })),
@@ -719,7 +804,7 @@ export default function Direct() {
           id: item.id,
           product_type: item.product_type,
           productname: item.productname,
-          price: Number.parseFloat(item.price) || 0,
+price: getEffectivePrice(item, selectedCustomer, customers),
           discount: Number.parseFloat(item.discount) || 0,
           quantity: Number.parseInt(item.quantity) || 0,
         })),
@@ -832,22 +917,26 @@ export default function Direct() {
               "Select a customer",
               "main-customer-select",
             )}
-            <QuotationTableErrorBoundary>
-              <QuotationTable
-                cart={cart}
-                products={products}
-                selectedProduct={selectedProduct}
-                setSelectedProduct={setSelectedProduct}
-                addToCart={addToCart}
-                updateQuantity={updateQuantity}
-                updateDiscount={updateDiscount}
-                removeFromCart={removeFromCart}
-                calculateNetRate={calculateNetRate}
-                calculateYouSave={calculateYouSave}
-                calculateTotal={calculateTotal}
-                styles={styles}
-              />
-            </QuotationTableErrorBoundary>
+        
+<QuotationTableErrorBoundary>
+  <QuotationTable
+    cart={cart}
+    products={products}
+    selectedProduct={selectedProduct}
+    setSelectedProduct={setSelectedProduct}
+    addToCart={addToCart}
+    updateQuantity={updateQuantity}
+    updateDiscount={updateDiscount}
+    removeFromCart={removeFromCart}
+    calculateNetRate={calculateNetRate}
+    calculateYouSave={calculateYouSave}
+    calculateTotal={calculateTotal}
+    styles={styles}
+    selectedCustomer={selectedCustomer}
+    customers={customers}
+  />
+</QuotationTableErrorBoundary>
+
           </div>
           <div className="flex justify-center gap-4 mt-8 mobile:mt-4 mobile:flex-col">
             <button

@@ -528,60 +528,87 @@ export default function List() {
               }}
             />
           </div>
-          <div className="max-h-48 overflow-y-auto">
-            {applyRateChangeFilter().length > 0 ? (
-              <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-                <thead className="bg-gray-50 dark:bg-gray-800">
-                  <tr>
-                    <th className="px-4 py-2 text-left text-xs font-medium text-gray-900 dark:text-gray-100 uppercase tracking-wider">
-                      Product Name
-                    </th>
-                    <th className="px-4 py-2 text-left text-xs font-medium text-gray-900 dark:text-gray-100 uppercase tracking-wider">
-                      Serial Number
-                    </th>
-                    <th className="px-4 py-2 text-left text-xs font-medium text-gray-900 dark:text-gray-100 uppercase tracking-wider">
-                      Net Rate
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="bg-white dark:bg-gray-900 divide-y divide-gray-200 dark:divide-gray-700">
-                  {applyRateChangeFilter().map((product) => {
-                    const productKey = `${product.product_type}-${product.id}`
-                    const defaultRate = Number.parseFloat(product.net_rate || product.price).toFixed(2)
-                    return (
-                      <tr key={productKey}>
-                        <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100">
-                          {product.productname}
-                        </td>
-                        <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100">
-                          {product.serial_number}
-                        </td>
-                        <td className="px-4 py-2 whitespace-nowrap">
-                          <input
-                            type="number"
-                            value={editedRates[productKey] !== undefined ? editedRates[productKey] : defaultRate}
-                            onChange={(e) => handleRateChangeInput(product, e.target.value)}
-                            placeholder="Enter new rate"
-                            className="text-md px-2 h-8 block w-24 rounded-md bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-900 border-gray-300 dark:border-gray-600 shadow-sm focus:border-indigo-600 dark:focus:border-blue-500 focus:ring-indigo-600 dark:focus:ring-blue-500 sm:text-sm"
-                            style={{
-                              background: styles.input.background,
-                              backgroundDark: styles.input.backgroundDark,
-                              border: styles.input.border,
-                              borderDark: styles.input.borderDark,
-                              backdropFilter: styles.input.backdropFilter,
-                            }}
-                            step="0.01"
-                          />
-                        </td>
-                      </tr>
-                    )
-                  })}
-                </tbody>
-              </table>
-            ) : (
-              <p className="text-sm text-gray-600 dark:text-gray-400">No products found</p>
-            )}
-          </div>
+<div className="max-h-48 overflow-y-auto">
+  {applyRateChangeFilter().length > 0 ? (
+    <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+      <thead className="bg-gray-50 dark:bg-gray-800">
+        <tr>
+          <th className="px-4 py-2 text-left text-xs font-medium text-gray-900 dark:text-gray-100 uppercase tracking-wider">
+            Product Name
+          </th>
+          <th className="px-4 py-2 text-left text-xs font-medium text-gray-900 dark:text-gray-100 uppercase tracking-wider">
+            Serial Number
+          </th>
+          <th className="px-4 py-2 text-left text-xs font-medium text-gray-900 dark:text-gray-100 uppercase tracking-wider">
+            Net Rate
+          </th>
+          <th className="px-4 py-2 text-left text-xs font-medium text-gray-900 dark:text-gray-100 uppercase tracking-wider">
+            Direct Customer Price
+          </th>
+        </tr>
+      </thead>
+      <tbody className="bg-white dark:bg-gray-900 divide-y divide-gray-200 dark:divide-gray-700">
+        {applyRateChangeFilter().map((product) => {
+          const productKey = `${product.product_type}-${product.id}`;
+          const defaultRate = Number.parseFloat(product.net_rate || product.price).toFixed(2);
+          const defaultDPrice = Number.parseFloat(product.dprice || 0).toFixed(2);
+
+          return (
+            <tr key={productKey}>
+              <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100">
+                {product.productname}
+              </td>
+              <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100">
+                {product.serial_number}
+              </td>
+              <td className="px-4 py-2 whitespace-nowrap">
+                <input
+                  type="number"
+                  value={editedRates[productKey]?.price ?? defaultRate}
+                  onChange={(e) =>
+                    handleRateChangeInput(product, e.target.value, "price")
+                  }
+                  placeholder="Enter new rate"
+                  className="text-md px-2 h-8 block w-24 rounded-md bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-900 border-gray-300 dark:border-gray-600 shadow-sm focus:border-indigo-600 dark:focus:border-blue-500 focus:ring-indigo-600 dark:focus:ring-blue-500 sm:text-sm"
+                  style={{
+                    background: styles.input.background,
+                    backgroundDark: styles.input.backgroundDark,
+                    border: styles.input.border,
+                    borderDark: styles.input.borderDark,
+                    backdropFilter: styles.input.backdropFilter,
+                  }}
+                  step="0.01"
+                />
+              </td>
+              <td className="px-4 py-2 whitespace-nowrap">
+                <input
+                  type="number"
+                  value={editedRates[productKey]?.dprice ?? defaultDPrice}
+                  onChange={(e) =>
+                    handleRateChangeInput(product, e.target.value, "dprice")
+                  }
+                  placeholder="Enter DPrice"
+                  className="text-md px-2 h-8 block w-24 rounded-md bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-900 border-gray-300 dark:border-gray-600 shadow-sm focus:border-indigo-600 dark:focus:border-blue-500 focus:ring-indigo-600 dark:focus:ring-blue-500 sm:text-sm"
+                  style={{
+                    background: styles.input.background,
+                    backgroundDark: styles.input.backgroundDark,
+                    border: styles.input.border,
+                    borderDark: styles.input.borderDark,
+                    backdropFilter: styles.input.backdropFilter,
+                  }}
+                  step="0.01"
+                />
+              </td>
+            </tr>
+          );
+        })}
+      </tbody>
+    </table>
+  ) : (
+    <p className="text-sm text-gray-600 dark:text-gray-400">No products found</p>
+  )}
+</div>
+
           {error && <p className="text-sm text-red-600 dark:text-red-400">{error}</p>}
           <div className="mt-6 mobile:mt-3 flex justify-end space-x-2 mobile:space-x-1">
             <button
@@ -779,7 +806,19 @@ export default function List() {
                 step="0.01"
               />
             </div>
-
+<div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Direct Customer Price</label>
+            <input
+              type="number"
+              name="dprice"
+              value={formData.dprice}
+              onChange={handleInputChange}
+              className="mt-1 text-md px-2 h-8 block w-full rounded-md bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-900 border-gray-300 dark:border-gray-600 shadow-sm"
+              style={styles.input}
+              required
+              step="0.01"
+            />
+          </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Discount (%)</label>
               <input
@@ -1099,6 +1138,12 @@ export default function List() {
                           </span>
                         </div>
                         <div>
+  <span className="font-medium text-gray-700 dark:text-gray-300">
+    Direct Price: ₹{Number.parseFloat(product.dprice).toFixed(2)}
+  </span>
+</div>
+
+                        <div>
                           <span className="font-medium text-gray-700 dark:text-gray-300">Per: {product.per}</span>
                         </div>
                         <div>
@@ -1170,19 +1215,21 @@ export default function List() {
                         <button
                           onClick={() => {
                             setSelectedProduct(product)
-                            setFormData({
-                              productname: product.productname,
-                              serial_number: product.serial_number,
-                              price: product.price,
-                              discount: product.discount,
-                              per: product.per,
-                              product_type: product.product_type,
-                              description: product.description || "",
-                              box_count: product.box_count,
-                              images: [],
-                              existingImages: product.images || [],
-                              imagesToDelete: [],
-                            })
+                       setFormData({
+  productname: product.productname,
+  serial_number: product.serial_number,
+  price: product.price,
+  dprice: product.dprice,   // ✅ new
+  discount: product.discount,
+  per: product.per,
+  product_type: product.product_type,
+  description: product.description || "",
+  box_count: product.box_count,
+  images: [],
+  existingImages: product.images || [],
+  imagesToDelete: [],
+})
+
                             setEditModalIsOpen(true)
                           }}
                           className="flex items-center px-3 py-1 text-xs sm:text-sm text-white dark:text-gray-100 hover:bg-green-700 dark:hover:bg-green-600 rounded-md"
@@ -1298,6 +1345,8 @@ export default function List() {
                       "serial_number",
                       "productname",
                       "price",
+                        "dprice",       // ✅ show direct price
+
                       "per",
                       "discount",
                       "box_count",
@@ -1309,7 +1358,7 @@ export default function List() {
                           {capitalize(field.replace("_", " "))}:
                         </span>
                         <span className="ml-2 text-gray-900 dark:text-gray-100 text-xs sm:text-sm">
-                          {field === "price"
+{field === "price" || field === "dprice"
                             ? `₹${Number.parseFloat(selectedProduct[field]).toFixed(2)}`
                             : field === "discount"
                               ? `${Number.parseFloat(selectedProduct[field]).toFixed(2)}%`
