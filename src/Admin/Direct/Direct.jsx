@@ -9,28 +9,29 @@ import Logout from '../Logout';
 import { FaEdit, FaArrowRight, FaTrash } from 'react-icons/fa';
 
 // Set app element for accessibility
-Modal.setAppElement("#root")
+Modal.setAppElement("#root");
+
+// Helper function to get effective price (rounded to integer)
 const getEffectivePrice = (item, customerId, customers = []) => {
   if (!Array.isArray(customers) || !customerId) {
-    return Number(item.price) // fallback to normal price
+    return Math.round(Number(item.customPrice || item.price));
   }
-  const customer = customers.find((c) => c.id.toString() === customerId)
+  const customer = customers.find((c) => c.id.toString() === customerId);
   return customer?.customer_type === "Customer"
-    ? Number(item.dprice) || Number(item.price)
-    : Number(item.price)
-}
-
+    ? Math.round(Number(item.customPrice || item.dprice || item.price))
+    : Math.round(Number(item.customPrice || item.price));
+};
 
 // Error Boundary Component
 class QuotationTableErrorBoundary extends React.Component {
-  state = { hasError: false, error: null }
+  state = { hasError: false, error: null };
 
   static getDerivedStateFromError(error) {
-    return { hasError: true, error }
+    return { hasError: true, error };
   }
 
   componentDidCatch(error, errorInfo) {
-    console.error("Error caught by QuotationTableErrorBoundary:", error, errorInfo)
+    console.error("Error caught by QuotationTableErrorBoundary:", error, errorInfo);
   }
 
   render() {
@@ -39,9 +40,9 @@ class QuotationTableErrorBoundary extends React.Component {
         <div className="bg-red-100 border border-red-400 text-red-700 px-6 py-3 rounded-lg text-center shadow-md">
           An error occurred while rendering the quotation table. Please try again.
         </div>
-      )
+      );
     }
-    return this.props.children
+    return this.props.children;
   }
 }
 
@@ -54,6 +55,7 @@ const QuotationTable = ({
   addToCart,
   updateQuantity,
   updateDiscount,
+  updatePrice,
   removeFromCart,
   calculateNetRate,
   calculateYouSave,
@@ -64,7 +66,6 @@ const QuotationTable = ({
   modalSelectedCustomer,
   customers,
 }) => (
-
   <div className="space-y-4">
     <div className="flex flex-col items-center mobile:w-full">
       <label
@@ -131,9 +132,8 @@ const QuotationTable = ({
         <thead className="border">
           <tr className="hundred:text-lg mobile:text-sm">
             <th className="text-center border-r mobile:p-1">Product</th>
-            <th className="text-center border-r mobile:p-1">Type</th>
             <th className="text-center border-r mobile:p-1">Price</th>
-            <th className="text-center border-r mobile:p-1">Discount (%)</th>
+            <th className="text-center border-r mobile:p-1">Dis (%)</th>
             <th className="text-center border-r mobile:p-1">Qty</th>
             <th className="text-center border-r mobile:p-1">Total</th>
             <th className="text-center border-r mobile:p-1">Actions</th>
@@ -147,24 +147,31 @@ const QuotationTable = ({
                 className="border border-gray-200 text-gray-900 dark:text-gray-100 mobile:text-sm"
               >
                 <td className="text-center border-r mobile:p-1">{item.productname}</td>
-                <td className="text-center border-r mobile:p-1">{item.product_type}</td>
                 <td className="text-center border-r mobile:p-1">
-                  ₹{getEffectivePrice(item, isModal ? modalSelectedCustomer : selectedCustomer, customers).toFixed(2)}
+                  <input
+                    type="number"
+                    value={getEffectivePrice(item, isModal ? modalSelectedCustomer : selectedCustomer, customers)}
+                    onChange={(e) =>
+                      updatePrice(item.id, item.product_type, Math.round(Number.parseFloat(e.target.value) || 0), isModal)
+                    }
+                    min="0"
+                    step="1"
+                    className="w-20 text-center bg-transparent border border-gray-300 rounded p-1 focus:outline-none focus:ring-2 focus:ring-blue-600"
+                  />
                 </td>
-
                 <td className="text-center border-r mobile:p-1">
                   <input
                     type="number"
                     value={item.discount}
                     onChange={(e) =>
-                      updateDiscount(item.id, item.product_type, Number.parseInt(e.target.value) || 0, isModal)
+                      updateDiscount(item.id, item.product_type, Number.parseFloat(e.target.value) || 0, isModal)
                     }
                     min="0"
                     max="100"
+                    step="0.01"
                     className="w-20 text-center bg-transparent border border-gray-300 rounded p-1 focus:outline-none focus:ring-2 focus:ring-blue-600"
                   />
                 </td>
-
                 <td className="text-center border-r mobile:p-1">
                   <input
                     type="number"
@@ -176,15 +183,13 @@ const QuotationTable = ({
                     className="w-16 text-center border border-gray-300 rounded p-1 focus:outline-none focus:ring-2 focus:ring-blue-600"
                   />
                 </td>
-
                 <td className="text-center border-r mobile:p-1">
-                  ₹{(
+                  ₹{Math.round(
                     getEffectivePrice(item, isModal ? modalSelectedCustomer : selectedCustomer, customers) *
                     (1 - item.discount / 100) *
                     item.quantity
-                  ).toFixed(2)}
+                  )}
                 </td>
-
                 <td className="text-center border-r mobile:p-1">
                   <button
                     onClick={() => removeFromCart(item.id, item.product_type, isModal)}
@@ -197,30 +202,29 @@ const QuotationTable = ({
             ))
           ) : (
             <tr>
-              <td colSpan="7" className="p-4 text-center text-gray-500 dark:text-gray-100 mobile:p-2 mobile:text-xs">
+              <td colSpan="6" className="p-4 text-center text-gray-500 dark:text-gray-100 mobile:p-2 mobile:text-xs">
                 Cart is empty
               </td>
             </tr>
           )}
         </tbody>
       </table>
-  {cart.length > 0 && (
-  <>
-    <div className="text-xl text-center mt-4 font-bold text-gray-900 dark:text-gray-100 mobile:text-base mobile:mt-2">
-      Net Rate: ₹{calculateNetRate(cart, isModal ? modalSelectedCustomer : selectedCustomer)}
-    </div>
-    <div className="text-xl text-center mt-2 font-bold text-gray-900 dark:text-gray-100 mobile:text-base mobile:mt-1">
-      You Save: ₹{calculateYouSave(cart, isModal ? modalSelectedCustomer : selectedCustomer)}
-    </div>
-    <div className="text-xl text-center mt-2 font-bold text-gray-900 dark:text-gray-100 mobile:text-base mobile:mt-1">
-      Total: ₹{calculateTotal(cart, isModal ? modalSelectedCustomer : selectedCustomer)}
-    </div>
-  </>
-)}
-
+      {cart.length > 0 && (
+        <>
+          <div className="text-xl text-center mt-4 font-bold text-gray-900 dark:text-gray-100 mobile:text-base mobile:mt-2">
+            Net Rate: ₹{Math.round(calculateNetRate(cart, isModal ? modalSelectedCustomer : selectedCustomer))}
+          </div>
+          <div className="text-xl text-center mt-2 font-bold text-gray-900 dark:text-gray-100 mobile:text-base mobile:mt-1">
+            You Save: ₹{Math.round(calculateYouSave(cart, isModal ? modalSelectedCustomer : selectedCustomer))}
+          </div>
+          <div className="text-xl text-center mt-2 font-bold text-gray-900 dark:text-gray-100 mobile:text-base mobile:mt-1">
+            Total: ₹{Math.round(calculateTotal(cart, isModal ? modalSelectedCustomer : selectedCustomer))}
+          </div>
+        </>
+      )}
     </div>
   </div>
-)
+);
 
 // FormFields component for modal
 const FormFields = ({
@@ -235,6 +239,7 @@ const FormFields = ({
   addToCart,
   updateQuantity,
   updateDiscount,
+  updatePrice,
   removeFromCart,
   calculateNetRate,
   calculateYouSave,
@@ -267,27 +272,26 @@ const FormFields = ({
         ))}
       </select>
     </div>
-<QuotationTableErrorBoundary>
-  <QuotationTable
-    cart={modalCart}
-    products={products}
-    selectedProduct={modalSelectedProduct}
-    setSelectedProduct={setModalSelectedProduct}
-    addToCart={addToCart}
-    updateQuantity={updateQuantity}
-    updateDiscount={updateDiscount}
-    removeFromCart={removeFromCart}
-    calculateNetRate={calculateNetRate}
-    calculateYouSave={calculateYouSave}
-    calculateTotal={calculateTotal}
-    styles={styles}
-    isModal={true}
-    modalSelectedCustomer={modalSelectedCustomer}
-    customers={customers}
-  />
-</QuotationTableErrorBoundary>
-
-
+    <QuotationTableErrorBoundary>
+      <QuotationTable
+        cart={modalCart}
+        products={products}
+        selectedProduct={modalSelectedProduct}
+        setSelectedProduct={setModalSelectedProduct}
+        addToCart={addToCart}
+        updateQuantity={updateQuantity}
+        updateDiscount={updateDiscount}
+        updatePrice={updatePrice}
+        removeFromCart={removeFromCart}
+        calculateNetRate={calculateNetRate}
+        calculateYouSave={calculateYouSave}
+        calculateTotal={calculateTotal}
+        styles={styles}
+        isModal={true}
+        modalSelectedCustomer={modalSelectedCustomer}
+        customers={customers}
+      />
+    </QuotationTableErrorBoundary>
     <div className="flex justify-end space-x-3">
       <button
         type="button"
@@ -306,27 +310,27 @@ const FormFields = ({
       </button>
     </div>
   </div>
-)
+);
 
 export default function Direct() {
-  const [customers, setCustomers] = useState([])
-  const [products, setProducts] = useState([])
-  const [quotations, setQuotations] = useState([])
-  const [selectedCustomer, setSelectedCustomer] = useState("")
-  const [cart, setCart] = useState([])
-  const [selectedProduct, setSelectedProduct] = useState(null)
-  const [error, setError] = useState("")
-  const [loading, setLoading] = useState(true)
-  const [successMessage, setSuccessMessage] = useState("")
-  const [showSuccess, setShowSuccess] = useState(false)
-  const [quotationId, setQuotationId] = useState(null)
-  const [isQuotationCreated, setIsQuotationCreated] = useState(false)
-  const [modalIsOpen, setModalIsOpen] = useState(false)
-  const [modalMode, setModalMode] = useState(null)
-  const [modalCart, setModalCart] = useState([])
-  const [modalSelectedProduct, setModalSelectedProduct] = useState(null)
-  const [modalSelectedCustomer, setModalSelectedCustomer] = useState("")
-  const [orderId, setOrderId] = useState("")
+  const [customers, setCustomers] = useState([]);
+  const [products, setProducts] = useState([]);
+  const [quotations, setQuotations] = useState([]);
+  const [selectedCustomer, setSelectedCustomer] = useState("");
+  const [cart, setCart] = useState([]);
+  const [selectedProduct, setSelectedProduct] = useState(null);
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [successMessage, setSuccessMessage] = useState("");
+  const [showSuccess, setShowSuccess] = useState(false);
+  const [quotationId, setQuotationId] = useState(null);
+  const [isQuotationCreated, setIsQuotationCreated] = useState(false);
+  const [modalIsOpen, setModalIsOpen] = useState(false);
+  const [modalMode, setModalMode] = useState(null);
+  const [modalCart, setModalCart] = useState([]);
+  const [modalSelectedProduct, setModalSelectedProduct] = useState(null);
+  const [modalSelectedCustomer, setModalSelectedCustomer] = useState("");
+  const [orderId, setOrderId] = useState("");
 
   const styles = {
     input: {
@@ -345,191 +349,184 @@ export default function Direct() {
       border: "1px solid rgba(2,132,199,0.3)",
       boxShadow: "0 10px 20px rgba(0,0,0,0.1)",
     },
-  }
+  };
 
   const fetchQuotations = async () => {
     try {
-      const quotationsResponse = await axios.get(`${API_BASE_URL}/api/direct/quotations`)
-      setQuotations(Array.isArray(quotationsResponse.data) ? quotationsResponse.data : [])
+      const quotationsResponse = await axios.get(`${API_BASE_URL}/api/direct/quotations`);
+      setQuotations(Array.isArray(quotationsResponse.data) ? quotationsResponse.data : []);
     } catch (err) {
-      console.error("Failed to fetch quotations:", err.message)
-      setError(`Failed to fetch quotations: ${err.message}`)
+      console.error("Failed to fetch quotations:", err.message);
+      setError(`Failed to fetch quotations: ${err.message}`);
     }
-  }
+  };
 
-useEffect(() => {
-  const fetchData = async () => {
-    setLoading(true)
-    try {
-      const [customersResponse, productsResponse, quotationsResponse] = await Promise.all([
-        axios.get(`${API_BASE_URL}/api/direct/customers`),
-        axios.get(`${API_BASE_URL}/api/direct/aproducts`),
-        axios.get(`${API_BASE_URL}/api/direct/quotations`),
-      ])
-      setCustomers(Array.isArray(customersResponse.data) ? customersResponse.data : [])
-      setProducts(Array.isArray(productsResponse.data) ? productsResponse.data : [])
-      setQuotations(Array.isArray(quotationsResponse.data) ? quotationsResponse.data : [])
+  useEffect(() => {
+    const fetchData = async () => {
+      setLoading(true);
+      try {
+        const [customersResponse, productsResponse, quotationsResponse] = await Promise.all([
+          axios.get(`${API_BASE_URL}/api/direct/customers`),
+          axios.get(`${API_BASE_URL}/api/direct/aproducts`),
+          axios.get(`${API_BASE_URL}/api/direct/quotations`),
+        ]);
+        setCustomers(Array.isArray(customersResponse.data) ? customersResponse.data : []);
+        setProducts(Array.isArray(productsResponse.data) ? productsResponse.data : []);
+        setQuotations(Array.isArray(quotationsResponse.data) ? quotationsResponse.data : []);
+        console.log("Products API Response:", productsResponse.data);
+      } catch (err) {
+        setError(`Failed to fetch data: ${err.message}`);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchData();
+    const intervalId = setInterval(fetchQuotations, 30000);
+    return () => clearInterval(intervalId);
+  }, []);
 
-      // 🔎 Debug log full products from API
-      console.log("Products API Response:", productsResponse.data)
-    } catch (err) {
-      setError(`Failed to fetch data: ${err.message}`)
-    } finally {
-      setLoading(false)
+  const addToCart = (isModal = false) => {
+    const targetCart = isModal ? modalCart : cart;
+    const setTargetCart = isModal ? setModalCart : setCart;
+    const targetSelectedProduct = isModal ? modalSelectedProduct : selectedProduct;
+    const setTargetSelectedProduct = isModal ? setModalSelectedProduct : setSelectedProduct;
+    const targetCustomerId = isModal ? modalSelectedCustomer : selectedCustomer;
+
+    if (!targetSelectedProduct) {
+      setError("Please select a product");
+      return;
     }
-  }
-  fetchData()
-  const intervalId = setInterval(fetchQuotations, 30000)
-  return () => clearInterval(intervalId)
-}, [])
 
+    const [id, type] = targetSelectedProduct.value.split("-");
+    const product = products.find((p) => p.id.toString() === id && p.product_type === type);
 
-const addToCart = (isModal = false) => {
-  const targetCart = isModal ? modalCart : cart
-  const setTargetCart = isModal ? setModalCart : setCart
-  const targetSelectedProduct = isModal ? modalSelectedProduct : selectedProduct
-  const setTargetSelectedProduct = isModal ? setModalSelectedProduct : setSelectedProduct
-  const targetCustomerId = isModal ? modalSelectedCustomer : selectedCustomer
+    if (!product) {
+      setError("Product not found");
+      return;
+    }
 
-  if (!targetSelectedProduct) {
-    setError("Please select a product")
-    return
-  }
+    const customer = customers.find((c) => c.id.toString() === targetCustomerId);
+    const effectivePrice = Math.round(
+      customer?.customer_type === "Customer"
+        ? Number(product.dprice) || Number(product.price)
+        : Number(product.price)
+    );
 
-  const [id, type] = targetSelectedProduct.value.split("-")
-  const product = products.find((p) => p.id.toString() === id && p.product_type === type)
+    console.log("Selected Customer:", customer);
+    console.log("Selected Product:", product);
+    console.log("Effective Price used:", effectivePrice);
 
-  if (!product) {
-    setError("Product not found")
-    return
-  }
-
-  // 🔑 Get customer type
-  const customer = customers.find((c) => c.id.toString() === targetCustomerId)
-  const effectivePrice = customer?.customer_type === "Customer" 
-    ? Number(product.dprice) || Number(product.price) 
-    : Number(product.price)
-
-  // 🔎 Debug log after selecting product & customer
-  console.log("Selected Customer:", customer)
-  console.log("Selected Product:", product)
-  console.log("Effective Price used:", effectivePrice)
-
-  setTargetCart((prev) => {
-    const exists = prev.find((item) => item.id === product.id && item.product_type === product.product_type)
-    return exists
-      ? prev.map((item) =>
-          item.id === product.id && item.product_type === product.product_type
-            ? { ...item, quantity: item.quantity + 1 }
-            : item,
-        )
-      : [
-          ...prev,
-          {
-            ...product,
-            basePrice: Number(product.price),
-            dprice: Number(product.dprice),
-            quantity: 1,
-            discount: Number.parseFloat(product.discount) || 0,
-          },
-        ]
-  })
-  setTargetSelectedProduct(null)
-  setError("")
-}
-
-
+    setTargetCart((prev) => {
+      const exists = prev.find((item) => item.id === product.id && item.product_type === product.product_type);
+      return exists
+        ? prev.map((item) =>
+            item.id === product.id && item.product_type === product.product_type
+              ? { ...item, quantity: item.quantity + 1 }
+              : item
+          )
+        : [
+            ...prev,
+            {
+              ...product,
+              basePrice: Math.round(Number(product.price)),
+              dprice: Math.round(Number(product.dprice)),
+              customPrice: effectivePrice, // Initialize with rounded effective price
+              quantity: 1,
+              discount: Number.parseFloat(product.discount) || 0,
+            },
+          ];
+    });
+    setTargetSelectedProduct(null);
+    setError("");
+  };
 
   const updateQuantity = (id, type, quantity, isModal = false) => {
-    const setTargetCart = isModal ? setModalCart : setCart
+    const setTargetCart = isModal ? setModalCart : setCart;
     setTargetCart((prev) =>
       prev.map((item) =>
-        item.id === id && item.product_type === type ? { ...item, quantity: quantity < 0 ? 0 : quantity } : item,
-      ),
-    )
-  }
+        item.id === id && item.product_type === type ? { ...item, quantity: quantity < 0 ? 0 : quantity } : item
+      )
+    );
+  };
 
   const updateDiscount = (id, type, discount, isModal = false) => {
-    const setTargetCart = isModal ? setModalCart : setCart
+    const setTargetCart = isModal ? setModalCart : setCart;
     setTargetCart((prev) =>
       prev.map((item) =>
         item.id === id && item.product_type === type
           ? { ...item, discount: discount < 0 ? 0 : discount > 100 ? 100 : discount }
-          : item,
-      ),
-    )
-  }
+          : item
+      )
+    );
+  };
+
+  const updatePrice = (id, type, price, isModal = false) => {
+    const setTargetCart = isModal ? setModalCart : setCart;
+    setTargetCart((prev) =>
+      prev.map((item) =>
+        item.id === id && item.product_type === type
+          ? { ...item, customPrice: Math.round(price < 0 ? 0 : price) }
+          : item
+      )
+    );
+  };
 
   const removeFromCart = (id, type, isModal = false) => {
-    const setTargetCart = isModal ? setModalCart : setCart
-    setTargetCart((prev) => prev.filter((item) => !(item.id === id && item.product_type === type)))
-  }
+    const setTargetCart = isModal ? setModalCart : setCart;
+    setTargetCart((prev) => prev.filter((item) => !(item.id === id && item.product_type === type)));
+  };
 
-const calculateNetRate = (targetCart = [], customerId) =>
-  targetCart
-    .reduce(
+  const calculateNetRate = (targetCart = [], customerId) =>
+    targetCart.reduce(
       (total, item) =>
         total + getEffectivePrice(item, customerId, customers) * item.quantity,
       0
-    )
-    .toFixed(2)
+    );
 
-const calculateYouSave = (targetCart = [], customerId) =>
-  targetCart
-    .reduce(
+  const calculateYouSave = (targetCart = [], customerId) =>
+    targetCart.reduce(
       (total, item) =>
         total +
         getEffectivePrice(item, customerId, customers) *
-          (item.discount / 100) *
-          item.quantity,
+        (item.discount / 100) *
+        item.quantity,
       0
-    )
-    .toFixed(2)
+    );
 
-const calculateTotal = (targetCart = [], customerId) =>
-  targetCart
-    .reduce(
+  const calculateTotal = (targetCart = [], customerId) =>
+    targetCart.reduce(
       (total, item) =>
         total +
         getEffectivePrice(item, customerId, customers) *
-          (1 - item.discount / 100) *
-          item.quantity,
+        (1 - item.discount / 100) *
+        item.quantity,
       0
-    )
-    .toFixed(2)
-
+    );
 
   const createQuotation = async () => {
-    if (!selectedCustomer || !cart.length) return setError("Customer and products are required")
-    if (cart.some((item) => item.quantity === 0)) return setError("Please remove products with zero quantity")
+    if (!selectedCustomer || !cart.length) return setError("Customer and products are required");
+    if (cart.some((item) => item.quantity === 0)) return setError("Please remove products with zero quantity");
 
-    const customer = customers.find((c) => c.id.toString() === selectedCustomer)
-    if (!customer) return setError("Invalid customer")
+    const customer = customers.find((c) => c.id.toString() === selectedCustomer);
+    if (!customer) return setError("Invalid customer");
 
-    const quotation_id = `QUO-${Date.now()}`
+    const quotation_id = `QUO-${Date.now()}`;
     try {
-      const subtotal = Number.parseFloat(calculateNetRate(cart)) - Number.parseFloat(calculateYouSave(cart))
+      const subtotal = calculateNetRate(cart) - calculateYouSave(cart);
       const payload = {
         customer_id: Number(selectedCustomer),
         quotation_id,
-   products: cart.map((item) => {
-  const customer = customers.find((c) => c.id.toString() === selectedCustomer)
-  const effectivePrice = customer?.customer_type === "Customer"
-    ? Number(item.dprice) || Number(item.price)
-    : Number(item.price)
-  return {
-    id: item.id,
-    product_type: item.product_type,
-    productname: item.productname,
-    price: effectivePrice,
-    discount: Number.parseFloat(item.discount) || 0,
-    quantity: Number.parseInt(item.quantity) || 0,
-  }
-}),
-
-        net_rate: Number.parseFloat(calculateNetRate(cart)),
-        you_save: Number.parseFloat(calculateYouSave(cart)),
-        total: Number.parseFloat(calculateTotal(cart)),
+        products: cart.map((item) => ({
+          id: item.id,
+          product_type: item.product_type,
+          productname: item.productname,
+          price: getEffectivePrice(item, selectedCustomer, customers),
+          discount: Number.parseFloat(item.discount) || 0,
+          quantity: Number.parseInt(item.quantity) || 0,
+        })),
+        net_rate: Math.round(calculateNetRate(cart)),
+        you_save: Math.round(calculateYouSave(cart)),
+        total: Math.round(calculateTotal(cart)),
         promo_discount: 0,
         customer_type: customer.customer_type || "User",
         customer_name: customer.name,
@@ -539,14 +536,14 @@ const calculateTotal = (targetCart = [], customerId) =>
         district: customer.district,
         state: customer.state,
         status: "pending",
-      }
+      };
 
-      const response = await axios.post(`${API_BASE_URL}/api/direct/quotations`, payload)
-      setQuotationId(response.data.quotation_id)
-      setIsQuotationCreated(true)
-      setSuccessMessage("Quotation created successfully! Check downloads for PDF.")
-      setShowSuccess(true)
-      setTimeout(() => setShowSuccess(false), 3000)
+      const response = await axios.post(`${API_BASE_URL}/api/direct/quotations`, payload);
+      setQuotationId(response.data.quotation_id);
+      setIsQuotationCreated(true);
+      setSuccessMessage("Quotation created successfully! Check downloads for PDF.");
+      setShowSuccess(true);
+      setTimeout(() => setShowSuccess(false), 3000);
 
       setQuotations((prev) => [
         {
@@ -556,83 +553,84 @@ const calculateTotal = (targetCart = [], customerId) =>
           total: payload.total,
         },
         ...prev,
-      ])
+      ]);
 
       const pdfResponse = await axios.get(`${API_BASE_URL}/api/direct/quotation/${response.data.quotation_id}`, {
         responseType: "blob",
-      })
-      const url = window.URL.createObjectURL(new Blob([pdfResponse.data]))
-      const link = document.createElement("a")
-      link.href = url
+      });
+      const url = window.URL.createObjectURL(new Blob([pdfResponse.data]));
+      const link = document.createElement("a");
+      link.href = url;
       const safeCustomerName = (customer.name || "unknown")
         .toLowerCase()
         .replace(/[^a-z0-9]+/g, "_")
-        .replace(/^_+|_+$/g, "")
-      link.setAttribute("download", `${safeCustomerName}-${response.data.quotation_id}-quotation.pdf`)
-      document.body.appendChild(link)
-      link.click()
-      document.body.removeChild(link)
-      window.URL.revokeObjectURL(url)
+        .replace(/^_+|_+$/g, "");
+      link.setAttribute("download", `${safeCustomerName}-${response.data.quotation_id}-quotation.pdf`);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
 
-      setCart([])
-      setSelectedCustomer("")
-      setSelectedProduct(null)
+      setCart([]);
+      setSelectedCustomer("");
+      setSelectedProduct(null);
     } catch (err) {
-      setError(`Failed to create quotation: ${err.response?.data?.message || err.message}`)
+      setError(`Failed to create quotation: ${err.response?.data?.message || err.message}`);
     }
-  }
+  };
 
   const editQuotation = async (quotation = null) => {
     if (quotation) {
-      setModalMode("edit")
-      setModalSelectedCustomer(quotation.customer_id?.toString() || "")
-      setQuotationId(quotation.quotation_id)
+      setModalMode("edit");
+      setModalSelectedCustomer(quotation.customer_id?.toString() || "");
+      setQuotationId(quotation.quotation_id);
       try {
-        const products = typeof quotation.products === "string" ? JSON.parse(quotation.products) : quotation.products
+        const products = typeof quotation.products === "string" ? JSON.parse(quotation.products) : quotation.products;
         setModalCart(
           Array.isArray(products)
             ? products.map((p) => ({
                 ...p,
-                price: Number.parseFloat(p.price) || 0,
+                price: Math.round(Number.parseFloat(p.price) || 0),
+                customPrice: Math.round(Number.parseFloat(p.price) || 0), // Initialize customPrice from quotation
                 discount: Number.parseFloat(p.discount) || 0,
                 quantity: Number.parseInt(p.quantity) || 0,
               }))
-            : [],
-        )
+            : []
+        );
       } catch (e) {
-        setModalCart([])
-        setError("Failed to parse quotation products")
+        setModalCart([]);
+        setError("Failed to parse quotation products");
       }
-      setModalIsOpen(true)
-      return
+      setModalIsOpen(true);
+      return;
     }
 
-    if (!modalSelectedCustomer || !modalCart.length) return setError("Customer and products are required")
-    if (modalCart.some((item) => item.quantity === 0)) return setError("Please remove products with zero quantity")
+    if (!modalSelectedCustomer || !modalCart.length) return setError("Customer and products are required");
+    if (modalCart.some((item) => item.quantity === 0)) return setError("Please remove products with zero quantity");
 
     try {
-      const subtotal = Number.parseFloat(calculateNetRate(modalCart)) - Number.parseFloat(calculateYouSave(modalCart))
+      const subtotal = calculateNetRate(modalCart) - calculateYouSave(modalCart);
       const payload = {
         customer_id: Number(modalSelectedCustomer),
         products: modalCart.map((item) => ({
           id: item.id,
           product_type: item.product_type,
           productname: item.productname,
-price: getEffectivePrice(item, selectedCustomer, customers),
+          price: getEffectivePrice(item, modalSelectedCustomer, customers),
           discount: Number.parseFloat(item.discount) || 0,
           quantity: Number.parseInt(item.quantity) || 0,
         })),
-        net_rate: Number.parseFloat(calculateNetRate(modalCart)),
-        you_save: Number.parseFloat(calculateYouSave(modalCart)),
-        total: Number.parseFloat(calculateTotal(modalCart)),
+        net_rate: Math.round(calculateNetRate(modalCart)),
+        you_save: Math.round(calculateYouSave(modalCart)),
+        total: Math.round(calculateTotal(modalCart)),
         promo_discount: 0,
         status: "pending",
-      }
+      };
 
-      const response = await axios.put(`${API_BASE_URL}/api/direct/quotations/${quotationId}`, payload)
-      setSuccessMessage("Quotation updated successfully! Check downloads for PDF.")
-      setShowSuccess(true)
-      setTimeout(() => setShowSuccess(false), 3000)
+      const response = await axios.put(`${API_BASE_URL}/api/direct/quotations/${quotationId}`, payload);
+      setSuccessMessage("Quotation updated successfully! Check downloads for PDF.");
+      setShowSuccess(true);
+      setTimeout(() => setShowSuccess(false), 3000);
 
       setQuotations((prev) =>
         prev.map((q) =>
@@ -643,95 +641,96 @@ price: getEffectivePrice(item, selectedCustomer, customers),
                 customer_name: customers.find((c) => c.id.toString() === modalSelectedCustomer)?.name || "N/A",
                 total: payload.total,
               }
-            : q,
-        ),
-      )
+            : q
+        )
+      );
 
       const pdfResponse = await axios.get(`${API_BASE_URL}/api/direct/quotation/${response.data.quotation_id}`, {
         responseType: "blob",
-      })
-      const url = window.URL.createObjectURL(new Blob([pdfResponse.data]))
-      const link = document.createElement("a")
-      link.href = url
-      const customer = customers.find((c) => c.id.toString() === modalSelectedCustomer)
+      });
+      const url = window.URL.createObjectURL(new Blob([pdfResponse.data]));
+      const link = document.createElement("a");
+      link.href = url;
+      const customer = customers.find((c) => c.id.toString() === modalSelectedCustomer);
       const safeCustomerName = (customer?.name || "unknown")
         .toLowerCase()
         .replace(/[^a-z0-9]+/g, "_")
-        .replace(/^_+|_+$/g, "")
-      link.setAttribute("download", `${safeCustomerName}-${response.data.quotation_id}-quotation.pdf`)
-      document.body.appendChild(link)
-      link.click()
-      document.body.removeChild(link)
-      window.URL.revokeObjectURL(url)
-      closeModal()
+        .replace(/^_+|_+$/g, "");
+      link.setAttribute("download", `${safeCustomerName}-${response.data.quotation_id}-quotation.pdf`);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+      closeModal();
     } catch (err) {
-      setError(`Failed to update quotation: ${err.response?.data?.message || err.message}`)
+      setError(`Failed to update quotation: ${err.response?.data?.message || err.message}`);
     }
-  }
+  };
 
   const cancelQuotation = async (quotationIdToCancel = null) => {
-    const targetQuotationId = quotationIdToCancel || quotationId
+    const targetQuotationId = quotationIdToCancel || quotationId;
     if (!targetQuotationId) {
-      setError("No quotation to cancel")
-      return
+      setError("No quotation to cancel");
+      return;
     }
     try {
-      console.log("Canceling quotation:", targetQuotationId)
-      await axios.put(`${API_BASE_URL}/api/direct/quotations/cancel/${targetQuotationId}`)
+      console.log("Canceling quotation:", targetQuotationId);
+      await axios.put(`${API_BASE_URL}/api/direct/quotations/cancel/${targetQuotationId}`);
       if (!quotationIdToCancel) {
-        setCart([])
-        setSelectedCustomer("")
-        setSelectedProduct(null)
-        setQuotationId(null)
-        setIsQuotationCreated(false)
+        setCart([]);
+        setSelectedCustomer("");
+        setSelectedProduct(null);
+        setQuotationId(null);
+        setIsQuotationCreated(false);
       }
-      setSuccessMessage("Quotation canceled successfully!")
-      setShowSuccess(true)
-      setTimeout(() => setShowSuccess(false), 3000)
+      setSuccessMessage("Quotation canceled successfully!");
+      setShowSuccess(true);
+      setTimeout(() => setShowSuccess(false), 3000);
       setQuotations((prev) =>
-        prev.map((q) => (q.quotation_id === targetQuotationId ? { ...q, status: "cancelled" } : q)),
-      )
+        prev.map((q) => (q.quotation_id === targetQuotationId ? { ...q, status: "cancelled" } : q))
+      );
     } catch (err) {
-      console.error("Failed to cancel quotation:", err.response?.data || err.message)
-      setError(`Failed to cancel quotation: ${err.response?.data?.message || err.message}`)
+      console.error("Failed to cancel quotation:", err.response?.data || err.message);
+      setError(`Failed to cancel quotation: ${err.response?.data?.message || err.message}`);
     }
-  }
+  };
 
   const convertToBooking = async (quotation = null) => {
     if (quotation) {
-      setModalMode("book")
-      setModalSelectedCustomer(quotation.customer_id?.toString() || "")
-      setQuotationId(quotation.quotation_id)
-      setOrderId(`ORD-${Date.now()}`)
+      setModalMode("book");
+      setModalSelectedCustomer(quotation.customer_id?.toString() || "");
+      setQuotationId(quotation.quotation_id);
+      setOrderId(`ORD-${Date.now()}`);
       try {
-        const products = typeof quotation.products === "string" ? JSON.parse(quotation.products) : quotation.products
+        const products = typeof quotation.products === "string" ? JSON.parse(quotation.products) : quotation.products;
         setModalCart(
           Array.isArray(products)
             ? products.map((p) => ({
                 ...p,
-                price: Number.parseFloat(p.price) || 0,
+                price: Math.round(Number.parseFloat(p.price) || 0),
+                customPrice: Math.round(Number.parseFloat(p.price) || 0), // Initialize customPrice from quotation
                 discount: Number.parseFloat(p.discount) || 0,
                 quantity: Number.parseInt(p.quantity) || 0,
               }))
-            : [],
-        )
+            : []
+        );
       } catch (e) {
-        setModalCart([])
-        setError("Failed to parse quotation products")
+        setModalCart([]);
+        setError("Failed to parse quotation products");
       }
-      setModalIsOpen(true)
-      return
+      setModalIsOpen(true);
+      return;
     }
 
     if (!modalSelectedCustomer || !modalCart.length || !orderId)
-      return setError("Customer, products, and order ID are required")
-    if (modalCart.some((item) => item.quantity === 0)) return setError("Please remove products with zero quantity")
+      return setError("Customer, products, and order ID are required");
+    if (modalCart.some((item) => item.quantity === 0)) return setError("Please remove products with zero quantity");
 
-    const customer = customers.find((c) => c.id.toString() === modalSelectedCustomer)
-    if (!customer) return setError("Invalid customer")
+    const customer = customers.find((c) => c.id.toString() === modalSelectedCustomer);
+    if (!customer) return setError("Invalid customer");
 
     try {
-      const subtotal = Number.parseFloat(calculateNetRate(modalCart)) - Number.parseFloat(calculateYouSave(modalCart))
+      const subtotal = calculateNetRate(modalCart) - calculateYouSave(modalCart);
       const payload = {
         customer_id: Number(modalSelectedCustomer),
         order_id: orderId,
@@ -740,13 +739,13 @@ price: getEffectivePrice(item, selectedCustomer, customers),
           id: item.id,
           product_type: item.product_type,
           productname: item.productname,
-price: getEffectivePrice(item, selectedCustomer, customers),
+          price: getEffectivePrice(item, modalSelectedCustomer, customers),
           discount: Number.parseFloat(item.discount) || 0,
           quantity: Number.parseInt(item.quantity) || 0,
         })),
-        net_rate: Number.parseFloat(calculateNetRate(modalCart)),
-        you_save: Number.parseFloat(calculateYouSave(modalCart)),
-        total: Number.parseFloat(calculateTotal(modalCart)),
+        net_rate: Math.round(calculateNetRate(modalCart)),
+        you_save: Math.round(calculateYouSave(modalCart)),
+        total: Math.round(calculateTotal(modalCart)),
         promo_discount: 0,
         customer_type: customer.customer_type || "User",
         customer_name: customer.name,
@@ -755,47 +754,47 @@ price: getEffectivePrice(item, selectedCustomer, customers),
         email: customer.email,
         district: customer.district,
         state: customer.state,
-      }
+      };
 
-      const response = await axios.post(`${API_BASE_URL}/api/direct/bookings`, payload)
-      setSuccessMessage("Booking created successfully! Check downloads for PDF.")
-      setShowSuccess(true)
-      setTimeout(() => setShowSuccess(false), 3000)
+      const response = await axios.post(`${API_BASE_URL}/api/direct/bookings`, payload);
+      setSuccessMessage("Booking created successfully! Check downloads for PDF.");
+      setShowSuccess(true);
+      setTimeout(() => setShowSuccess(false), 3000);
 
-      setQuotations((prev) => prev.map((q) => (q.quotation_id === quotationId ? { ...q, status: "booked" } : q)))
+      setQuotations((prev) => prev.map((q) => (q.quotation_id === quotationId ? { ...q, status: "booked" } : q)));
 
       const pdfResponse = await axios.get(`${API_BASE_URL}/api/direct/invoice/${response.data.order_id}`, {
         responseType: "blob",
-      })
-      const url = window.URL.createObjectURL(new Blob([pdfResponse.data]))
-      const link = document.createElement("a")
-      link.href = url
+      });
+      const url = window.URL.createObjectURL(new Blob([pdfResponse.data]));
+      const link = document.createElement("a");
+      link.href = url;
       const safeCustomerName = (customer.name || "unknown")
         .toLowerCase()
         .replace(/[^a-z0-9]+/g, "_")
-        .replace(/^_+|_+$/g, "")
-      link.setAttribute("download", `${safeCustomerName}-${response.data.order_id}-invoice.pdf`)
-      document.body.appendChild(link)
-      link.click()
-      document.body.removeChild(link)
-      window.URL.revokeObjectURL(url)
-      closeModal()
+        .replace(/^_+|_+$/g, "");
+      link.setAttribute("download", `${safeCustomerName}-${response.data.order_id}-invoice.pdf`);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+      closeModal();
     } catch (err) {
-      setError(`Failed to create booking: ${err.response?.data?.message || err.message}`)
+      setError(`Failed to create booking: ${err.response?.data?.message || err.message}`);
     }
-  }
+  };
 
   const handleBooking = async () => {
     if (!quotationId || !selectedCustomer || !cart.length)
-      return setError("Quotation, customer, and products are required")
-    if (cart.some((item) => item.quantity === 0)) return setError("Please remove products with zero quantity")
+      return setError("Quotation, customer, and products are required");
+    if (cart.some((item) => item.quantity === 0)) return setError("Please remove products with zero quantity");
 
-    const customer = customers.find((c) => c.id.toString() === selectedCustomer)
-    if (!customer) return setError("Invalid customer")
+    const customer = customers.find((c) => c.id.toString() === selectedCustomer);
+    if (!customer) return setError("Invalid customer");
 
-    const order_id = `ORD-${Date.now()}`
+    const order_id = `ORD-${Date.now()}`;
     try {
-      const subtotal = Number.parseFloat(calculateNetRate(cart)) - Number.parseFloat(calculateYouSave(cart))
+      const subtotal = calculateNetRate(cart) - calculateYouSave(cart);
       const payload = {
         customer_id: Number(selectedCustomer),
         order_id,
@@ -804,13 +803,13 @@ price: getEffectivePrice(item, selectedCustomer, customers),
           id: item.id,
           product_type: item.product_type,
           productname: item.productname,
-price: getEffectivePrice(item, selectedCustomer, customers),
+          price: getEffectivePrice(item, selectedCustomer, customers),
           discount: Number.parseFloat(item.discount) || 0,
           quantity: Number.parseInt(item.quantity) || 0,
         })),
-        net_rate: Number.parseFloat(calculateNetRate(cart)),
-        you_save: Number.parseFloat(calculateYouSave(cart)),
-        total: Number.parseFloat(calculateTotal(cart)),
+        net_rate: Math.round(calculateNetRate(cart)),
+        you_save: Math.round(calculateYouSave(cart)),
+        total: Math.round(calculateTotal(cart)),
         promo_discount: 0,
         customer_type: customer.customer_type || "User",
         customer_name: customer.name,
@@ -819,40 +818,40 @@ price: getEffectivePrice(item, selectedCustomer, customers),
         email: customer.email,
         district: customer.district,
         state: customer.state,
-      }
+      };
 
-      const response = await axios.post(`${API_BASE_URL}/api/direct/bookings`, payload)
-      setSuccessMessage("Booking created successfully! Check downloads for PDF.")
-      setShowSuccess(true)
-      setTimeout(() => setShowSuccess(false), 3000)
+      const response = await axios.post(`${API_BASE_URL}/api/direct/bookings`, payload);
+      setSuccessMessage("Booking created successfully! Check downloads for PDF.");
+      setShowSuccess(true);
+      setTimeout(() => setShowSuccess(false), 3000);
 
-      setQuotations((prev) => prev.map((q) => (q.quotation_id === quotationId ? { ...q, status: "booked" } : q)))
+      setQuotations((prev) => prev.map((q) => (q.quotation_id === quotationId ? { ...q, status: "booked" } : q)));
 
       const pdfResponse = await axios.get(`${API_BASE_URL}/api/direct/invoice/${response.data.order_id}`, {
         responseType: "blob",
-      })
-      const url = window.URL.createObjectURL(new Blob([pdfResponse.data]))
-      const link = document.createElement("a")
-      link.href = url
+      });
+      const url = window.URL.createObjectURL(new Blob([pdfResponse.data]));
+      const link = document.createElement("a");
+      link.href = url;
       const safeCustomerName = (customer.name || "unknown")
         .toLowerCase()
         .replace(/[^a-z0-9]+/g, "_")
-        .replace(/^_+|_+$/g, "")
-      link.setAttribute("download", `${safeCustomerName}-${response.data.order_id}-invoice.pdf`)
-      document.body.appendChild(link)
-      link.click()
-      document.body.removeChild(link)
-      window.URL.revokeObjectURL(url)
+        .replace(/^_+|_+$/g, "");
+      link.setAttribute("download", `${safeCustomerName}-${response.data.order_id}-invoice.pdf`);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
 
-      setCart([])
-      setSelectedCustomer("")
-      setSelectedProduct(null)
-      setQuotationId(null)
-      setIsQuotationCreated(false)
+      setCart([]);
+      setSelectedCustomer("");
+      setSelectedProduct(null);
+      setQuotationId(null);
+      setIsQuotationCreated(false);
     } catch (err) {
-      setError(`Failed to create booking: ${err.response?.data?.message || err.message}`)
+      setError(`Failed to create booking: ${err.response?.data?.message || err.message}`);
     }
-  }
+  };
 
   const renderSelect = (value, onChange, options, label, placeholder, id) => (
     <div className="flex flex-col items-center mobile:w-full">
@@ -875,18 +874,18 @@ price: getEffectivePrice(item, selectedCustomer, customers),
         ))}
       </select>
     </div>
-  )
+  );
 
   const closeModal = () => {
-    setModalIsOpen(false)
-    setModalMode(null)
-    setModalCart([])
-    setModalSelectedCustomer("")
-    setModalSelectedProduct(null)
-    setOrderId("")
-    setError("")
-    setSuccessMessage("")
-  }
+    setModalIsOpen(false);
+    setModalMode(null);
+    setModalCart([]);
+    setModalSelectedCustomer("");
+    setModalSelectedProduct(null);
+    setOrderId("");
+    setError("");
+    setSuccessMessage("");
+  };
 
   return (
     <div className="flex min-h-screen dark:bg-gray-800 bg-gray-50 mobile:flex-col">
@@ -915,28 +914,27 @@ price: getEffectivePrice(item, selectedCustomer, customers),
               customers,
               "Select Customer",
               "Select a customer",
-              "main-customer-select",
+              "main-customer-select"
             )}
-        
-<QuotationTableErrorBoundary>
-  <QuotationTable
-    cart={cart}
-    products={products}
-    selectedProduct={selectedProduct}
-    setSelectedProduct={setSelectedProduct}
-    addToCart={addToCart}
-    updateQuantity={updateQuantity}
-    updateDiscount={updateDiscount}
-    removeFromCart={removeFromCart}
-    calculateNetRate={calculateNetRate}
-    calculateYouSave={calculateYouSave}
-    calculateTotal={calculateTotal}
-    styles={styles}
-    selectedCustomer={selectedCustomer}
-    customers={customers}
-  />
-</QuotationTableErrorBoundary>
-
+            <QuotationTableErrorBoundary>
+              <QuotationTable
+                cart={cart}
+                products={products}
+                selectedProduct={selectedProduct}
+                setSelectedProduct={setSelectedProduct}
+                addToCart={addToCart}
+                updateQuantity={updateQuantity}
+                updateDiscount={updateDiscount}
+                updatePrice={updatePrice}
+                removeFromCart={removeFromCart}
+                calculateNetRate={calculateNetRate}
+                calculateYouSave={calculateYouSave}
+                calculateTotal={calculateTotal}
+                styles={styles}
+                selectedCustomer={selectedCustomer}
+                customers={customers}
+              />
+            </QuotationTableErrorBoundary>
           </div>
           <div className="flex justify-center gap-4 mt-8 mobile:mt-4 mobile:flex-col">
             <button
@@ -959,7 +957,7 @@ price: getEffectivePrice(item, selectedCustomer, customers),
                       <span className="font-semibold">Customer:</span> {quotation.customer_name || "N/A"}
                     </div>
                     <div className="text-sm mb-1 mobile:text-xs text-gray-900">
-                      <span className="font-semibold">Total:</span> ₹{Number.parseFloat(quotation.total).toFixed(2)}
+                      <span className="font-semibold">Total:</span> ₹{Math.round(Number.parseFloat(quotation.total))}
                     </div>
                     <div className="text-sm mb-1 mobile:text-xs text-gray-900">
                       <span className="font-semibold">Status:</span>
@@ -1054,6 +1052,7 @@ price: getEffectivePrice(item, selectedCustomer, customers),
                 addToCart={addToCart}
                 updateQuantity={updateQuantity}
                 updateDiscount={updateDiscount}
+                updatePrice={updatePrice}
                 removeFromCart={removeFromCart}
                 calculateNetRate={calculateNetRate}
                 calculateYouSave={calculateYouSave}
@@ -1067,5 +1066,5 @@ price: getEffectivePrice(item, selectedCustomer, customers),
         </div>
       </div>
     </div>
-  )
+  );
 }

@@ -8,7 +8,15 @@ import Logout from '../Logout';
 
 export default function Inventory() {
   const [focused, setFocused] = useState({});
-  const [values, setValues] = useState({ description: '' });
+  const [values, setValues] = useState({
+    serialNum: '',
+    productName: '',
+    price: '',
+    dprice: '',
+    per: '',
+    discount: '',
+    description: '',
+  });
   const [productType, setProductType] = useState('');
   const [newProductType, setNewProductType] = useState('');
   const [productTypes, setProductTypes] = useState([]);
@@ -70,19 +78,35 @@ export default function Inventory() {
   const handleChange = (inputId, event) => {
     const value = event.target.value;
     if (inputId === 'discount') {
-      const numValue = parseFloat(value);
       if (value === '') {
         setDiscountWarning('');
         setValues((prev) => ({ ...prev, [inputId]: value }));
-      } else if (isNaN(numValue) || numValue < 0 || numValue > 100) {
-        setDiscountWarning('Discount must be between 0 and 100%');
-        setValues((prev) => ({ ...prev, [inputId]: numValue < 0 ? '0' : '100' }));
       } else {
-        setDiscountWarning('');
+        const numValue = parseFloat(value);
+        if (isNaN(numValue) || numValue < 0 || numValue > 100) {
+          setDiscountWarning('Discount must be between 0 and 100%');
+          setValues((prev) => ({ ...prev, [inputId]: numValue < 0 ? '0' : '100' }));
+        } else {
+          setDiscountWarning('');
+          setValues((prev) => ({ ...prev, [inputId]: value }));
+        }
+      }
+    } else if (inputId === 'price' || inputId === 'dprice') {
+      if (value === '') {
+        setError('');
         setValues((prev) => ({ ...prev, [inputId]: value }));
+      } else {
+        const numValue = parseFloat(value);
+        if (isNaN(numValue) || numValue < 0) {
+          setError(`${inputId === 'price' ? 'Price' : 'Direct Customer Price'} must be a valid positive number`);
+          setValues((prev) => ({ ...prev, [inputId]: '0' }));
+        } else {
+          setError('');
+          setValues((prev) => ({ ...prev, [inputId]: value }));
+        }
       }
     } else {
-      setValues((prev) => ({ ...prev, [inputId]: event.target.value }));
+      setValues((prev) => ({ ...prev, [inputId]: value }));
     }
   };
 
@@ -115,7 +139,15 @@ export default function Inventory() {
 
   const handleProductTypeChange = (event) => {
     setProductType(event.target.value);
-    setValues({ description: '' });
+    setValues({
+      serialNum: '',
+      productName: '',
+      price: '',
+      dprice: '',
+      per: '',
+      discount: '',
+      description: '',
+    });
     setFocused({});
     setImages([]);
     setError('');
@@ -167,7 +199,15 @@ export default function Inventory() {
       setError('');
       if (productType === productTypeToDelete) {
         setProductType('');
-        setValues({ description: '' });
+        setValues({
+          serialNum: '',
+          productName: '',
+          price: '',
+          dprice: '',
+          per: '',
+          discount: '',
+          description: '',
+        });
         setImages([]);
         setFocused({});
         setDiscountWarning('');
@@ -186,8 +226,36 @@ export default function Inventory() {
     setSuccess('');
     setDiscountWarning('');
 
-    if (!values.serialNum || !values.productName || !values.price || !values.per || !values.discount || !productType) {
-      setError('Please fill in all required fields');
+    // Validate required fields
+    const missingFields = [];
+    if (!values.serialNum) missingFields.push('Serial Number');
+    if (!values.productName) missingFields.push('Product Name');
+    if (!values.price) missingFields.push('Price');
+    if (!values.dprice) missingFields.push('Direct Customer Price');
+    if (!values.per) missingFields.push('Per');
+    if (!productType) missingFields.push('Product Type');
+
+    if (missingFields.length > 0) {
+      setError(`Please fill in the following required fields: ${missingFields.join(', ')}`);
+      return;
+    }
+
+    const price = parseFloat(values.price);
+    const dprice = parseFloat(values.dprice);
+    const discount = values.discount ? parseFloat(values.discount) : 0;
+
+    if (isNaN(price) || price < 0) {
+      setError('Price must be a valid positive number');
+      return;
+    }
+
+    if (isNaN(dprice) || dprice < 0) {
+      setError('Direct Customer Price must be a valid positive number');
+      return;
+    }
+
+    if (values.discount && (isNaN(discount) || discount < 0 || discount > 100)) {
+      setError('Discount must be a valid number between 0 and 100%');
       return;
     }
 
@@ -196,14 +264,18 @@ export default function Inventory() {
     formData.append('productname', values.productName);
     formData.append('price', values.price);
     formData.append('dprice', values.dprice);
-
     formData.append('per', values.per);
-    formData.append('discount', values.discount);
+    formData.append('discount', values.discount || '0'); // Default to 0 if empty
     formData.append('description', values.description || '');
     formData.append('product_type', productType);
 
     if (Array.isArray(images) && images.length > 0) {
       images.forEach(file => formData.append('images', file));
+    }
+
+    // Log FormData for debugging
+    for (let [key, value] of formData.entries()) {
+      console.log(`FormData: ${key} = ${value}`);
     }
 
     try {
@@ -216,7 +288,15 @@ export default function Inventory() {
       if (!response.ok) throw new Error(result.error || result.message || 'Failed to save product');
 
       setSuccess('Product saved successfully!');
-      setValues({ description: '' });
+      setValues({
+        serialNum: '',
+        productName: '',
+        price: '',
+        dprice: '',
+        per: '',
+        discount: '',
+        description: '',
+      });
       setImages([]);
       setFocused({});
       setDiscountWarning('');
@@ -237,6 +317,55 @@ export default function Inventory() {
 
   const renderFormFields = () => {
     if (!productType) return null;
+
+    const renderMedia = (media, idx) => {
+      let src;
+      let isVideo = false;
+
+      if (media instanceof File) {
+        src = URL.createObjectURL(media);
+        isVideo = media.type.startsWith('video/');
+      } else {
+        return <span key={idx} className="text-gray-500 dark:text-gray-400 text-sm">Invalid media</span>;
+      }
+
+      return isVideo ? (
+        <div key={idx} className="relative">
+          <video
+            src={src}
+            controls
+            className="h-20 w-20 object-cover rounded-md inline-block mx-1"
+            onLoad={() => URL.revokeObjectURL(src)}
+          />
+          <button
+            type="button"
+            onClick={() => setImages(images.filter((_, index) => index !== idx))}
+            className="absolute -top-2 -right-2 bg-red-500 hover:bg-red-600 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs font-bold shadow-lg"
+            title="Remove this media"
+          >
+            ×
+          </button>
+        </div>
+      ) : (
+        <div key={idx} className="relative">
+          <img
+            src={src || '/placeholder.svg'}
+            alt={`media-${idx}`}
+            className="h-20 w-20 object-cover rounded-md inline-block mx-1"
+            onLoad={() => URL.revokeObjectURL(src)}
+          />
+          <button
+            type="button"
+            onClick={() => setImages(images.filter((_, index) => index !== idx))}
+            className="absolute -top-2 -right-2 bg-red-500 hover:bg-red-600 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs font-bold shadow-lg"
+            title="Remove this media"
+          >
+            ×
+          </button>
+        </div>
+      );
+    };
+
     return (
       <>
         <div className="mobile:col-span-6">
@@ -249,7 +378,7 @@ export default function Inventory() {
               id={`serial-num-${productType}`}
               name="serialNum"
               required
-              value={values.serialNum || ''}
+              value={values.serialNum}
               onChange={(e) => handleChange('serialNum', e)}
               onFocus={() => handleFocus('serialNum')}
               onBlur={() => handleBlur('serialNum')}
@@ -268,7 +397,7 @@ export default function Inventory() {
               id="product-name"
               name="productName"
               required
-              value={values.productName || ''}
+              value={values.productName}
               onChange={(e) => handleChange('productName', e)}
               onFocus={() => handleFocus('productName')}
               onBlur={() => handleBlur('productName')}
@@ -289,7 +418,7 @@ export default function Inventory() {
               required
               min="0"
               step="0.01"
-              value={values.price || ''}
+              value={values.price}
               onChange={(e) => handleChange('price', e)}
               onFocus={() => handleFocus('price')}
               onBlur={() => handleBlur('price')}
@@ -300,16 +429,17 @@ export default function Inventory() {
         </div>
         <div className="mobile:col-span-6">
           <label htmlFor="dprice" className="block text-sm font-medium text-gray-900 dark:text-gray-300">
-            Direct Customer Price (INR)
+            Direct Customer Price (INR)*
           </label>
           <div className="mt-2">
             <input
               type="number"
               id="dprice"
               name="dprice"
+              required
               min="0"
               step="0.01"
-              value={values.dprice || ''}
+              value={values.dprice}
               onChange={(e) => handleChange('dprice', e)}
               onFocus={() => handleFocus('dprice')}
               onBlur={() => handleBlur('dprice')}
@@ -317,8 +447,7 @@ export default function Inventory() {
               style={{ background: styles.input.background, backgroundDark: styles.input.backgroundDark, border: styles.input.border, borderDark: styles.input.borderDark, backdropFilter: styles.input.backdropFilter }}
             />
           </div>
-          </div>
-
+        </div>
         <div className="mobile:col-span-3">
           <label htmlFor="per" className="block text-sm font-medium text-gray-900 dark:text-gray-300">
             Per*
@@ -328,7 +457,7 @@ export default function Inventory() {
               id="per"
               name="per"
               required
-              value={values.per || ''}
+              value={values.per}
               onChange={(e) => handleChange('per', e)}
               onFocus={() => handleFocus('per')}
               onBlur={() => handleBlur('per')}
@@ -354,7 +483,7 @@ export default function Inventory() {
               min="0"
               max="100"
               step="0.01"
-              value={values.discount || ''}
+              value={values.discount}
               onChange={(e) => handleChange('discount', e)}
               onFocus={() => handleFocus('discount')}
               onBlur={() => handleBlur('discount')}
@@ -375,7 +504,7 @@ export default function Inventory() {
               id="description"
               name="description"
               rows="3"
-              value={values.description || ''}
+              value={values.description}
               onChange={(e) => handleChange('description', e)}
               onFocus={() => handleFocus('description')}
               onBlur={() => handleBlur('description')}
@@ -400,6 +529,14 @@ export default function Inventory() {
               className="block w-full text-sm text-gray-900 dark:text-gray-100 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 dark:file:bg-gray-700 file:text-indigo-600 dark:file:text-gray-200 hover:file:bg-indigo-100 dark:hover:file:bg-gray-600"
             />
           </div>
+          {images.length > 0 && (
+            <div className="mt-2">
+              <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">Selected media:</p>
+              <div className="flex flex-wrap gap-2">
+                {images.map((file, idx) => renderMedia(file, idx))}
+              </div>
+            </div>
+          )}
         </div>
       </>
     );
@@ -504,7 +641,15 @@ export default function Inventory() {
                     type="button"
                     className="text-sm cursor-pointer font-semibold text-gray-900 dark:text-gray-100"
                     onClick={() => {
-                      setValues({ description: '' });
+                      setValues({
+                        serialNum: '',
+                        productName: '',
+                        price: '',
+                        dprice: '',
+                        per: '',
+                        discount: '',
+                        description: '',
+                      });
                       setImages([]);
                       setProductType('');
                       setFocused({});

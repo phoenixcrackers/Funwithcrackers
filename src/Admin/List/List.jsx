@@ -1,39 +1,40 @@
-import { useState, useEffect } from "react"
-import Modal from "react-modal"
-import Sidebar from "../Sidebar/Sidebar"
-import "../../App.css"
-import { API_BASE_URL } from "../../../Config"
-import { FaEye, FaEdit, FaTrash, FaArrowLeft, FaArrowRight, FaExclamationTriangle } from "react-icons/fa"
-import Logout from "../Logout"
-import jsPDF from "jspdf"
-import autoTable from "jspdf-autotable"
+import { useState, useEffect } from "react";
+import Modal from "react-modal";
+import Sidebar from "../Sidebar/Sidebar";
+import "../../App.css";
+import { API_BASE_URL } from "../../../Config";
+import { FaEye, FaEdit, FaTrash, FaArrowLeft, FaArrowRight, FaExclamationTriangle } from "react-icons/fa";
+import Logout from "../Logout";
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
 
-Modal.setAppElement("#root")
+Modal.setAppElement("#root");
 
 export default function List() {
-  const [products, setProducts] = useState([])
-  const [filteredProducts, setFilteredProducts] = useState([])
-  const [filterType, setFilterType] = useState("all")
-  const [searchQuery, setSearchQuery] = useState("")
-  const [productTypes, setProductTypes] = useState([])
-  const [modalIsOpen, setModalIsOpen] = useState(false)
-  const [editModalIsOpen, setEditModalIsOpen] = useState(false)
-  const [addModalIsOpen, setAddModalIsOpen] = useState(false)
-  const [deleteModalIsOpen, setDeleteModalIsOpen] = useState(false)
-  const [rateChangeModalIsOpen, setRateChangeModalIsOpen] = useState(false)
-  const [confirmRateChangeModalIsOpen, setConfirmRateChangeModalIsOpen] = useState(false)
-  const [selectedProduct, setSelectedProduct] = useState(null)
-  const [productToDelete, setProductToDelete] = useState(null)
-  const [error, setError] = useState("")
-  const [discountWarning, setDiscountWarning] = useState("")
-  const [toggleStates, setToggleStates] = useState({})
-  const [currentPage, setCurrentPage] = useState(1)
-  const [rateChangeSearchQuery, setRateChangeSearchQuery] = useState("")
-  const [editedRates, setEditedRates] = useState({})
+  const [products, setProducts] = useState([]);
+  const [filteredProducts, setFilteredProducts] = useState([]);
+  const [filterType, setFilterType] = useState("all");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [productTypes, setProductTypes] = useState([]);
+  const [modalIsOpen, setModalIsOpen] = useState(false);
+  const [editModalIsOpen, setEditModalIsOpen] = useState(false);
+  const [addModalIsOpen, setAddModalIsOpen] = useState(false);
+  const [deleteModalIsOpen, setDeleteModalIsOpen] = useState(false);
+  const [rateChangeModalIsOpen, setRateChangeModalIsOpen] = useState(false);
+  const [confirmRateChangeModalIsOpen, setConfirmRateChangeModalIsOpen] = useState(false);
+  const [selectedProduct, setSelectedProduct] = useState(null);
+  const [productToDelete, setProductToDelete] = useState(null);
+  const [error, setError] = useState("");
+  const [discountWarning, setDiscountWarning] = useState("");
+  const [toggleStates, setToggleStates] = useState({});
+  const [currentPage, setCurrentPage] = useState(1);
+  const [rateChangeSearchQuery, setRateChangeSearchQuery] = useState("");
+  const [editedRates, setEditedRates] = useState({});
   const [formData, setFormData] = useState({
     productname: "",
     serial_number: "",
     price: "",
+    dprice: "", // Added dprice
     discount: "",
     per: "",
     product_type: "",
@@ -42,9 +43,9 @@ export default function List() {
     images: [],
     existingImages: [],
     imagesToDelete: [],
-  })
+  });
 
-  const productsPerPage = 9
+  const productsPerPage = 9;
 
   const styles = {
     input: {
@@ -63,23 +64,23 @@ export default function List() {
       boxShadow: "0 15px 35px rgba(2,132,199,0.3), inset 0 1px 0 rgba(255,255,255,0.2)",
       boxShadowDark: "0 15px 35px rgba(59,130,246,0.4), inset 0 1px 0 rgba(255,255,255,0.1)",
     },
-  }
+  };
 
   const fetchData = async (url, errorMsg, setter) => {
     try {
-      const response = await fetch(url)
-      const data = await response.json()
-      if (!response.ok) throw new Error(data.message || errorMsg)
-      setter(data)
+      const response = await fetch(url);
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.message || errorMsg);
+      setter(data);
     } catch (err) {
-      setError(err.message)
+      setError(err.message);
     }
-  }
+  };
 
   const fetchProductTypes = () =>
     fetchData(`${API_BASE_URL}/api/product-types`, "Failed to fetch product types", (data) =>
       setProductTypes(data.filter((item) => item.product_type !== "gift_box_dealers").map((item) => item.product_type)),
-    )
+    );
 
   const fetchProducts = () =>
     fetchData(`${API_BASE_URL}/api/products`, "Failed to fetch products", (data) => {
@@ -89,10 +90,11 @@ export default function List() {
           ...product,
           images: product.image ? (typeof product.image === "string" ? JSON.parse(product.image) : product.image) : [],
           box_count: product.box_count || 1,
+          dprice: product.dprice || "0", // Ensure dprice is a string
         }))
-        .sort((a, b) => a.serial_number.localeCompare(b.serial_number))
-      setProducts(normalizedData)
-      applyFilters(normalizedData, filterType, searchQuery)
+        .sort((a, b) => a.serial_number.localeCompare(b.serial_number));
+      setProducts(normalizedData);
+      applyFilters(normalizedData, filterType, searchQuery);
       setToggleStates(
         normalizedData.reduce(
           (acc, p) => ({
@@ -102,183 +104,205 @@ export default function List() {
           }),
           {},
         ),
-      )
-    })
+      );
+    });
 
   const applyFilters = (productsData, type, query) => {
-    let filtered = productsData
+    let filtered = productsData;
     if (type !== "all") {
-      filtered = filtered.filter((p) => p.product_type === type)
+      filtered = filtered.filter((p) => p.product_type === type);
     }
     if (query) {
-      const lowerQuery = query.toLowerCase()
+      const lowerQuery = query.toLowerCase();
       filtered = filtered.filter(
         (p) => p.productname.toLowerCase().includes(lowerQuery) || p.serial_number.toLowerCase().includes(lowerQuery),
-      )
+      );
     }
-    setFilteredProducts(filtered)
-    setCurrentPage(1)
-  }
+    setFilteredProducts(filtered);
+    setCurrentPage(1);
+  };
 
   const applyRateChangeFilter = () => {
-    let filtered = products
+    let filtered = products;
     if (rateChangeSearchQuery) {
-      const lowerQuery = rateChangeSearchQuery.toLowerCase()
+      const lowerQuery = rateChangeSearchQuery.toLowerCase();
       filtered = filtered.filter(
         (p) => p.productname.toLowerCase().includes(lowerQuery) || p.serial_number.toLowerCase().includes(lowerQuery),
-      )
+      );
     }
-    return filtered
-  }
+    return filtered;
+  };
 
   const handleToggle = async (product, endpoint, keyPrefix) => {
-    const productKey = `${keyPrefix}${product.product_type}-${product.id}`
-    const tableName = product.product_type.toLowerCase().replace(/\s+/g, "_")
+    const productKey = `${keyPrefix}${product.product_type}-${product.id}`;
+    const tableName = product.product_type.toLowerCase().replace(/\s+/g, "_");
     try {
-      setToggleStates((prev) => ({ ...prev, [productKey]: !prev[productKey] }))
+      setToggleStates((prev) => ({ ...prev, [productKey]: !prev[productKey] }));
       const response = await fetch(`${API_BASE_URL}/api/products/${tableName}/${product.id}/${endpoint}`, {
         method: "PATCH",
-      })
-      if (!response.ok) throw new Error(`Failed to toggle ${endpoint}`)
-      fetchProducts()
+      });
+      if (!response.ok) throw new Error(`Failed to toggle ${endpoint}`);
+      fetchProducts();
     } catch (err) {
-      setError(err.message)
-      setToggleStates((prev) => ({ ...prev, [productKey]: prev[productKey] }))
+      setError(err.message);
+      setToggleStates((prev) => ({ ...prev, [productKey]: prev[productKey] }));
     }
-  }
+  };
 
   useEffect(() => {
-    fetchProductTypes()
-    fetchProducts()
+    fetchProductTypes();
+    fetchProducts();
     const intervalId = setInterval(() => {
-      fetchProductTypes()
-      fetchProducts()
-    }, 300000)
-    return () => clearInterval(intervalId)
-  }, [])
+      fetchProductTypes();
+      fetchProducts();
+    }, 300000);
+    return () => clearInterval(intervalId);
+  }, []);
 
   useEffect(() => {
-    applyFilters(products, filterType, searchQuery)
-  }, [filterType, searchQuery, products])
+    applyFilters(products, filterType, searchQuery);
+  }, [filterType, searchQuery, products]);
 
   const handleImageChange = (e) => {
-    const files = Array.from(e.target.files)
-    const allowedImageTypes = ["image/jpeg", "image/jpg", "image/png", "image/gif"]
-    const allowedVideoTypes = ["video/mp4", "video/webm", "video/ogg"]
-    const allowedTypes = [...allowedImageTypes, ...allowedVideoTypes]
-    const validFiles = []
+    const files = Array.from(e.target.files);
+    const allowedImageTypes = ["image/jpeg", "image/jpg", "image/png", "image/gif"];
+    const allowedVideoTypes = ["video/mp4", "video/webm", "video/ogg"];
+    const allowedTypes = [...allowedImageTypes, ...allowedVideoTypes];
+    const validFiles = [];
 
     for (const file of files) {
-      const fileType = file.type.toLowerCase()
+      const fileType = file.type.toLowerCase();
       if (!allowedTypes.includes(fileType)) {
-        setError("Only JPG, PNG, GIF images and MP4, WebM, Ogg videos are allowed")
-        return
+        setError("Only JPG, PNG, GIF images and MP4, WebM, Ogg videos are allowed");
+        return;
       }
       if (file.size > 5 * 1024 * 1024) {
-        setError("Each file must be less than 5MB")
-        return
+        setError("Each file must be less than 5MB");
+        return;
       }
-      validFiles.push(file)
+      validFiles.push(file);
     }
 
-    setError("")
-    setFormData((prev) => ({ ...prev, images: validFiles }))
-  }
+    setError("");
+    setFormData((prev) => ({ ...prev, images: validFiles }));
+  };
 
   const handleInputChange = (e) => {
-    const { name, value } = e.target
+    const { name, value } = e.target;
     if (name === "discount") {
-      const numValue = Number.parseFloat(value)
+      const numValue = Number.parseFloat(value);
       if (value === "") {
-        setDiscountWarning("")
-        setFormData((prev) => ({ ...prev, [name]: value }))
+        setDiscountWarning("");
+        setFormData((prev) => ({ ...prev, [name]: value }));
       } else if (isNaN(numValue) || numValue < 0 || numValue > 100) {
-        setDiscountWarning("Discount must be between 0 and 100%")
-        setFormData((prev) => ({ ...prev, [name]: numValue < 0 ? "0" : "100" }))
+        setDiscountWarning("Discount must be between 0 and 100%");
+        setFormData((prev) => ({ ...prev, [name]: numValue < 0 ? "0" : "100" }));
       } else {
-        setDiscountWarning("")
-        setFormData((prev) => ({ ...prev, [name]: value }))
+        setDiscountWarning("");
+        setFormData((prev) => ({ ...prev, [name]: value }));
+      }
+    } else if (name === "dprice") {
+      const numValue = Number.parseFloat(value);
+      if (value === "") {
+        setFormData((prev) => ({ ...prev, [name]: value }));
+      } else if (isNaN(numValue) || numValue < 0) {
+        setError("Direct Customer Price must be a valid positive number");
+        setFormData((prev) => ({ ...prev, [name]: "0" }));
+      } else {
+        setFormData((prev) => ({ ...prev, [name]: value }));
       }
     } else {
-      setFormData((prev) => ({ ...prev, [name]: value }))
+      setFormData((prev) => ({ ...prev, [name]: value }));
     }
-  }
+  };
 
   const handleSubmit = async (e, isEdit) => {
-    e.preventDefault()
-    setDiscountWarning("")
-    setError("")
+    e.preventDefault();
+    setDiscountWarning("");
+    setError("");
 
     if (
       !formData.productname.trim() ||
       !formData.serial_number.trim() ||
       !formData.price ||
+      !formData.dprice ||
       !formData.per ||
       formData.discount === "" ||
       !formData.product_type
     ) {
-      setError("Please fill in all required fields")
-      return
+      setError("Please fill in all required fields");
+      return;
     }
 
-    const price = Number.parseFloat(formData.price)
-    const discount = Number.parseFloat(formData.discount)
+    const price = Number.parseFloat(formData.price);
+    const dprice = Number.parseFloat(formData.dprice || 0);
+    const discount = Number.parseFloat(formData.discount);
 
     if (isNaN(price) || price < 0) {
-      setError("Price must be a valid positive number")
-      return
+      setError("Price must be a valid positive number");
+      return;
+    }
+
+    if (isNaN(dprice) || dprice < 0) {
+      setError("Direct Customer Price must be a valid positive number");
+      return;
     }
 
     if (isNaN(discount) || discount < 0 || discount > 100) {
-      setError("Discount must be a valid number between 0 and 100%")
-      return
+      setError("Discount must be a valid number between 0 and 100%");
+      return;
     }
 
     if (formData.product_type === "gift_box_dealers") {
-      setError('Product type "gift_box_dealers" is not allowed')
-      return
+      setError('Product type "gift_box_dealers" is not allowed');
+      return;
     }
 
-    const formDataToSend = new FormData()
-    formDataToSend.append("productname", formData.productname)
-    formDataToSend.append("serial_number", formData.serial_number)
-    formDataToSend.append("price", formData.price)
-    formDataToSend.append("per", formData.per)
-    formDataToSend.append("discount", formData.discount)
-    formDataToSend.append("description", formData.description || "")
-    formDataToSend.append("product_type", formData.product_type)
-    formDataToSend.append("box_count", Math.max(1, Number.parseInt(formData.box_count) || 1))
+    const formDataToSend = new FormData();
+    formDataToSend.append("productname", formData.productname);
+    formDataToSend.append("serial_number", formData.serial_number);
+    formDataToSend.append("price", formData.price);
+    formDataToSend.append("dprice", formData.dprice || "0");
+    formDataToSend.append("per", formData.per);
+    formDataToSend.append("discount", formData.discount);
+    formDataToSend.append("description", formData.description || "");
+    formDataToSend.append("product_type", formData.product_type);
+    formDataToSend.append("box_count", Math.max(1, Number.parseInt(formData.box_count) || 1));
 
     if (isEdit) {
-      const remainingExistingImages = formData.existingImages || []
+      const remainingExistingImages = formData.existingImages || [];
       if (remainingExistingImages.length > 0) {
-        formDataToSend.append("existingImages", JSON.stringify(remainingExistingImages))
+        formDataToSend.append("existingImages", JSON.stringify(remainingExistingImages));
       }
-      formData.images.forEach((file) => formDataToSend.append("images", file))
+      formData.images.forEach((file) => formDataToSend.append("images", file));
     } else {
-      formData.images.forEach((file) => formDataToSend.append("images", file))
+      formData.images.forEach((file) => formDataToSend.append("images", file));
     }
 
     const url = isEdit
       ? `${API_BASE_URL}/api/products/${selectedProduct.product_type.toLowerCase().replace(/\s+/g, "_")}/${selectedProduct.id}`
-      : `${API_BASE_URL}/api/products`
+      : `${API_BASE_URL}/api/products`;
 
     try {
       const response = await fetch(url, {
         method: isEdit ? "PUT" : "POST",
         body: formDataToSend,
-      })
+      });
 
-      const result = await response.json()
-      if (!response.ok) throw new Error(result.message || `Failed to ${isEdit ? "update" : "add"} product`)
+      const result = await response.json();
+      if (!response.ok) {
+        console.error("Server response:", result);
+        throw new Error(result.message || `Failed to ${isEdit ? "update" : "add"} product`);
+      }
 
-      fetchProducts()
-      closeModal()
-      e.target.reset()
+      fetchProducts();
+      closeModal();
+      e.target.reset();
       setFormData({
         productname: "",
         serial_number: "",
         price: "",
+        dprice: "",
         discount: "",
         per: "",
         product_type: "",
@@ -287,48 +311,50 @@ export default function List() {
         images: [],
         existingImages: [],
         imagesToDelete: [],
-      })
+      });
     } catch (err) {
-      setError(err.message)
+      console.error("Error in handleSubmit:", err);
+      setError(err.message);
     }
-  }
+  };
 
   const handleDelete = async (product) => {
     try {
       await fetch(
         `${API_BASE_URL}/api/products/${product.product_type.toLowerCase().replace(/\s+/g, "_")}/${product.id}`,
         { method: "DELETE" },
-      )
-      fetchProducts()
-      setDeleteModalIsOpen(false)
-      setProductToDelete(null)
+      );
+      fetchProducts();
+      setDeleteModalIsOpen(false);
+      setProductToDelete(null);
     } catch (err) {
-      setError("Failed to delete product")
+      setError("Failed to delete product");
     }
-  }
+  };
 
   const openDeleteModal = (product) => {
-    setProductToDelete(product)
-    setDeleteModalIsOpen(true)
-  }
+    setProductToDelete(product);
+    setDeleteModalIsOpen(true);
+  };
 
   const closeModal = () => {
-    setModalIsOpen(false)
-    setEditModalIsOpen(false)
-    setAddModalIsOpen(false)
-    setDeleteModalIsOpen(false)
-    setRateChangeModalIsOpen(false)
-    setConfirmRateChangeModalIsOpen(false)
-    setSelectedProduct(null)
-    setProductToDelete(null)
-    setEditedRates({})
-    setRateChangeSearchQuery("")
-    setError("")
-    setDiscountWarning("")
+    setModalIsOpen(false);
+    setEditModalIsOpen(false);
+    setAddModalIsOpen(false);
+    setDeleteModalIsOpen(false);
+    setRateChangeModalIsOpen(false);
+    setConfirmRateChangeModalIsOpen(false);
+    setSelectedProduct(null);
+    setProductToDelete(null);
+    setEditedRates({});
+    setRateChangeSearchQuery("");
+    setError("");
+    setDiscountWarning("");
     setFormData({
       productname: "",
       serial_number: "",
       price: "",
+      dprice: "",
       discount: "",
       per: "",
       product_type: "",
@@ -337,8 +363,8 @@ export default function List() {
       images: [],
       existingImages: [],
       imagesToDelete: [],
-    })
-  }
+    });
+  };
 
   const capitalize = (str) =>
     str
@@ -346,71 +372,74 @@ export default function List() {
           .split("_")
           .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
           .join(" ")
-      : ""
+      : "";
 
   const downloadPDF = () => {
     if (!products.length || !productTypes.length) {
-      setError("No products or product types available to export")
-      return
+      setError("No products or product types available to export");
+      return;
     }
-    setConfirmRateChangeModalIsOpen(true)
-  }
+    setConfirmRateChangeModalIsOpen(true);
+  };
 
   const generatePDF = () => {
     try {
-      const doc = new jsPDF()
-      const pageWidth = doc.internal.pageSize.getWidth()
-      let yOffset = 20
+      const doc = new jsPDF();
+      const pageWidth = doc.internal.pageSize.getWidth();
+      let yOffset = 20;
 
       // Add company details
-      doc.setFontSize(16)
-      doc.setFont("helvetica", "bold")
-      doc.text("PHOENIX CRACKERS", pageWidth / 2, yOffset, { align: "center" })
-      yOffset += 8
+      doc.setFontSize(16);
+      doc.setFont("helvetica", "bold");
+      doc.text("PHOENIX CRACKERS", pageWidth / 2, yOffset, { align: "center" });
+      yOffset += 8;
 
-      doc.setFontSize(12)
-      doc.setFont("helvetica", "normal")
-      doc.text("Sivakasi", pageWidth / 2, yOffset, { align: "center" })
-      yOffset += 8
-      doc.text("Website: www.funwithcrackers.com", pageWidth / 2, yOffset, { align: "center" })
-      yOffset += 8
-      doc.text("Pricelist 2025", pageWidth / 2, yOffset, { align: "center" })
-      yOffset += 20
+      doc.setFontSize(12);
+      doc.setFont("helvetica", "normal");
+      doc.text("Sivakasi", pageWidth / 2, yOffset, { align: "center" });
+      yOffset += 8;
+      doc.text("Website: www.funwithcrackers.com", pageWidth / 2, yOffset, { align: "center" });
+      yOffset += 8;
+      doc.text("Pricelist 2025", pageWidth / 2, yOffset, { align: "center" });
+      yOffset += 20;
 
       // Prepare table data
-      const tableData = []
-      let serialNumber = 1
-      let hasActiveProducts = false
+      const tableData = [];
+      let serialNumber = 1;
+      let hasActiveProducts = false;
 
       productTypes.forEach((type) => {
         const typeProducts = products
           .filter((product) => product.product_type === type && product.status === "on")
-          .sort((a, b) => a.productname.localeCompare(b.productname))
+          .sort((a, b) => a.productname.localeCompare(b.productname));
 
         if (typeProducts.length > 0) {
-          hasActiveProducts = true
+          hasActiveProducts = true;
           tableData.push([
             {
               content: capitalize(type),
-              colSpan: 7,
+              colSpan: 8,
               styles: { fontStyle: "bold", halign: "left", fillColor: [200, 200, 200] },
             },
-          ])
+          ]);
 
-          tableData.push(["S.No", "Product No.", "Product", "Net Rate", "Per", "Quantity", "Amount"])
+          tableData.push(["S.No", "Product No.", "Product", "Net Rate", "Direct Price", "Per", "Quantity", "Amount"]);
 
           typeProducts.forEach((product) => {
-            const productKey = `${product.product_type}-${product.id}`
-            let rate = editedRates[productKey]
-              ? Number.parseFloat(editedRates[productKey])
-              : Number.parseFloat(product.net_rate || product.price)
-            
-            // Multiply by 5 for products named "10*10" or ending with "setout" (case-insensitive)
+            const productKey = `${product.product_type}-${product.id}`;
+            let rate = editedRates[productKey]?.price
+              ? Number.parseFloat(editedRates[productKey].price)
+              : Number.parseFloat(product.net_rate || product.price || 0);
+            let dprice = editedRates[productKey]?.dprice
+              ? Number.parseFloat(editedRates[productKey].dprice)
+              : Number.parseFloat(product.dprice || 0);
+
             if (editedRates[productKey] && (
               product.productname.toLowerCase() === "10*10" ||
               product.productname.toLowerCase().endsWith("setout")
             )) {
-              rate *= 5
+              rate *= 5;
+              dprice *= 5;
             }
 
             tableData.push([
@@ -418,25 +447,26 @@ export default function List() {
               product.serial_number,
               product.productname,
               `Rs.${Math.floor(rate)}`,
+              `Rs.${Math.floor(dprice)}`,
               product.per,
-              "", // Quantity (empty)
-              "", // Amount (empty)
-            ])
-          })
+              "",
+              "",
+            ]);
+          });
 
-          tableData.push([]) // Add empty row for spacing
+          tableData.push([]);
         }
-      })
+      });
 
       if (!hasActiveProducts) {
-        setError("No active products (status: on) available to export")
-        return
+        setError("No active products (status: on) available to export");
+        return;
       }
 
       // Generate table
       autoTable(doc, {
         startY: yOffset,
-        head: [["S.No", "Product No.", "Product", "Net Rate", "Per", "Quantity", "Amount"]],
+        head: [["S.No", "Product No.", "Product", "Net Rate", "Direct Price", "Per", "Quantity", "Amount"]],
         body: tableData,
         theme: "grid",
         styles: { fontSize: 10, cellPadding: 3 },
@@ -446,63 +476,71 @@ export default function List() {
           1: { cellWidth: 25 }, // Product No.
           2: { cellWidth: 50 }, // Product
           3: { cellWidth: 30 }, // Net Rate
-          4: { cellWidth: 20 }, // Per
-          5: { cellWidth: 25 }, // Quantity
-          6: { cellWidth: 25 }, // Amount
+          4: { cellWidth: 30 }, // Direct Price
+          5: { cellWidth: 20 }, // Per
+          6: { cellWidth: 25 }, // Quantity
+          7: { cellWidth: 25 }, // Amount
         },
         didDrawCell: (data) => {
-          if (data.row.section === "body" && data.cell.raw && data.cell.raw.colSpan === 7) {
-            data.cell.styles.cellPadding = 5
-            data.cell.styles.fontSize = 12
+          if (data.row.section === "body" && data.cell.raw && data.cell.raw.colSpan === 8) {
+            data.cell.styles.cellPadding = 5;
+            data.cell.styles.fontSize = 12;
           }
         },
-      })
+      });
 
-      doc.save("Pricelist_2025.pdf")
-      closeModal()
+      doc.save("Pricelist_2025.pdf");
+      closeModal();
     } catch (err) {
-      setError("Failed to generate PDF: " + err.message)
+      setError("Failed to generate PDF: " + err.message);
     }
-  }
+  };
 
   const handleRateChangeSubmit = (e) => {
-    e.preventDefault()
-    setError("")
-    // Validate that all edited rates are valid numbers
+    e.preventDefault();
+    setError("");
     for (const productKey in editedRates) {
-      const rateValue = Number.parseFloat(editedRates[productKey])
-      if (isNaN(rateValue) || rateValue < 0) {
-        setError(`Invalid rate for product ${productKey}. Please enter a valid positive number.`)
-        return
+      const priceValue = Number.parseFloat(editedRates[productKey].price);
+      const dpriceValue = Number.parseFloat(editedRates[productKey].dprice);
+      if ((priceValue && (isNaN(priceValue) || priceValue < 0)) || (dpriceValue && (isNaN(dpriceValue) || dpriceValue < 0))) {
+        setError(`Invalid rate or direct price for product ${productKey}. Please enter valid positive numbers.`);
+        return;
       }
     }
     if (Object.keys(editedRates).length === 0) {
-      setError("Please edit at least one product rate")
-      return
+      setError("Please edit at least one product rate");
+      return;
     }
-    generatePDF()
-  }
+    generatePDF();
+  };
 
-  const handleRateChangeInput = (product, value) => {
-    const productKey = `${product.product_type}-${product.id}`
+  const handleRateChangeInput = (product, value, field) => {
+    const productKey = `${product.product_type}-${product.id}`;
     if (value === "") {
-      // Remove the rate if the input is cleared
       setEditedRates((prev) => {
-        const newRates = { ...prev }
-        delete newRates[productKey]
-        return newRates
-      })
+        const newRates = { ...prev };
+        if (newRates[productKey]) {
+          delete newRates[productKey][field];
+          if (Object.keys(newRates[productKey]).length === 0) {
+            delete newRates[productKey];
+          }
+        }
+        return newRates;
+      });
     } else {
       setEditedRates((prev) => ({
         ...prev,
-        [productKey]: value,
-      }))
+        [productKey]: {
+          ...prev[productKey],
+          [field]: value,
+        },
+      }));
     }
-  }
+  };
 
   const clearAllRates = () => {
-    setEditedRates({})
-  }
+    setEditedRates({});
+  };
 
   const renderRateChangeModal = () => (
     <div className="bg-white dark:bg-gray-900 rounded-lg p-6 mobile:p-3 max-w-4xl w-full">
@@ -528,87 +566,82 @@ export default function List() {
               }}
             />
           </div>
-<div className="max-h-48 overflow-y-auto">
-  {applyRateChangeFilter().length > 0 ? (
-    <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-      <thead className="bg-gray-50 dark:bg-gray-800">
-        <tr>
-          <th className="px-4 py-2 text-left text-xs font-medium text-gray-900 dark:text-gray-100 uppercase tracking-wider">
-            Product Name
-          </th>
-          <th className="px-4 py-2 text-left text-xs font-medium text-gray-900 dark:text-gray-100 uppercase tracking-wider">
-            Serial Number
-          </th>
-          <th className="px-4 py-2 text-left text-xs font-medium text-gray-900 dark:text-gray-100 uppercase tracking-wider">
-            Net Rate
-          </th>
-          <th className="px-4 py-2 text-left text-xs font-medium text-gray-900 dark:text-gray-100 uppercase tracking-wider">
-            Direct Customer Price
-          </th>
-        </tr>
-      </thead>
-      <tbody className="bg-white dark:bg-gray-900 divide-y divide-gray-200 dark:divide-gray-700">
-        {applyRateChangeFilter().map((product) => {
-          const productKey = `${product.product_type}-${product.id}`;
-          const defaultRate = Number.parseFloat(product.net_rate || product.price).toFixed(2);
-          const defaultDPrice = Number.parseFloat(product.dprice || 0).toFixed(2);
+          <div className="max-h-48 overflow-y-auto">
+            {applyRateChangeFilter().length > 0 ? (
+              <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                <thead className="bg-gray-50 dark:bg-gray-800">
+                  <tr>
+                    <th className="px-4 py-2 text-left text-xs font-medium text-gray-900 dark:text-gray-100 uppercase tracking-wider">
+                      Product Name
+                    </th>
+                    <th className="px-4 py-2 text-left text-xs font-medium text-gray-900 dark:text-gray-100 uppercase tracking-wider">
+                      Serial Number
+                    </th>
+                    <th className="px-4 py-2 text-left text-xs font-medium text-gray-900 dark:text-gray-100 uppercase tracking-wider">
+                      Net Rate
+                    </th>
+                    <th className="px-4 py-2 text-left text-xs font-medium text-gray-900 dark:text-gray-100 uppercase tracking-wider">
+                      Direct Customer Price
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="bg-white dark:bg-gray-900 divide-y divide-gray-200 dark:divide-gray-700">
+                  {applyRateChangeFilter().map((product) => {
+                    const productKey = `${product.product_type}-${product.id}`;
+                    const defaultRate = Number.parseFloat(product.net_rate || product.price || 0).toFixed(2);
+                    const defaultDPrice = Number.parseFloat(product.dprice || 0).toFixed(2);
 
-          return (
-            <tr key={productKey}>
-              <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100">
-                {product.productname}
-              </td>
-              <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100">
-                {product.serial_number}
-              </td>
-              <td className="px-4 py-2 whitespace-nowrap">
-                <input
-                  type="number"
-                  value={editedRates[productKey]?.price ?? defaultRate}
-                  onChange={(e) =>
-                    handleRateChangeInput(product, e.target.value, "price")
-                  }
-                  placeholder="Enter new rate"
-                  className="text-md px-2 h-8 block w-24 rounded-md bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-900 border-gray-300 dark:border-gray-600 shadow-sm focus:border-indigo-600 dark:focus:border-blue-500 focus:ring-indigo-600 dark:focus:ring-blue-500 sm:text-sm"
-                  style={{
-                    background: styles.input.background,
-                    backgroundDark: styles.input.backgroundDark,
-                    border: styles.input.border,
-                    borderDark: styles.input.borderDark,
-                    backdropFilter: styles.input.backdropFilter,
-                  }}
-                  step="0.01"
-                />
-              </td>
-              <td className="px-4 py-2 whitespace-nowrap">
-                <input
-                  type="number"
-                  value={editedRates[productKey]?.dprice ?? defaultDPrice}
-                  onChange={(e) =>
-                    handleRateChangeInput(product, e.target.value, "dprice")
-                  }
-                  placeholder="Enter DPrice"
-                  className="text-md px-2 h-8 block w-24 rounded-md bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-900 border-gray-300 dark:border-gray-600 shadow-sm focus:border-indigo-600 dark:focus:border-blue-500 focus:ring-indigo-600 dark:focus:ring-blue-500 sm:text-sm"
-                  style={{
-                    background: styles.input.background,
-                    backgroundDark: styles.input.backgroundDark,
-                    border: styles.input.border,
-                    borderDark: styles.input.borderDark,
-                    backdropFilter: styles.input.backdropFilter,
-                  }}
-                  step="0.01"
-                />
-              </td>
-            </tr>
-          );
-        })}
-      </tbody>
-    </table>
-  ) : (
-    <p className="text-sm text-gray-600 dark:text-gray-400">No products found</p>
-  )}
-</div>
-
+                    return (
+                      <tr key={productKey}>
+                        <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100">
+                          {product.productname}
+                        </td>
+                        <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100">
+                          {product.serial_number}
+                        </td>
+                        <td className="px-4 py-2 whitespace-nowrap">
+                          <input
+                            type="number"
+                            value={editedRates[productKey]?.price ?? defaultRate}
+                            onChange={(e) => handleRateChangeInput(product, e.target.value, "price")}
+                            placeholder="Enter new rate"
+                            className="text-md px-2 h-8 block w-24 rounded-md bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-900 border-gray-300 dark:border-gray-600 shadow-sm focus:border-indigo-600 dark:focus:border-blue-500 focus:ring-indigo-600 dark:focus:ring-blue-500 sm:text-sm"
+                            style={{
+                              background: styles.input.background,
+                              backgroundDark: styles.input.backgroundDark,
+                              border: styles.input.border,
+                              borderDark: styles.input.borderDark,
+                              backdropFilter: styles.input.backdropFilter,
+                            }}
+                            step="0.01"
+                          />
+                        </td>
+                        <td className="px-4 py-2 whitespace-nowrap">
+                          <input
+                            type="number"
+                            value={editedRates[productKey]?.dprice ?? defaultDPrice}
+                            onChange={(e) => handleRateChangeInput(product, e.target.value, "dprice")}
+                            placeholder="Enter DPrice"
+                            className="text-md px-2 h-8 block w-24 rounded-md bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-900 border-gray-300 dark:border-gray-600 shadow-sm focus:border-indigo-600 dark:focus:border-blue-500 focus:ring-indigo-600 dark:focus:ring-blue-500 sm:text-sm"
+                            style={{
+                              background: styles.input.background,
+                              backgroundDark: styles.input.backgroundDark,
+                              border: styles.input.border,
+                              borderDark: styles.input.borderDark,
+                              backdropFilter: styles.input.backdropFilter,
+                            }}
+                            step="0.01"
+                          />
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            ) : (
+              <p className="text-sm text-gray-600 dark:text-gray-400">No products found</p>
+            )}
+          </div>
           {error && <p className="text-sm text-red-600 dark:text-red-400">{error}</p>}
           <div className="mt-6 mobile:mt-3 flex justify-end space-x-2 mobile:space-x-1">
             <button
@@ -663,7 +696,7 @@ export default function List() {
         </div>
       </form>
     </div>
-  )
+  );
 
   const renderMedia = (media, idx, sizeClass) => {
     let src
@@ -1215,20 +1248,20 @@ export default function List() {
                         <button
                           onClick={() => {
                             setSelectedProduct(product)
-                       setFormData({
-  productname: product.productname,
-  serial_number: product.serial_number,
-  price: product.price,
-  dprice: product.dprice,   // ✅ new
-  discount: product.discount,
-  per: product.per,
-  product_type: product.product_type,
-  description: product.description || "",
-  box_count: product.box_count,
-  images: [],
-  existingImages: product.images || [],
-  imagesToDelete: [],
-})
+                            setFormData({
+                              productname: product.productname,
+                              serial_number: product.serial_number,
+                              price: product.price,
+                              dprice: product.dprice,   // ✅ new
+                              discount: product.discount,
+                              per: product.per,
+                              product_type: product.product_type,
+                              description: product.description || "",
+                              box_count: product.box_count,
+                              images: [],
+                              existingImages: product.images || [],
+                              imagesToDelete: [],
+                            })
 
                             setEditModalIsOpen(true)
                           }}
