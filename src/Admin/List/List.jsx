@@ -982,15 +982,6 @@ export default function List() {
                 </div>
               </div>
             )}
-
-            {isEdit && (
-              <div className="mt-2 p-2 bg-blue-50 dark:bg-blue-900/20 rounded-md">
-                <p className="text-xs text-blue-700 dark:text-blue-300">
-                  <strong>How it works:</strong> Existing images will be kept unless you click × to delete them. New
-                  images you select will be added alongside existing images.
-                </p>
-              </div>
-            )}
           </div>
 
           <div className="mt-6 mobile:mt-3 flex justify-end space-x-2 mobile:space-x-1">
