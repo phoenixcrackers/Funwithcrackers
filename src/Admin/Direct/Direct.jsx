@@ -406,11 +406,7 @@ export default function Direct() {
     }
 
     const customer = customers.find((c) => c.id.toString() === targetCustomerId);
-    const effectivePrice = Math.round(
-      customer?.customer_type === "Customer"
-        ? Number(product.dprice) || Number(product.price)
-        : Number(product.price)
-    );
+    const effectivePrice = Math.round(Number(product.dprice));
 
     console.log("Selected Customer:", customer);
     console.log("Selected Product:", product);
