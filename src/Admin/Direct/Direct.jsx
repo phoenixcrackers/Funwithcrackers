@@ -65,6 +65,8 @@ const QuotationTable = ({
   selectedCustomer,
   modalSelectedCustomer,
   customers,
+  additionalDiscount,
+  setAdditionalDiscount
 }) => (
   <div className="space-y-4">
     <div className="flex flex-col items-center mobile:w-full">
@@ -126,6 +128,26 @@ const QuotationTable = ({
       >
         Add to Cart
       </button>
+    </div>
+    <div className="flex flex-col items-center mobile:w-full">
+      <label
+        htmlFor="additional-discount"
+        className="text-lg font-semibold text-gray-700 dark:text-gray-100 mb-2 mobile:text-base"
+      >
+        Additional Discount (%)
+      </label>
+      <input
+        id="additional-discount"
+        type="number"
+        value={additionalDiscount || ''}
+        onChange={(e) => setAdditionalDiscount(Math.max(0, Math.min(100, parseFloat(e.target.value) || 0)))}
+        placeholder="Enter additional discount (%)"
+        className="mobile:w-full onefifty:w-96 hundred:w-96 p-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+        min="0"
+        max="100"
+        step="0.01"
+        style={styles.input}
+      />
     </div>
     <div className={`overflow-x-auto ${isModal ? "overflow-y-auto max-h-[60vh] pr-2" : ""}`}>
       <table className="w-full border-collapse dark:bg-gray-800 dark:text-gray-100 bg-white shadow rounded-lg mobile:text-xs">
@@ -208,20 +230,37 @@ const QuotationTable = ({
             </tr>
           )}
         </tbody>
+        {cart.length > 0 && (
+          <tfoot>
+            <tr className="border-t">
+              <td colSpan="4" className="text-center font-bold mobile:p-1">Net Rate</td>
+              <td colSpan="2" className="text-center font-bold mobile:p-1">
+                ₹{Math.round(calculateNetRate(cart, isModal ? modalSelectedCustomer : selectedCustomer))}
+              </td>
+            </tr>
+            <tr>
+              <td colSpan="4" className="text-center font-bold mobile:p-1">You Save</td>
+              <td colSpan="2" className="text-center font-bold mobile:p-1">
+                ₹{Math.round(calculateYouSave(cart, isModal ? modalSelectedCustomer : selectedCustomer))}
+              </td>
+            </tr>
+            {additionalDiscount > 0 && (
+              <tr>
+                <td colSpan="4" className="text-center font-bold mobile:p-1">Additional Discount</td>
+                <td colSpan="2" className="text-center font-bold mobile:p-1">
+                  {additionalDiscount.toFixed(2)}%
+                </td>
+              </tr>
+            )}
+            <tr>
+              <td colSpan="4" className="text-center font-bold mobile:p-1">Total</td>
+              <td colSpan="2" className="text-center font-bold mobile:p-1">
+                ₹{Math.round(calculateTotal(cart, isModal ? modalSelectedCustomer : selectedCustomer, isModal))}
+              </td>
+            </tr>
+          </tfoot>
+        )}
       </table>
-      {cart.length > 0 && (
-        <>
-          <div className="text-xl text-center mt-4 font-bold text-gray-900 dark:text-gray-100 mobile:text-base mobile:mt-2">
-            Net Rate: ₹{Math.round(calculateNetRate(cart, isModal ? modalSelectedCustomer : selectedCustomer))}
-          </div>
-          <div className="text-xl text-center mt-2 font-bold text-gray-900 dark:text-gray-100 mobile:text-base mobile:mt-1">
-            You Save: ₹{Math.round(calculateYouSave(cart, isModal ? modalSelectedCustomer : selectedCustomer))}
-          </div>
-          <div className="text-xl text-center mt-2 font-bold text-gray-900 dark:text-gray-100 mobile:text-base mobile:mt-1">
-            Total: ₹{Math.round(calculateTotal(cart, isModal ? modalSelectedCustomer : selectedCustomer))}
-          </div>
-        </>
-      )}
     </div>
   </div>
 );
@@ -247,6 +286,8 @@ const FormFields = ({
   handleSubmit,
   closeModal,
   styles,
+  modalAdditionalDiscount,
+  setModalAdditionalDiscount
 }) => (
   <div className="space-y-6">
     <div className="flex flex-col items-center mobile:w-full">
@@ -290,6 +331,8 @@ const FormFields = ({
         isModal={true}
         modalSelectedCustomer={modalSelectedCustomer}
         customers={customers}
+        additionalDiscount={modalAdditionalDiscount}
+        setAdditionalDiscount={setModalAdditionalDiscount}
       />
     </QuotationTableErrorBoundary>
     <div className="flex justify-end space-x-3">
@@ -331,6 +374,8 @@ export default function Direct() {
   const [modalSelectedProduct, setModalSelectedProduct] = useState(null);
   const [modalSelectedCustomer, setModalSelectedCustomer] = useState("");
   const [orderId, setOrderId] = useState("");
+  const [additionalDiscount, setAdditionalDiscount] = useState(0);
+  const [modalAdditionalDiscount, setModalAdditionalDiscount] = useState(0);
 
   const styles = {
     input: {
@@ -373,7 +418,6 @@ export default function Direct() {
         setCustomers(Array.isArray(customersResponse.data) ? customersResponse.data : []);
         setProducts(Array.isArray(productsResponse.data) ? productsResponse.data : []);
         setQuotations(Array.isArray(quotationsResponse.data) ? quotationsResponse.data : []);
-        console.log("Products API Response:", productsResponse.data);
       } catch (err) {
         setError(`Failed to fetch data: ${err.message}`);
       } finally {
@@ -489,8 +533,8 @@ export default function Direct() {
       0
     );
 
-  const calculateTotal = (targetCart = [], customerId) =>
-    targetCart.reduce(
+  const calculateTotal = (targetCart = [], customerId, isModal) => {
+    const subtotal = targetCart.reduce(
       (total, item) =>
         total +
         getEffectivePrice(item, customerId, customers) *
@@ -498,6 +542,10 @@ export default function Direct() {
         item.quantity,
       0
     );
+    const additional = isModal ? modalAdditionalDiscount : additionalDiscount;
+    const discountAmount = subtotal * (additional / 100);
+    return Math.max(0, subtotal - discountAmount);
+  };
 
   const createQuotation = async () => {
     if (!selectedCustomer || !cart.length) return setError("Customer and products are required");
@@ -509,6 +557,7 @@ export default function Direct() {
     const quotation_id = `QUO-${Date.now()}`;
     try {
       const subtotal = calculateNetRate(cart) - calculateYouSave(cart);
+      const discountAmount = subtotal * (additionalDiscount / 100);
       const payload = {
         customer_id: Number(selectedCustomer),
         quotation_id,
@@ -522,8 +571,9 @@ export default function Direct() {
         })),
         net_rate: Math.round(calculateNetRate(cart)),
         you_save: Math.round(calculateYouSave(cart)),
-        total: Math.round(calculateTotal(cart)),
+        total: Math.round(calculateTotal(cart, selectedCustomer, false)),
         promo_discount: 0,
+        additional_discount: Number.parseFloat(additionalDiscount.toFixed(2)),
         customer_type: customer.customer_type || "User",
         customer_name: customer.name,
         address: customer.address,
@@ -570,6 +620,7 @@ export default function Direct() {
       setCart([]);
       setSelectedCustomer("");
       setSelectedProduct(null);
+      setAdditionalDiscount(0);
     } catch (err) {
       setError(`Failed to create quotation: ${err.response?.data?.message || err.message}`);
     }
@@ -580,6 +631,7 @@ export default function Direct() {
       setModalMode("edit");
       setModalSelectedCustomer(quotation.customer_id?.toString() || "");
       setQuotationId(quotation.quotation_id);
+      setModalAdditionalDiscount(Number.parseFloat(quotation.additional_discount) || 0);
       try {
         const products = typeof quotation.products === "string" ? JSON.parse(quotation.products) : quotation.products;
         setModalCart(
@@ -587,7 +639,7 @@ export default function Direct() {
             ? products.map((p) => ({
                 ...p,
                 price: Math.round(Number.parseFloat(p.price) || 0),
-                customPrice: Math.round(Number.parseFloat(p.price) || 0), // Initialize customPrice from quotation
+                customPrice: Math.round(Number.parseFloat(p.price) || 0),
                 discount: Number.parseFloat(p.discount) || 0,
                 quantity: Number.parseInt(p.quantity) || 0,
               }))
@@ -606,6 +658,7 @@ export default function Direct() {
 
     try {
       const subtotal = calculateNetRate(modalCart) - calculateYouSave(modalCart);
+      const discountAmount = subtotal * (modalAdditionalDiscount / 100);
       const payload = {
         customer_id: Number(modalSelectedCustomer),
         products: modalCart.map((item) => ({
@@ -618,8 +671,9 @@ export default function Direct() {
         })),
         net_rate: Math.round(calculateNetRate(modalCart)),
         you_save: Math.round(calculateYouSave(modalCart)),
-        total: Math.round(calculateTotal(modalCart)),
+        total: Math.round(calculateTotal(modalCart, modalSelectedCustomer, true)),
         promo_discount: 0,
+        additional_discount: Number.parseFloat(modalAdditionalDiscount.toFixed(2)),
         status: "pending",
       };
 
@@ -678,6 +732,7 @@ export default function Direct() {
         setSelectedProduct(null);
         setQuotationId(null);
         setIsQuotationCreated(false);
+        setAdditionalDiscount(0);
       }
       setSuccessMessage("Quotation canceled successfully!");
       setShowSuccess(true);
@@ -697,6 +752,7 @@ export default function Direct() {
       setModalSelectedCustomer(quotation.customer_id?.toString() || "");
       setQuotationId(quotation.quotation_id);
       setOrderId(`ORD-${Date.now()}`);
+      setModalAdditionalDiscount(Number.parseFloat(quotation.additional_discount) || 0);
       try {
         const products = typeof quotation.products === "string" ? JSON.parse(quotation.products) : quotation.products;
         setModalCart(
@@ -704,7 +760,7 @@ export default function Direct() {
             ? products.map((p) => ({
                 ...p,
                 price: Math.round(Number.parseFloat(p.price) || 0),
-                customPrice: Math.round(Number.parseFloat(p.price) || 0), // Initialize customPrice from quotation
+                customPrice: Math.round(Number.parseFloat(p.price) || 0),
                 discount: Number.parseFloat(p.discount) || 0,
                 quantity: Number.parseInt(p.quantity) || 0,
               }))
@@ -718,40 +774,48 @@ export default function Direct() {
       return;
     }
 
-    if (!modalSelectedCustomer || !modalCart.length || !orderId)
-      return setError("Customer, products, and order ID are required");
-    if (modalCart.some((item) => item.quantity === 0)) return setError("Please remove products with zero quantity");
+    if (!modalSelectedCustomer || !modalCart.length || !orderId || !quotationId) {
+      return setError("Customer, products, order ID, and quotation ID are required");
+    }
+    if (modalCart.some((item) => item.quantity <= 0)) {
+      return setError("Please remove products with zero quantity");
+    }
 
     const customer = customers.find((c) => c.id.toString() === modalSelectedCustomer);
-    if (!customer) return setError("Invalid customer");
+    if (!customer || !customer.name || !customer.address || !customer.mobile_number || !customer.district || !customer.state) {
+      return setError("Customer data is incomplete");
+    }
 
     try {
       const subtotal = calculateNetRate(modalCart) - calculateYouSave(modalCart);
+      const discountAmount = subtotal * (modalAdditionalDiscount / 100);
       const payload = {
         customer_id: Number(modalSelectedCustomer),
         order_id: orderId,
         quotation_id: quotationId,
         products: modalCart.map((item) => ({
           id: item.id,
-          product_type: item.product_type,
-          productname: item.productname,
-          price: getEffectivePrice(item, modalSelectedCustomer, customers),
+          product_type: item.product_type || "",
+          productname: item.productname || "",
+          price: getEffectivePrice(item, modalSelectedCustomer, customers) || 0,
           discount: Number.parseFloat(item.discount) || 0,
           quantity: Number.parseInt(item.quantity) || 0,
         })),
         net_rate: Math.round(calculateNetRate(modalCart)),
         you_save: Math.round(calculateYouSave(modalCart)),
-        total: Math.round(calculateTotal(modalCart)),
-        promo_discount: 0,
+        total: Math.round(calculateTotal(modalCart, modalSelectedCustomer, true)),
+        promo_discount: 0, // Fixed: Set directly to 0 instead of referencing payload
+        additional_discount: Number.parseFloat(modalAdditionalDiscount.toFixed(2)) || 0,
         customer_type: customer.customer_type || "User",
-        customer_name: customer.name,
-        address: customer.address,
-        mobile_number: customer.mobile_number,
-        email: customer.email,
-        district: customer.district,
-        state: customer.state,
+        customer_name: customer.name || "",
+        address: customer.address || "",
+        mobile_number: customer.mobile_number || "",
+        email: customer.email || "",
+        district: customer.district || "",
+        state: customer.state || "",
       };
 
+      console.log("Booking Payload:", payload); // Debug payload
       const response = await axios.post(`${API_BASE_URL}/api/direct/bookings`, payload);
       setSuccessMessage("Booking created successfully! Check downloads for PDF.");
       setShowSuccess(true);
@@ -776,46 +840,55 @@ export default function Direct() {
       window.URL.revokeObjectURL(url);
       closeModal();
     } catch (err) {
+      console.error("Booking Error:", err.response?.data || err.message);
       setError(`Failed to create booking: ${err.response?.data?.message || err.message}`);
     }
   };
 
   const handleBooking = async () => {
-    if (!quotationId || !selectedCustomer || !cart.length)
+    if (!quotationId || !selectedCustomer || !cart.length) {
       return setError("Quotation, customer, and products are required");
-    if (cart.some((item) => item.quantity === 0)) return setError("Please remove products with zero quantity");
+    }
+    if (cart.some((item) => item.quantity <= 0)) {
+      return setError("Please remove products with zero quantity");
+    }
 
     const customer = customers.find((c) => c.id.toString() === selectedCustomer);
-    if (!customer) return setError("Invalid customer");
+    if (!customer || !customer.name || !customer.address || !customer.mobile_number || !customer.district || !customer.state) {
+      return setError("Customer data is incomplete");
+    }
 
     const order_id = `ORD-${Date.now()}`;
     try {
       const subtotal = calculateNetRate(cart) - calculateYouSave(cart);
+      const discountAmount = subtotal * (additionalDiscount / 100);
       const payload = {
         customer_id: Number(selectedCustomer),
         order_id,
         quotation_id: quotationId,
         products: cart.map((item) => ({
           id: item.id,
-          product_type: item.product_type,
-          productname: item.productname,
-          price: getEffectivePrice(item, selectedCustomer, customers),
+          product_type: item.product_type || "",
+          productname: item.productname || "",
+          price: getEffectivePrice(item, selectedCustomer, customers) || 0,
           discount: Number.parseFloat(item.discount) || 0,
           quantity: Number.parseInt(item.quantity) || 0,
         })),
         net_rate: Math.round(calculateNetRate(cart)),
         you_save: Math.round(calculateYouSave(cart)),
-        total: Math.round(calculateTotal(cart)),
-        promo_discount: 0,
+        total: Math.round(calculateTotal(cart, selectedCustomer, false)),
+        promo_discount: 0, // Fixed: Set directly to 0
+        additional_discount: Number.parseFloat(additionalDiscount.toFixed(2)) || 0,
         customer_type: customer.customer_type || "User",
-        customer_name: customer.name,
-        address: customer.address,
-        mobile_number: customer.mobile_number,
-        email: customer.email,
-        district: customer.district,
-        state: customer.state,
+        customer_name: customer.name || "",
+        address: customer.address || "",
+        mobile_number: customer.mobile_number || "",
+        email: customer.email || "",
+        district: customer.district || "",
+        state: customer.state || "",
       };
 
+      console.log("Booking Payload:", payload); // Debug payload
       const response = await axios.post(`${API_BASE_URL}/api/direct/bookings`, payload);
       setSuccessMessage("Booking created successfully! Check downloads for PDF.");
       setShowSuccess(true);
@@ -844,7 +917,9 @@ export default function Direct() {
       setSelectedProduct(null);
       setQuotationId(null);
       setIsQuotationCreated(false);
+      setAdditionalDiscount(0);
     } catch (err) {
+      console.error("Booking Error:", err.response?.data || err.message);
       setError(`Failed to create booking: ${err.response?.data?.message || err.message}`);
     }
   };
@@ -879,6 +954,7 @@ export default function Direct() {
     setModalSelectedCustomer("");
     setModalSelectedProduct(null);
     setOrderId("");
+    setModalAdditionalDiscount(0);
     setError("");
     setSuccessMessage("");
   };
@@ -929,6 +1005,8 @@ export default function Direct() {
                 styles={styles}
                 selectedCustomer={selectedCustomer}
                 customers={customers}
+                additionalDiscount={additionalDiscount}
+                setAdditionalDiscount={setAdditionalDiscount}
               />
             </QuotationTableErrorBoundary>
           </div>
@@ -955,6 +1033,11 @@ export default function Direct() {
                     <div className="text-sm mb-1 mobile:text-xs text-gray-900">
                       <span className="font-semibold">Total:</span> ₹{Math.round(Number.parseFloat(quotation.total))}
                     </div>
+                    {quotation.additional_discount > 0 && (
+                      <div className="text-sm mb-1 mobile:text-xs text-gray-900">
+                        <span className="font-semibold">Additional Discount:</span> {Number.parseFloat(quotation.additional_discount).toFixed(2)}%
+                      </div>
+                    )}
                     <div className="text-sm mb-1 mobile:text-xs text-gray-900">
                       <span className="font-semibold">Status:</span>
                       <span
@@ -1056,6 +1139,8 @@ export default function Direct() {
                 handleSubmit={modalMode === "edit" ? () => editQuotation() : () => convertToBooking()}
                 closeModal={closeModal}
                 styles={styles}
+                modalAdditionalDiscount={modalAdditionalDiscount}
+                setModalAdditionalDiscount={setModalAdditionalDiscount}
               />
             </div>
           </Modal>

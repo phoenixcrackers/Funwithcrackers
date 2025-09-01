@@ -950,7 +950,7 @@ export default function List() {
                         ×
                       </button>
                     </div>
-                  ))}
+                  ))}z
                 </div>
               </div>
             )}
