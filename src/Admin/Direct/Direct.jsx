@@ -452,10 +452,6 @@ export default function Direct() {
     const customer = customers.find((c) => c.id.toString() === targetCustomerId);
     const effectivePrice = Math.round(Number(product.dprice));
 
-    console.log("Selected Customer:", customer);
-    console.log("Selected Product:", product);
-    console.log("Effective Price used:", effectivePrice);
-
     setTargetCart((prev) => {
       const exists = prev.find((item) => item.id === product.id && item.product_type === product.product_type);
       return exists
