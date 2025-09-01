@@ -581,7 +581,8 @@ export default function Direct() {
       };
 
       const response = await axios.post(`${API_BASE_URL}/api/direct/quotations`, payload);
-      setQuotationId(response.data.quotation_id);
+      const { quotation_id: newQuotationId } = response.data;
+      setQuotationId(newQuotationId);
       setIsQuotationCreated(true);
       setSuccessMessage("Quotation created successfully! Check downloads for PDF.");
       setShowSuccess(true);
@@ -597,7 +598,8 @@ export default function Direct() {
         ...prev,
       ]);
 
-      const pdfResponse = await axios.get(`${API_BASE_URL}/api/direct/quotation/${response.data.quotation_id}`, {
+      // Fetch the PDF
+      const pdfResponse = await axios.get(`${API_BASE_URL}/api/direct/quotation/${newQuotationId}`, {
         responseType: "blob",
       });
       const url = window.URL.createObjectURL(new Blob([pdfResponse.data]));
@@ -607,7 +609,7 @@ export default function Direct() {
         .toLowerCase()
         .replace(/[^a-z0-9]+/g, "_")
         .replace(/^_+|_+$/g, "");
-      link.setAttribute("download", `${safeCustomerName}-${response.data.quotation_id}-quotation.pdf`);
+      link.setAttribute("download", `${safeCustomerName}-${newQuotationId}-quotation.pdf`);
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
@@ -742,183 +744,189 @@ export default function Direct() {
     }
   };
 
-  const convertToBooking = async (quotation = null) => {
-    if (quotation) {
-      setModalMode("book");
-      setModalSelectedCustomer(quotation.customer_id?.toString() || "");
-      setQuotationId(quotation.quotation_id);
-      setOrderId(`ORD-${Date.now()}`);
-      setModalAdditionalDiscount(Number.parseFloat(quotation.additional_discount) || 0);
-      try {
-        const products = typeof quotation.products === "string" ? JSON.parse(quotation.products) : quotation.products;
-        setModalCart(
-          Array.isArray(products)
-            ? products.map((p) => ({
-                ...p,
-                price: Math.round(Number.parseFloat(p.price) || 0),
-                customPrice: Math.round(Number.parseFloat(p.price) || 0),
-                discount: Number.parseFloat(p.discount) || 0,
-                quantity: Number.parseInt(p.quantity) || 0,
-              }))
-            : []
-        );
-      } catch (e) {
-        setModalCart([]);
-        setError("Failed to parse quotation products");
-      }
-      setModalIsOpen(true);
-      return;
-    }
-
-    if (!modalSelectedCustomer || !modalCart.length || !orderId || !quotationId) {
-      return setError("Customer, products, order ID, and quotation ID are required");
-    }
-    if (modalCart.some((item) => item.quantity <= 0)) {
-      return setError("Please remove products with zero quantity");
-    }
-
-    const customer = customers.find((c) => c.id.toString() === modalSelectedCustomer);
-    if (!customer || !customer.name || !customer.address || !customer.mobile_number || !customer.district || !customer.state) {
-      return setError("Customer data is incomplete");
-    }
-
-    try {
-      const subtotal = calculateNetRate(modalCart) - calculateYouSave(modalCart);
-      const discountAmount = subtotal * (modalAdditionalDiscount / 100);
-      const payload = {
-        customer_id: Number(modalSelectedCustomer),
-        order_id: orderId,
-        quotation_id: quotationId,
-        products: modalCart.map((item) => ({
-          id: item.id,
-          product_type: item.product_type || "",
-          productname: item.productname || "",
-          price: getEffectivePrice(item, modalSelectedCustomer, customers) || 0,
-          discount: Number.parseFloat(item.discount) || 0,
-          quantity: Number.parseInt(item.quantity) || 0,
-        })),
-        net_rate: Math.round(calculateNetRate(modalCart)),
-        you_save: Math.round(calculateYouSave(modalCart)),
-        total: Math.round(calculateTotal(modalCart, modalSelectedCustomer, true)),
-        promo_discount: 0, // Fixed: Set directly to 0 instead of referencing payload
-        additional_discount: Number.parseFloat(modalAdditionalDiscount.toFixed(2)) || 0,
-        customer_type: customer.customer_type || "User",
-        customer_name: customer.name || "",
-        address: customer.address || "",
-        mobile_number: customer.mobile_number || "",
-        email: customer.email || "",
-        district: customer.district || "",
-        state: customer.state || "",
-      };
-
-      console.log("Booking Payload:", payload); // Debug payload
-      const response = await axios.post(`${API_BASE_URL}/api/direct/bookings`, payload);
-      setSuccessMessage("Booking created successfully! Check downloads for PDF.");
-      setShowSuccess(true);
-      setTimeout(() => setShowSuccess(false), 3000);
-
-      setQuotations((prev) => prev.map((q) => (q.quotation_id === quotationId ? { ...q, status: "booked" } : q)));
-
-      const pdfResponse = await axios.get(`${API_BASE_URL}/api/direct/invoice/${response.data.order_id}`, {
-        responseType: "blob",
-      });
-      const url = window.URL.createObjectURL(new Blob([pdfResponse.data]));
-      const link = document.createElement("a");
-      link.href = url;
-      const safeCustomerName = (customer.name || "unknown")
-        .toLowerCase()
-        .replace(/[^a-z0-9]+/g, "_")
-        .replace(/^_+|_+$/g, "");
-      link.setAttribute("download", `${safeCustomerName}-${response.data.order_id}-invoice.pdf`);
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      window.URL.revokeObjectURL(url);
-      closeModal();
-    } catch (err) {
-      console.error("Booking Error:", err.response?.data || err.message);
-      setError(`Failed to create booking: ${err.response?.data?.message || err.message}`);
-    }
-  };
-
   const handleBooking = async () => {
-    if (!quotationId || !selectedCustomer || !cart.length) {
-      return setError("Quotation, customer, and products are required");
-    }
-    if (cart.some((item) => item.quantity <= 0)) {
-      return setError("Please remove products with zero quantity");
-    }
+  if (!quotationId || !selectedCustomer || !cart.length) {
+    return setError("Quotation, customer, and products are required");
+  }
+  if (cart.some((item) => item.quantity <= 0)) {
+    return setError("Please remove products with zero quantity");
+  }
 
-    const customer = customers.find((c) => c.id.toString() === selectedCustomer);
-    if (!customer || !customer.name || !customer.address || !customer.mobile_number || !customer.district || !customer.state) {
-      return setError("Customer data is incomplete");
-    }
+  const customer = customers.find((c) => c.id.toString() === selectedCustomer);
+  if (!customer || !customer.name || !customer.address || !customer.mobile_number || !customer.district || !customer.state) {
+    return setError("Customer data is incomplete");
+  }
 
-    const order_id = `ORD-${Date.now()}`;
+  const order_id = `ORD-${Date.now()}`;
+  try {
+    const subtotal = calculateNetRate(cart) - calculateYouSave(cart);
+    const discountAmount = subtotal * (additionalDiscount / 100);
+    const payload = {
+      customer_id: Number(selectedCustomer),
+      order_id,
+      quotation_id: quotationId,
+      products: cart.map((item) => ({
+        id: item.id,
+        product_type: item.product_type || "",
+        productname: item.productname || "",
+        price: getEffectivePrice(item, selectedCustomer, customers) || 0,
+        discount: Number.parseFloat(item.discount) || 0,
+        quantity: Number.parseInt(item.quantity) || 0,
+      })),
+      net_rate: Math.round(calculateNetRate(cart)),
+      you_save: Math.round(calculateYouSave(cart)),
+      total: Math.round(calculateTotal(cart, selectedCustomer, false)),
+      promo_discount: 0,
+      additional_discount: Number.parseFloat(additionalDiscount.toFixed(2)) || 0,
+      customer_type: customer.customer_type || "User",
+      customer_name: customer.name || "",
+      address: customer.address || "",
+      mobile_number: customer.mobile_number || "",
+      email: customer.email || "",
+      district: customer.district || "",
+      state: customer.state || "",
+    };
+
+    console.log("Booking Payload:", payload); // Debug payload
+    const response = await axios.post(`${API_BASE_URL}/api/direct/bookings`, payload);
+    const { order_id: newOrderId } = response.data;
+    setSuccessMessage("Booking created successfully! Check downloads for PDF.");
+    setShowSuccess(true);
+    setTimeout(() => setShowSuccess(false), 3000);
+
+    setQuotations((prev) => prev.map((q) => (q.quotation_id === quotationId ? { ...q, status: "booked" } : q)));
+
+    // Fetch the PDF
+    const pdfResponse = await axios.get(`${API_BASE_URL}/api/direct/invoice/${newOrderId}`, {
+      responseType: "blob",
+    });
+    const url = window.URL.createObjectURL(new Blob([pdfResponse.data]));
+    const link = document.createElement("a");
+    link.href = url;
+    const safeCustomerName = (customer.name || "unknown")
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "_")
+      .replace(/^_+|_+$/g, "");
+    link.setAttribute("download", `${safeCustomerName}-${newOrderId}-invoice.pdf`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    window.URL.revokeObjectURL(url);
+
+    setCart([]);
+    setSelectedCustomer("");
+    setSelectedProduct(null);
+    setQuotationId(null);
+    setIsQuotationCreated(false);
+    setAdditionalDiscount(0);
+  } catch (err) {
+    console.error("Booking Error:", err.response?.data || err.message);
+    setError(`Failed to create booking: ${err.response?.data?.message || err.message}`);
+  }
+};
+
+// Frontend code for convertToBooking (modified)
+
+const convertToBooking = async (quotation = null) => {
+  if (quotation) {
+    setModalMode("book");
+    setModalSelectedCustomer(quotation.customer_id?.toString() || "");
+    setQuotationId(quotation.quotation_id);
+    setOrderId(`ORD-${Date.now()}`);
+    setModalAdditionalDiscount(Number.parseFloat(quotation.additional_discount) || 0);
     try {
-      const subtotal = calculateNetRate(cart) - calculateYouSave(cart);
-      const discountAmount = subtotal * (additionalDiscount / 100);
-      const payload = {
-        customer_id: Number(selectedCustomer),
-        order_id,
-        quotation_id: quotationId,
-        products: cart.map((item) => ({
-          id: item.id,
-          product_type: item.product_type || "",
-          productname: item.productname || "",
-          price: getEffectivePrice(item, selectedCustomer, customers) || 0,
-          discount: Number.parseFloat(item.discount) || 0,
-          quantity: Number.parseInt(item.quantity) || 0,
-        })),
-        net_rate: Math.round(calculateNetRate(cart)),
-        you_save: Math.round(calculateYouSave(cart)),
-        total: Math.round(calculateTotal(cart, selectedCustomer, false)),
-        promo_discount: 0, // Fixed: Set directly to 0
-        additional_discount: Number.parseFloat(additionalDiscount.toFixed(2)) || 0,
-        customer_type: customer.customer_type || "User",
-        customer_name: customer.name || "",
-        address: customer.address || "",
-        mobile_number: customer.mobile_number || "",
-        email: customer.email || "",
-        district: customer.district || "",
-        state: customer.state || "",
-      };
-
-      console.log("Booking Payload:", payload); // Debug payload
-      const response = await axios.post(`${API_BASE_URL}/api/direct/bookings`, payload);
-      setSuccessMessage("Booking created successfully! Check downloads for PDF.");
-      setShowSuccess(true);
-      setTimeout(() => setShowSuccess(false), 3000);
-
-      setQuotations((prev) => prev.map((q) => (q.quotation_id === quotationId ? { ...q, status: "booked" } : q)));
-
-      const pdfResponse = await axios.get(`${API_BASE_URL}/api/direct/invoice/${response.data.order_id}`, {
-        responseType: "blob",
-      });
-      const url = window.URL.createObjectURL(new Blob([pdfResponse.data]));
-      const link = document.createElement("a");
-      link.href = url;
-      const safeCustomerName = (customer.name || "unknown")
-        .toLowerCase()
-        .replace(/[^a-z0-9]+/g, "_")
-        .replace(/^_+|_+$/g, "");
-      link.setAttribute("download", `${safeCustomerName}-${response.data.order_id}-invoice.pdf`);
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      window.URL.revokeObjectURL(url);
-
-      setCart([]);
-      setSelectedCustomer("");
-      setSelectedProduct(null);
-      setQuotationId(null);
-      setIsQuotationCreated(false);
-      setAdditionalDiscount(0);
-    } catch (err) {
-      console.error("Booking Error:", err.response?.data || err.message);
-      setError(`Failed to create booking: ${err.response?.data?.message || err.message}`);
+      const products = typeof quotation.products === "string" ? JSON.parse(quotation.products) : quotation.products;
+      setModalCart(
+        Array.isArray(products)
+          ? products.map((p) => ({
+              ...p,
+              price: Math.round(Number.parseFloat(p.price) || 0),
+              customPrice: Math.round(Number.parseFloat(p.price) || 0),
+              discount: Number.parseFloat(p.discount) || 0,
+              quantity: Number.parseInt(p.quantity) || 0,
+            }))
+          : []
+      );
+    } catch (e) {
+      setModalCart([]);
+      setError("Failed to parse quotation products");
     }
-  };
+    setModalIsOpen(true);
+    return;
+  }
+
+  if (!modalSelectedCustomer || !modalCart.length || !orderId || !quotationId) {
+    return setError("Customer, products, order ID, and quotation ID are required");
+  }
+  if (modalCart.some((item) => item.quantity <= 0)) {
+    return setError("Please remove products with zero quantity");
+  }
+
+  const customer = customers.find((c) => c.id.toString() === modalSelectedCustomer);
+  if (!customer || !customer.name || !customer.address || !customer.mobile_number || !customer.district || !customer.state) {
+    return setError("Customer data is incomplete");
+  }
+
+  try {
+    const subtotal = calculateNetRate(modalCart) - calculateYouSave(modalCart);
+    const discountAmount = subtotal * (modalAdditionalDiscount / 100);
+    const payload = {
+      customer_id: Number(modalSelectedCustomer),
+      order_id: orderId,
+      quotation_id: quotationId,
+      products: modalCart.map((item) => ({
+        id: item.id,
+        product_type: item.product_type || "",
+        productname: item.productname || "",
+        price: getEffectivePrice(item, modalSelectedCustomer, customers) || 0,
+        discount: Number.parseFloat(item.discount) || 0,
+        quantity: Number.parseInt(item.quantity) || 0,
+      })),
+      net_rate: Math.round(calculateNetRate(modalCart)),
+      you_save: Math.round(calculateYouSave(modalCart)),
+      total: Math.round(calculateTotal(modalCart, modalSelectedCustomer, true)),
+      promo_discount: 0,
+      additional_discount: Number.parseFloat(modalAdditionalDiscount.toFixed(2)) || 0,
+      customer_type: customer.customer_type || "User",
+      customer_name: customer.name || "",
+      address: customer.address || "",
+      mobile_number: customer.mobile_number || "",
+      email: customer.email || "",
+      district: customer.district || "",
+      state: customer.state || "",
+    };
+
+    console.log("Booking Payload:", payload); // Debug payload
+    const response = await axios.post(`${API_BASE_URL}/api/direct/bookings`, payload);
+    const { order_id: newOrderId } = response.data;
+    setSuccessMessage("Booking created successfully! Check downloads for PDF.");
+    setShowSuccess(true);
+    setTimeout(() => setShowSuccess(false), 3000);
+
+    setQuotations((prev) => prev.map((q) => (q.quotation_id === quotationId ? { ...q, status: "booked" } : q)));
+
+    // Fetch the PDF
+    const pdfResponse = await axios.get(`${API_BASE_URL}/api/direct/invoice/${newOrderId}`, {
+      responseType: "blob",
+    });
+    const url = window.URL.createObjectURL(new Blob([pdfResponse.data]));
+    const link = document.createElement("a");
+    link.href = url;
+    const safeCustomerName = (customer.name || "unknown")
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "_")
+      .replace(/^_+|_+$/g, "");
+    link.setAttribute("download", `${safeCustomerName}-${newOrderId}-invoice.pdf`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    window.URL.revokeObjectURL(url);
+    closeModal();
+  } catch (err) {
+    console.error("Booking Error:", err.response?.data || err.message);
+    setError(`Failed to create booking: ${err.response?.data?.message || err.message}`);
+  }
+};
 
   const renderSelect = (value, onChange, options, label, placeholder, id) => (
     <div className="flex flex-col items-center mobile:w-full">
