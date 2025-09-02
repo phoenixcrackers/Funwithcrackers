@@ -66,7 +66,8 @@ const QuotationTable = ({
   modalSelectedCustomer,
   customers,
   additionalDiscount,
-  setAdditionalDiscount
+  setAdditionalDiscount,
+  openNewProductModal,
 }) => (
   <div className="space-y-4">
     <div className="flex flex-col items-center mobile:w-full">
@@ -136,18 +137,27 @@ const QuotationTable = ({
       >
         Additional Discount (%)
       </label>
-      <input
-        id="additional-discount"
-        type="number"
-        value={additionalDiscount || ''}
-        onChange={(e) => setAdditionalDiscount(Math.max(0, Math.min(100, parseFloat(e.target.value) || 0)))}
-        placeholder="Enter additional discount (%)"
-        className="mobile:w-full onefifty:w-96 hundred:w-96 p-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-        min="0"
-        max="100"
-        step="0.01"
-        style={styles.input}
-      />
+      <div className="flex items-center gap-4 mobile:w-full onefifty:w-96 hundred:w-96">
+        <input
+          id="additional-discount"
+          type="number"
+          value={additionalDiscount || ''}
+          onChange={(e) => setAdditionalDiscount(Math.max(0, Math.min(100, parseFloat(e.target.value) || 0)))}
+          placeholder="Enter additional discount (%)"
+          className="flex-1 p-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+          min="0"
+          max="100"
+          step="0.01"
+          style={styles.input}
+        />
+        <button
+          onClick={openNewProductModal}
+          className="h-10 text-white px-4 rounded-lg font-bold shadow bg-green-600 hover:bg-green-700"
+          style={styles.button}
+        >
+          Add New Product
+        </button>
+      </div>
     </div>
     <div className={`overflow-x-auto ${isModal ? "overflow-y-auto max-h-[60vh] pr-2" : ""}`}>
       <table className="w-full border-collapse dark:bg-gray-800 dark:text-gray-100 bg-white shadow rounded-lg mobile:text-xs">
@@ -287,7 +297,8 @@ const FormFields = ({
   closeModal,
   styles,
   modalAdditionalDiscount,
-  setModalAdditionalDiscount
+  setModalAdditionalDiscount,
+  openNewProductModal,
 }) => (
   <div className="space-y-6">
     <div className="flex flex-col items-center mobile:w-full">
@@ -333,6 +344,7 @@ const FormFields = ({
         customers={customers}
         additionalDiscount={modalAdditionalDiscount}
         setAdditionalDiscount={setModalAdditionalDiscount}
+        openNewProductModal={openNewProductModal}
       />
     </QuotationTableErrorBoundary>
     <div className="flex justify-end space-x-3">
@@ -355,6 +367,161 @@ const FormFields = ({
   </div>
 );
 
+// New Product Modal component
+const NewProductModal = ({
+  isOpen,
+  onClose,
+  onSubmit,
+  newProductData,
+  setNewProductData,
+  styles,
+}) => {
+  const handleInputChange = (e) => {
+    const { name, value } = e.target;
+    setNewProductData((prev) => ({
+      ...prev,
+      [name]: name === 'price' || name === 'discount' || name === 'quantity'
+        ? Number.parseFloat(value) || 0
+        : value,
+    }));
+  };
+
+  return (
+    <Modal
+      isOpen={isOpen}
+      onRequestClose={onClose}
+      className="fixed inset-0 flex items-center justify-center p-4"
+      overlayClassName="fixed inset-0 bg-black/50"
+      key="new-product-modal"
+    >
+      <div className="bg-white dark:bg-gray-800 rounded-lg p-6 max-w-lg w-full mobile:p-4">
+        <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100 mb-6 text-center">
+          Add New Product
+        </h2>
+        <div className="space-y-4">
+          <div className="flex flex-col">
+            <label
+              htmlFor="productname"
+              className="text-sm font-semibold text-gray-700 dark:text-gray-100 mb-1"
+            >
+              Product Name *
+            </label>
+            <input
+              id="productname"
+              name="productname"
+              type="text"
+              value={newProductData.productname || ''}
+              onChange={handleInputChange}
+              placeholder="Enter product name"
+              className="p-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              style={styles.input}
+              required
+            />
+          </div>
+          <div className="flex flex-col">
+            <label
+              htmlFor="price"
+              className="text-sm font-semibold text-gray-700 dark:text-gray-100 mb-1"
+            >
+              Price (₹) *
+            </label>
+            <input
+              id="price"
+              name="price"
+              type="number"
+              value={newProductData.price || ''}
+              onChange={handleInputChange}
+              placeholder="Enter price"
+              className="p-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              min="0"
+              step="1"
+              style={styles.input}
+              required
+            />
+          </div>
+          <div className="flex flex-col">
+            <label
+              htmlFor="discount"
+              className="text-sm font-semibold text-gray-700 dark:text-gray-100 mb-1"
+            >
+              Discount (%)
+            </label>
+            <input
+              id="discount"
+              name="discount"
+              type="number"
+              value={newProductData.discount || ''}
+              onChange={handleInputChange}
+              placeholder="Enter discount"
+              className="p-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              min="0"
+              max="100"
+              step="0.01"
+              style={styles.input}
+            />
+          </div>
+          <div className="flex flex-col">
+            <label
+              htmlFor="quantity"
+              className="text-sm font-semibold text-gray-700 dark:text-gray-100 mb-1"
+            >
+              Quantity *
+            </label>
+            <input
+              id="quantity"
+              name="quantity"
+              type="number"
+              value={newProductData.quantity || ''}
+              onChange={handleInputChange}
+              placeholder="Enter quantity"
+              className="p-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              min="1"
+              step="1"
+              style={styles.input}
+              required
+            />
+          </div>
+          <div className="flex flex-col">
+            <label
+              htmlFor="per"
+              className="text-sm font-semibold text-gray-700 dark:text-gray-100 mb-1"
+            >
+              Unit (e.g., Box, Unit)
+            </label>
+            <input
+              id="per"
+              name="per"
+              type="text"
+              value={newProductData.per || ''}
+              onChange={handleInputChange}
+              placeholder="Enter unit (e.g., Box, Unit)"
+              className="p-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              style={styles.input}
+            />
+          </div>
+        </div>
+        <div className="flex justify-end space-x-3 mt-6">
+          <button
+            type="button"
+            onClick={onClose}
+            className="rounded-md bg-gray-600 px-4 py-2 text-sm text-white hover:bg-gray-700"
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            onClick={onSubmit}
+            disabled={!newProductData.productname || !newProductData.price || !newProductData.quantity}
+            className={`rounded-md px-4 py-2 text-sm text-white ${!newProductData.productname || !newProductData.price || !newProductData.quantity ? "bg-gray-400 cursor-not-allowed" : "bg-green-600 hover:bg-green-700"}`}
+          >
+            Add Product
+          </button>
+        </div>
+      </div>
+    </Modal>
+  );
+};
+
 export default function Direct() {
   const [customers, setCustomers] = useState([]);
   const [products, setProducts] = useState([]);
@@ -376,6 +543,15 @@ export default function Direct() {
   const [orderId, setOrderId] = useState("");
   const [additionalDiscount, setAdditionalDiscount] = useState(0);
   const [modalAdditionalDiscount, setModalAdditionalDiscount] = useState(0);
+  const [newProductModalIsOpen, setNewProductModalIsOpen] = useState(false);
+  const [newProductData, setNewProductData] = useState({
+    productname: '',
+    price: 0,
+    discount: 0,
+    quantity: 1,
+    per: '',
+  });
+  const [isModalNewProduct, setIsModalNewProduct] = useState(false);
 
   const styles = {
     input: {
@@ -429,28 +605,49 @@ export default function Direct() {
     return () => clearInterval(intervalId);
   }, []);
 
-  const addToCart = (isModal = false) => {
+  const addToCart = (isModal = false, customProduct = null) => {
     const targetCart = isModal ? modalCart : cart;
     const setTargetCart = isModal ? setModalCart : setCart;
     const targetSelectedProduct = isModal ? modalSelectedProduct : selectedProduct;
     const setTargetSelectedProduct = isModal ? setModalSelectedProduct : setSelectedProduct;
     const targetCustomerId = isModal ? modalSelectedCustomer : selectedCustomer;
 
-    if (!targetSelectedProduct) {
+    if (!customProduct && !targetSelectedProduct) {
       setError("Please select a product");
       return;
     }
 
-    const [id, type] = targetSelectedProduct.value.split("-");
-    const product = products.find((p) => p.id.toString() === id && p.product_type === type);
-
-    if (!product) {
-      setError("Product not found");
-      return;
+    let product;
+    if (customProduct) {
+      product = {
+        ...customProduct,
+        id: `custom-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+        product_type: 'Custom',
+        basePrice: Math.round(Number(customProduct.price)),
+        customPrice: Math.round(Number(customProduct.price)),
+        quantity: Number.parseInt(customProduct.quantity) || 1,
+        discount: Number.parseFloat(customProduct.discount) || 0,
+        per: customProduct.per || 'Unit',
+      };
+    } else {
+      const [id, type] = targetSelectedProduct.value.split("-");
+      product = products.find((p) => p.id.toString() === id && p.product_type === type);
+      if (!product) {
+        setError("Product not found");
+        return;
+      }
+      const customer = customers.find((c) => c.id.toString() === targetCustomerId);
+      const effectivePrice = Math.round(Number(product.dprice || product.price));
+      product = {
+        ...product,
+        basePrice: Math.round(Number(product.price)),
+        dprice: Math.round(Number(product.dprice)),
+        customPrice: effectivePrice,
+        quantity: 1,
+        discount: Number.parseFloat(product.discount) || 0,
+        per: product.per || 'Unit',
+      };
     }
-
-    const customer = customers.find((c) => c.id.toString() === targetCustomerId);
-    const effectivePrice = Math.round(Number(product.dprice));
 
     setTargetCart((prev) => {
       const exists = prev.find((item) => item.id === product.id && item.product_type === product.product_type);
@@ -460,17 +657,7 @@ export default function Direct() {
               ? { ...item, quantity: item.quantity + 1 }
               : item
           )
-        : [
-            ...prev,
-            {
-              ...product,
-              basePrice: Math.round(Number(product.price)),
-              dprice: Math.round(Number(product.dprice)),
-              customPrice: effectivePrice, // Initialize with rounded effective price
-              quantity: 1,
-              discount: Number.parseFloat(product.discount) || 0,
-            },
-          ];
+        : [...prev, product];
     });
     setTargetSelectedProduct(null);
     setError("");
@@ -543,6 +730,48 @@ export default function Direct() {
     return Math.max(0, subtotal - discountAmount);
   };
 
+  const openNewProductModal = (isModal = false) => {
+    setIsModalNewProduct(isModal);
+    setNewProductModalIsOpen(true);
+    setNewProductData({
+      productname: '',
+      price: 0,
+      discount: 0,
+      quantity: 1,
+      per: '',
+    });
+  };
+
+  const closeNewProductModal = () => {
+    setNewProductModalIsOpen(false);
+    setIsModalNewProduct(false);
+    setNewProductData({
+      productname: '',
+      price: 0,
+      discount: 0,
+      quantity: 1,
+      per: '',
+    });
+    setError("");
+  };
+
+  const handleAddNewProduct = () => {
+    if (!newProductData.productname || !newProductData.price || !newProductData.quantity) {
+      setError("Product name, price, and quantity are required");
+      return;
+    }
+    if (newProductData.quantity < 1) {
+      setError("Quantity must be at least 1");
+      return;
+    }
+    if (newProductData.discount < 0 || newProductData.discount > 100) {
+      setError("Discount must be between 0 and 100");
+      return;
+    }
+    addToCart(isModalNewProduct, newProductData);
+    closeNewProductModal();
+  };
+
   const createQuotation = async () => {
     if (!selectedCustomer || !cart.length) return setError("Customer and products are required");
     if (cart.some((item) => item.quantity === 0)) return setError("Please remove products with zero quantity");
@@ -564,6 +793,7 @@ export default function Direct() {
           price: getEffectivePrice(item, selectedCustomer, customers),
           discount: Number.parseFloat(item.discount) || 0,
           quantity: Number.parseInt(item.quantity) || 0,
+          per: item.per || 'Unit',
         })),
         net_rate: Math.round(calculateNetRate(cart)),
         you_save: Math.round(calculateYouSave(cart)),
@@ -640,6 +870,7 @@ export default function Direct() {
                 customPrice: Math.round(Number.parseFloat(p.price) || 0),
                 discount: Number.parseFloat(p.discount) || 0,
                 quantity: Number.parseInt(p.quantity) || 0,
+                per: p.per || 'Unit',
               }))
             : []
         );
@@ -666,6 +897,7 @@ export default function Direct() {
           price: getEffectivePrice(item, modalSelectedCustomer, customers),
           discount: Number.parseFloat(item.discount) || 0,
           quantity: Number.parseInt(item.quantity) || 0,
+          per: item.per || 'Unit',
         })),
         net_rate: Math.round(calculateNetRate(modalCart)),
         you_save: Math.round(calculateYouSave(modalCart)),
@@ -745,188 +977,189 @@ export default function Direct() {
   };
 
   const handleBooking = async () => {
-  if (!quotationId || !selectedCustomer || !cart.length) {
-    return setError("Quotation, customer, and products are required");
-  }
-  if (cart.some((item) => item.quantity <= 0)) {
-    return setError("Please remove products with zero quantity");
-  }
-
-  const customer = customers.find((c) => c.id.toString() === selectedCustomer);
-  if (!customer || !customer.name || !customer.address || !customer.mobile_number || !customer.district || !customer.state) {
-    return setError("Customer data is incomplete");
-  }
-
-  const order_id = `ORD-${Date.now()}`;
-  try {
-    const subtotal = calculateNetRate(cart) - calculateYouSave(cart);
-    const discountAmount = subtotal * (additionalDiscount / 100);
-    const payload = {
-      customer_id: Number(selectedCustomer),
-      order_id,
-      quotation_id: quotationId,
-      products: cart.map((item) => ({
-        id: item.id,
-        product_type: item.product_type || "",
-        productname: item.productname || "",
-        price: getEffectivePrice(item, selectedCustomer, customers) || 0,
-        discount: Number.parseFloat(item.discount) || 0,
-        quantity: Number.parseInt(item.quantity) || 0,
-      })),
-      net_rate: Math.round(calculateNetRate(cart)),
-      you_save: Math.round(calculateYouSave(cart)),
-      total: Math.round(calculateTotal(cart, selectedCustomer, false)),
-      promo_discount: 0,
-      additional_discount: Number.parseFloat(additionalDiscount.toFixed(2)) || 0,
-      customer_type: customer.customer_type || "User",
-      customer_name: customer.name || "",
-      address: customer.address || "",
-      mobile_number: customer.mobile_number || "",
-      email: customer.email || "",
-      district: customer.district || "",
-      state: customer.state || "",
-    };
-
-    console.log("Booking Payload:", payload); // Debug payload
-    const response = await axios.post(`${API_BASE_URL}/api/direct/bookings`, payload);
-    const { order_id: newOrderId } = response.data;
-    setSuccessMessage("Booking created successfully! Check downloads for PDF.");
-    setShowSuccess(true);
-    setTimeout(() => setShowSuccess(false), 3000);
-
-    setQuotations((prev) => prev.map((q) => (q.quotation_id === quotationId ? { ...q, status: "booked" } : q)));
-
-    // Fetch the PDF
-    const pdfResponse = await axios.get(`${API_BASE_URL}/api/direct/invoice/${newOrderId}`, {
-      responseType: "blob",
-    });
-    const url = window.URL.createObjectURL(new Blob([pdfResponse.data]));
-    const link = document.createElement("a");
-    link.href = url;
-    const safeCustomerName = (customer.name || "unknown")
-      .toLowerCase()
-      .replace(/[^a-z0-9]+/g, "_")
-      .replace(/^_+|_+$/g, "");
-    link.setAttribute("download", `${safeCustomerName}-${newOrderId}-invoice.pdf`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    window.URL.revokeObjectURL(url);
-
-    setCart([]);
-    setSelectedCustomer("");
-    setSelectedProduct(null);
-    setQuotationId(null);
-    setIsQuotationCreated(false);
-    setAdditionalDiscount(0);
-  } catch (err) {
-    console.error("Booking Error:", err.response?.data || err.message);
-    setError(`Failed to create booking: ${err.response?.data?.message || err.message}`);
-  }
-};
-
-// Frontend code for convertToBooking (modified)
-
-const convertToBooking = async (quotation = null) => {
-  if (quotation) {
-    setModalMode("book");
-    setModalSelectedCustomer(quotation.customer_id?.toString() || "");
-    setQuotationId(quotation.quotation_id);
-    setOrderId(`ORD-${Date.now()}`);
-    setModalAdditionalDiscount(Number.parseFloat(quotation.additional_discount) || 0);
-    try {
-      const products = typeof quotation.products === "string" ? JSON.parse(quotation.products) : quotation.products;
-      setModalCart(
-        Array.isArray(products)
-          ? products.map((p) => ({
-              ...p,
-              price: Math.round(Number.parseFloat(p.price) || 0),
-              customPrice: Math.round(Number.parseFloat(p.price) || 0),
-              discount: Number.parseFloat(p.discount) || 0,
-              quantity: Number.parseInt(p.quantity) || 0,
-            }))
-          : []
-      );
-    } catch (e) {
-      setModalCart([]);
-      setError("Failed to parse quotation products");
+    if (!quotationId || !selectedCustomer || !cart.length) {
+      return setError("Quotation, customer, and products are required");
     }
-    setModalIsOpen(true);
-    return;
-  }
+    if (cart.some((item) => item.quantity <= 0)) {
+      return setError("Please remove products with zero quantity");
+    }
 
-  if (!modalSelectedCustomer || !modalCart.length || !orderId || !quotationId) {
-    return setError("Customer, products, order ID, and quotation ID are required");
-  }
-  if (modalCart.some((item) => item.quantity <= 0)) {
-    return setError("Please remove products with zero quantity");
-  }
+    const customer = customers.find((c) => c.id.toString() === selectedCustomer);
+    if (!customer || !customer.name || !customer.address || !customer.mobile_number || !customer.district || !customer.state) {
+      return setError("Customer data is incomplete");
+    }
 
-  const customer = customers.find((c) => c.id.toString() === modalSelectedCustomer);
-  if (!customer || !customer.name || !customer.address || !customer.mobile_number || !customer.district || !customer.state) {
-    return setError("Customer data is incomplete");
-  }
+    const order_id = `ORD-${Date.now()}`;
+    try {
+      const subtotal = calculateNetRate(cart) - calculateYouSave(cart);
+      const discountAmount = subtotal * (additionalDiscount / 100);
+      const payload = {
+        customer_id: Number(selectedCustomer),
+        order_id,
+        quotation_id: quotationId,
+        products: cart.map((item) => ({
+          id: item.id,
+          product_type: item.product_type || "",
+          productname: item.productname || "",
+          price: getEffectivePrice(item, selectedCustomer, customers) || 0,
+          discount: Number.parseFloat(item.discount) || 0,
+          quantity: Number.parseInt(item.quantity) || 0,
+          per: item.per || 'Unit',
+        })),
+        net_rate: Math.round(calculateNetRate(cart)),
+        you_save: Math.round(calculateYouSave(cart)),
+        total: Math.round(calculateTotal(cart, selectedCustomer, false)),
+        promo_discount: 0,
+        additional_discount: Number.parseFloat(additionalDiscount.toFixed(2)) || 0,
+        customer_type: customer.customer_type || "User",
+        customer_name: customer.name || "",
+        address: customer.address || "",
+        mobile_number: customer.mobile_number || "",
+        email: customer.email || "",
+        district: customer.district || "",
+        state: customer.state || "",
+      };
 
-  try {
-    const subtotal = calculateNetRate(modalCart) - calculateYouSave(modalCart);
-    const discountAmount = subtotal * (modalAdditionalDiscount / 100);
-    const payload = {
-      customer_id: Number(modalSelectedCustomer),
-      order_id: orderId,
-      quotation_id: quotationId,
-      products: modalCart.map((item) => ({
-        id: item.id,
-        product_type: item.product_type || "",
-        productname: item.productname || "",
-        price: getEffectivePrice(item, modalSelectedCustomer, customers) || 0,
-        discount: Number.parseFloat(item.discount) || 0,
-        quantity: Number.parseInt(item.quantity) || 0,
-      })),
-      net_rate: Math.round(calculateNetRate(modalCart)),
-      you_save: Math.round(calculateYouSave(modalCart)),
-      total: Math.round(calculateTotal(modalCart, modalSelectedCustomer, true)),
-      promo_discount: 0,
-      additional_discount: Number.parseFloat(modalAdditionalDiscount.toFixed(2)) || 0,
-      customer_type: customer.customer_type || "User",
-      customer_name: customer.name || "",
-      address: customer.address || "",
-      mobile_number: customer.mobile_number || "",
-      email: customer.email || "",
-      district: customer.district || "",
-      state: customer.state || "",
-    };
+      console.log("Booking Payload:", payload); // Debug payload
+      const response = await axios.post(`${API_BASE_URL}/api/direct/bookings`, payload);
+      const { order_id: newOrderId } = response.data;
+      setSuccessMessage("Booking created successfully! Check downloads for PDF.");
+      setShowSuccess(true);
+      setTimeout(() => setShowSuccess(false), 3000);
 
-    console.log("Booking Payload:", payload); // Debug payload
-    const response = await axios.post(`${API_BASE_URL}/api/direct/bookings`, payload);
-    const { order_id: newOrderId } = response.data;
-    setSuccessMessage("Booking created successfully! Check downloads for PDF.");
-    setShowSuccess(true);
-    setTimeout(() => setShowSuccess(false), 3000);
+      setQuotations((prev) => prev.map((q) => (q.quotation_id === quotationId ? { ...q, status: "booked" } : q)));
 
-    setQuotations((prev) => prev.map((q) => (q.quotation_id === quotationId ? { ...q, status: "booked" } : q)));
+      // Fetch the PDF
+      const pdfResponse = await axios.get(`${API_BASE_URL}/api/direct/invoice/${newOrderId}`, {
+        responseType: "blob",
+      });
+      const url = window.URL.createObjectURL(new Blob([pdfResponse.data]));
+      const link = document.createElement("a");
+      link.href = url;
+      const safeCustomerName = (customer.name || "unknown")
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, "_")
+        .replace(/^_+|_+$/g, "");
+      link.setAttribute("download", `${safeCustomerName}-${newOrderId}-invoice.pdf`);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
 
-    // Fetch the PDF
-    const pdfResponse = await axios.get(`${API_BASE_URL}/api/direct/invoice/${newOrderId}`, {
-      responseType: "blob",
-    });
-    const url = window.URL.createObjectURL(new Blob([pdfResponse.data]));
-    const link = document.createElement("a");
-    link.href = url;
-    const safeCustomerName = (customer.name || "unknown")
-      .toLowerCase()
-      .replace(/[^a-z0-9]+/g, "_")
-      .replace(/^_+|_+$/g, "");
-    link.setAttribute("download", `${safeCustomerName}-${newOrderId}-invoice.pdf`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    window.URL.revokeObjectURL(url);
-    closeModal();
-  } catch (err) {
-    console.error("Booking Error:", err.response?.data || err.message);
-    setError(`Failed to create booking: ${err.response?.data?.message || err.message}`);
-  }
-};
+      setCart([]);
+      setSelectedCustomer("");
+      setSelectedProduct(null);
+      setQuotationId(null);
+      setIsQuotationCreated(false);
+      setAdditionalDiscount(0);
+    } catch (err) {
+      console.error("Booking Error:", err.response?.data || err.message);
+      setError(`Failed to create booking: ${err.response?.data?.message || err.message}`);
+    }
+  };
+
+  const convertToBooking = async (quotation = null) => {
+    if (quotation) {
+      setModalMode("book");
+      setModalSelectedCustomer(quotation.customer_id?.toString() || "");
+      setQuotationId(quotation.quotation_id);
+      setOrderId(`ORD-${Date.now()}`);
+      setModalAdditionalDiscount(Number.parseFloat(quotation.additional_discount) || 0);
+      try {
+        const products = typeof quotation.products === "string" ? JSON.parse(quotation.products) : quotation.products;
+        setModalCart(
+          Array.isArray(products)
+            ? products.map((p) => ({
+                ...p,
+                price: Math.round(Number.parseFloat(p.price) || 0),
+                customPrice: Math.round(Number.parseFloat(p.price) || 0),
+                discount: Number.parseFloat(p.discount) || 0,
+                quantity: Number.parseInt(p.quantity) || 0,
+                per: p.per || 'Unit',
+              }))
+            : []
+        );
+      } catch (e) {
+        setModalCart([]);
+        setError("Failed to parse quotation products");
+      }
+      setModalIsOpen(true);
+      return;
+    }
+
+    if (!modalSelectedCustomer || !modalCart.length || !orderId || !quotationId) {
+      return setError("Customer, products, order ID, and quotation ID are required");
+    }
+    if (modalCart.some((item) => item.quantity <= 0)) {
+      return setError("Please remove products with zero quantity");
+    }
+
+    const customer = customers.find((c) => c.id.toString() === modalSelectedCustomer);
+    if (!customer || !customer.name || !customer.address || !customer.mobile_number || !customer.district || !customer.state) {
+      return setError("Customer data is incomplete");
+    }
+
+    try {
+      const subtotal = calculateNetRate(modalCart) - calculateYouSave(modalCart);
+      const discountAmount = subtotal * (modalAdditionalDiscount / 100);
+      const payload = {
+        customer_id: Number(modalSelectedCustomer),
+        order_id: orderId,
+        quotation_id: quotationId,
+        products: modalCart.map((item) => ({
+          id: item.id,
+          product_type: item.product_type || "",
+          productname: item.productname || "",
+          price: getEffectivePrice(item, modalSelectedCustomer, customers) || 0,
+          discount: Number.parseFloat(item.discount) || 0,
+          quantity: Number.parseInt(item.quantity) || 0,
+          per: item.per || 'Unit',
+        })),
+        net_rate: Math.round(calculateNetRate(modalCart)),
+        you_save: Math.round(calculateYouSave(modalCart)),
+        total: Math.round(calculateTotal(modalCart, modalSelectedCustomer, true)),
+        promo_discount: 0,
+        additional_discount: Number.parseFloat(modalAdditionalDiscount.toFixed(2)) || 0,
+        customer_type: customer.customer_type || "User",
+        customer_name: customer.name || "",
+        address: customer.address || "",
+        mobile_number: customer.mobile_number || "",
+        email: customer.email || "",
+        district: customer.district || "",
+        state: customer.state || "",
+      };
+
+      console.log("Booking Payload:", payload); // Debug payload
+      const response = await axios.post(`${API_BASE_URL}/api/direct/bookings`, payload);
+      const { order_id: newOrderId } = response.data;
+      setSuccessMessage("Booking created successfully! Check downloads for PDF.");
+      setShowSuccess(true);
+      setTimeout(() => setShowSuccess(false), 3000);
+
+      setQuotations((prev) => prev.map((q) => (q.quotation_id === quotationId ? { ...q, status: "booked" } : q)));
+
+      // Fetch the PDF
+      const pdfResponse = await axios.get(`${API_BASE_URL}/api/direct/invoice/${newOrderId}`, {
+        responseType: "blob",
+      });
+      const url = window.URL.createObjectURL(new Blob([pdfResponse.data]));
+      const link = document.createElement("a");
+      link.href = url;
+      const safeCustomerName = (customer.name || "unknown")
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, "_")
+        .replace(/^_+|_+$/g, "");
+      link.setAttribute("download", `${safeCustomerName}-${newOrderId}-invoice.pdf`);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+      closeModal();
+    } catch (err) {
+      console.error("Booking Error:", err.response?.data || err.message);
+      setError(`Failed to create booking: ${err.response?.data?.message || err.message}`);
+    }
+  };
 
   const renderSelect = (value, onChange, options, label, placeholder, id) => (
     <div className="flex flex-col items-center mobile:w-full">
@@ -1011,6 +1244,7 @@ const convertToBooking = async (quotation = null) => {
                 customers={customers}
                 additionalDiscount={additionalDiscount}
                 setAdditionalDiscount={setAdditionalDiscount}
+                openNewProductModal={() => openNewProductModal(false)}
               />
             </QuotationTableErrorBoundary>
           </div>
@@ -1145,9 +1379,18 @@ const convertToBooking = async (quotation = null) => {
                 styles={styles}
                 modalAdditionalDiscount={modalAdditionalDiscount}
                 setModalAdditionalDiscount={setModalAdditionalDiscount}
+                openNewProductModal={() => openNewProductModal(true)}
               />
             </div>
           </Modal>
+          <NewProductModal
+            isOpen={newProductModalIsOpen}
+            onClose={closeNewProductModal}
+            onSubmit={handleAddNewProduct}
+            newProductData={newProductData}
+            setNewProductData={setNewProductData}
+            styles={styles}
+          />
         </div>
       </div>
     </div>
