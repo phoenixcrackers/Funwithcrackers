@@ -855,97 +855,120 @@ export default function Direct() {
   };
 
   const editQuotation = async (quotation = null) => {
-    if (quotation) {
-      setModalMode("edit");
-      setModalSelectedCustomer(quotation.customer_id?.toString() || "");
-      setQuotationId(quotation.quotation_id);
-      setModalAdditionalDiscount(Number.parseFloat(quotation.additional_discount) || 0);
-      try {
-        const products = typeof quotation.products === "string" ? JSON.parse(quotation.products) : quotation.products;
-        setModalCart(
-          Array.isArray(products)
-            ? products.map((p) => ({
-                ...p,
-                price: Math.round(Number.parseFloat(p.price) || 0),
-                customPrice: Math.round(Number.parseFloat(p.price) || 0),
-                discount: Number.parseFloat(p.discount) || 0,
-                quantity: Number.parseInt(p.quantity) || 0,
-                per: p.per || 'Unit',
-              }))
-            : []
-        );
-      } catch (e) {
-        setModalCart([]);
-        setError("Failed to parse quotation products");
-      }
-      setModalIsOpen(true);
-      return;
-    }
-
-    if (!modalSelectedCustomer || !modalCart.length) return setError("Customer and products are required");
-    if (modalCart.some((item) => item.quantity === 0)) return setError("Please remove products with zero quantity");
-
+  if (quotation) {
+    setModalMode("edit");
+    setModalSelectedCustomer(quotation.customer_id?.toString() || "");
+    setQuotationId(quotation.quotation_id);
+    setModalAdditionalDiscount(Number.parseFloat(quotation.additional_discount) || 0);
     try {
-      const subtotal = calculateNetRate(modalCart) - calculateYouSave(modalCart);
-      const discountAmount = subtotal * (modalAdditionalDiscount / 100);
-      const payload = {
-        customer_id: Number(modalSelectedCustomer),
-        products: modalCart.map((item) => ({
-          id: item.id,
-          product_type: item.product_type,
-          productname: item.productname,
-          price: getEffectivePrice(item, modalSelectedCustomer, customers),
-          discount: Number.parseFloat(item.discount) || 0,
-          quantity: Number.parseInt(item.quantity) || 0,
-          per: item.per || 'Unit',
-        })),
-        net_rate: Math.round(calculateNetRate(modalCart)),
-        you_save: Math.round(calculateYouSave(modalCart)),
-        total: Math.round(calculateTotal(modalCart, modalSelectedCustomer, true)),
-        promo_discount: 0,
-        additional_discount: Number.parseFloat(modalAdditionalDiscount.toFixed(2)),
-        status: "pending",
-      };
-
-      const response = await axios.put(`${API_BASE_URL}/api/direct/quotations/${quotationId}`, payload);
-      setSuccessMessage("Quotation updated successfully! Check downloads for PDF.");
-      setShowSuccess(true);
-      setTimeout(() => setShowSuccess(false), 3000);
-
-      setQuotations((prev) =>
-        prev.map((q) =>
-          q.quotation_id === quotationId
-            ? {
-                ...q,
-                ...payload,
-                customer_name: customers.find((c) => c.id.toString() === modalSelectedCustomer)?.name || "N/A",
-                total: payload.total,
-              }
-            : q
-        )
+      const products = typeof quotation.products === "string" ? JSON.parse(quotation.products) : quotation.products;
+      setModalCart(
+        Array.isArray(products)
+          ? products.map((p) => ({
+              ...p,
+              price: Math.round(Number.parseFloat(p.price) || 0),
+              customPrice: Math.round(Number.parseFloat(p.price) || 0),
+              discount: Number.parseFloat(p.discount) || 0,
+              quantity: Number.parseInt(p.quantity) || 0,
+              per: p.per || 'Unit',
+            }))
+          : []
       );
-
-      const pdfResponse = await axios.get(`${API_BASE_URL}/api/direct/quotation/${response.data.quotation_id}`, {
-        responseType: "blob",
-      });
-      const url = window.URL.createObjectURL(new Blob([pdfResponse.data]));
-      const link = document.createElement("a");
-      link.href = url;
-      const customer = customers.find((c) => c.id.toString() === modalSelectedCustomer);
-      const safeCustomerName = (customer?.name || "unknown")
-        .toLowerCase()
-        .replace(/[^a-z0-9]+/g, "_")
-        .replace(/^_+|_+$/g, "");
-      link.setAttribute("download", `${safeCustomerName}-${response.data.quotation_id}-quotation.pdf`);
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      window.URL.revokeObjectURL(url);
-      closeModal();
-    } catch (err) {
-      setError(`Failed to update quotation: ${err.response?.data?.message || err.message}`);
+    } catch (e) {
+      setModalCart([]);
+      setError("Failed to parse quotation products");
     }
-  };
+    setModalIsOpen(true);
+    return;
+  }
+
+  if (!modalSelectedCustomer || !modalCart.length) {
+    setError("Customer and products are required");
+    return;
+  }
+  if (modalCart.some((item) => item.quantity === 0)) {
+    setError("Please remove products with zero quantity");
+    return;
+  }
+
+  try {
+    const subtotal = calculateNetRate(modalCart) - calculateYouSave(modalCart);
+    const discountAmount = subtotal * (modalAdditionalDiscount / 100);
+    const payload = {
+      customer_id: Number(modalSelectedCustomer),
+      products: modalCart.map((item) => ({
+        id: item.id,
+        product_type: item.product_type,
+        productname: item.productname,
+        price: getEffectivePrice(item, modalSelectedCustomer, customers),
+        discount: Number.parseFloat(item.discount) || 0,
+        quantity: Number.parseInt(item.quantity) || 0,
+        per: item.per || 'Unit',
+      })),
+      net_rate: Math.round(calculateNetRate(modalCart)),
+      you_save: Math.round(calculateYouSave(modalCart)),
+      total: Math.round(calculateTotal(modalCart, modalSelectedCustomer, true)),
+      promo_discount: 0,
+      additional_discount: Number.parseFloat(modalAdditionalDiscount.toFixed(2)),
+      status: "pending",
+    };
+
+    const response = await axios.put(`${API_BASE_URL}/api/direct/quotations/${quotationId}`, payload, {
+      responseType: "blob", // Expect a binary response (PDF)
+    });
+
+    // Handle the PDF response directly
+    const customer = customers.find((c) => c.id.toString() === modalSelectedCustomer);
+    const safeCustomerName = (customer?.name || "unknown")
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "_")
+      .replace(/^_+|_+$/g, "");
+    const url = window.URL.createObjectURL(new Blob([response.data]));
+    const link = document.createElement("a");
+    link.href = url;
+    link.setAttribute("download", `${safeCustomerName}-${quotationId}-quotation.pdf`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    window.URL.revokeObjectURL(url);
+
+    // Update the quotations state
+    setQuotations((prev) =>
+      prev.map((q) =>
+        q.quotation_id === quotationId
+          ? {
+              ...q,
+              ...payload,
+              customer_name: customer?.name || "N/A",
+              total: payload.total,
+            }
+          : q
+      )
+    );
+
+    setSuccessMessage("Quotation updated successfully! Check downloads for PDF.");
+    setShowSuccess(true);
+    setTimeout(() => setShowSuccess(false), 3000);
+
+    closeModal();
+  } catch (err) {
+    console.error("Failed to update quotation:", err.response?.data || err.message);
+    let errorMessage = "Failed to update quotation";
+    if (err.response?.status === 400) {
+      try {
+        // Since response.data is a blob, convert it to JSON if possible
+        const text = await err.response.data.text();
+        const json = JSON.parse(text);
+        errorMessage = json.message || errorMessage;
+      } catch (e) {
+        errorMessage = err.response?.data?.message || err.message;
+      }
+    } else {
+      errorMessage = err.message;
+    }
+    setError(`Failed to update quotation: ${errorMessage}`);
+  }
+};
 
   const cancelQuotation = async (quotationIdToCancel = null) => {
     const targetQuotationId = quotationIdToCancel || quotationId;
