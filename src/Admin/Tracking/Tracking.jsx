@@ -3,6 +3,9 @@ import axios from 'axios';
 import { API_BASE_URL } from '../../../Config';
 import Sidebar from '../Sidebar/Sidebar';
 import Logout from '../Logout';
+import { FaDownload } from 'react-icons/fa';
+import autoTable from 'jspdf-autotable';
+import { jsPDF } from 'jspdf';
 
 export default function Tracking() {
   const [bookings, setBookings] = useState([]);
@@ -102,6 +105,43 @@ export default function Tracking() {
     updateStatus(selectedBookingId, 'paid', { paymentMethod, transactionId });
   };
 
+  const generatePDF = (booking) => {
+      const doc = new jsPDF();
+      doc.setFontSize(22);
+      doc.text('Fun with Crackers', doc.internal.pageSize.width / 2, 20, { align: 'center' });
+      doc.setFontSize(12);
+      const lines = [
+        `Order ID: ${booking.order_id || 'N/A'}`,
+        `Customer Name: ${booking.customer_name || 'N/A'}`,
+        `Contact Number: ${booking.mobile_number || 'N/A'}`,
+        `District: ${booking.district || 'N/A'}`,
+        `State: ${booking.state || 'N/A'}`,
+        `Address: ${booking.address || 'N/A'}`
+      ];
+      let yOffset = 40;
+      lines.forEach(line => {
+        doc.text(line, 20, yOffset);
+        yOffset += 10;
+      });
+      autoTable(doc, {
+        startY: yOffset + 10,
+        head: [['Sl. No', 'Product Type', 'Product Name', 'Price', 'Quantity', 'Per']],
+        body: (booking.products || []).map((product, index) => [
+          index + 1,
+          product.product_type || 'N/A',
+          product.productname || 'N/A',
+          `Rs.${product.price || '0.00'}`,
+          product.quantity || 0,
+          product.per || 'N/A'
+        ])
+      });
+      const finalY = doc.lastAutoTable.finalY + 10;
+      doc.text(`Total: Rs.${booking.total || '0.00'}`, 150, finalY, { align: 'right' });
+      const sanitizedCustomerName = (booking.customer_name || 'order').replace(/[^a-zA-Z0-9]/g, '_');
+      doc.output('dataurlnewwindow');
+      doc.save(`${sanitizedCustomerName}_crackers_order.pdf`);
+    };
+
   const filteredBookings = bookings.filter(booking =>
     ['customer_name', 'order_id', 'total', 'customer_type'].some(key =>
       booking[key].toString().toLowerCase().includes(searchTerm.toLowerCase())
@@ -177,6 +217,13 @@ export default function Tracking() {
                   <p className="text-gray-700 dark:text-gray-300"><strong>District:</strong> {booking.district}</p>
                   <p className="text-gray-700 dark:text-gray-300"><strong>State:</strong> {booking.state}</p>
                   <p className="text-gray-700 dark:text-gray-300"><strong>Status:</strong> {booking.status}</p>
+                  <button
+                    onClick={() => generatePDF(booking)}
+                    className="flex items-center justify-center px-4 py-2 text-sm text-white rounded-lg hover:bg-indigo-700 dark:hover:bg-blue-600 mobile:text-sm"
+                    style={{ background: styles.button.background, backgroundDark: styles.button.backgroundDark, border: styles.button.border, borderDark: styles.button.borderDark, boxShadow: styles.button.boxShadow, boxShadowDark: styles.button.boxShadowDark }}
+                  >
+                    <FaDownload className="mr-2" /> Download Booking
+                  </button>
                   <div className="mt-4">
                     {renderSelect(booking.status, e => handleStatusChange(booking.id, e.target.value), [
                       { value: 'booked', label: 'Booked' },
