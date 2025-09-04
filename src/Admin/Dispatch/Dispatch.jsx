@@ -209,6 +209,12 @@ export default function Dispatch() {
                 <div key={booking.id} className="bg-white dark:bg-gray-900 p-6 rounded-lg shadow-md border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800 mobile:p-4">
                   <div className="text-sm text-gray-600 dark:text-gray-400 mb-2">#{indexOfFirstOrder + index + 1}</div>
                   <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-100 mb-2">{booking.customer_name || 'N/A'}</h3>
+                  <p className="text-gray-700 dark:text-gray-300">
+                    <strong>Contact:</strong>{" "}
+                    <a href={`tel:${booking.mobile_number}`} className="text-blue-600 hover:underline">
+                      {booking.mobile_number}
+                    </a>
+                  </p>
                   <p className="text-gray-700 dark:text-gray-300"><strong>Order ID:</strong> {booking.order_id || 'N/A'}</p>
                   <p className="text-gray-700 dark:text-gray-300"><strong>District:</strong> {booking.district || 'N/A'}</p>
                   <p className="text-gray-700 dark:text-gray-300"><strong>State:</strong> {booking.state || 'N/A'}</p>
