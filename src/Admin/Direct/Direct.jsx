@@ -6,7 +6,6 @@ import '../../App.css';
 import { API_BASE_URL } from '../../../Config';
 import Sidebar from '../Sidebar/Sidebar';
 import Logout from '../Logout';
-import { color } from 'framer-motion';
 
 // Accessibility setup
 Modal.setAppElement("#root");
@@ -37,7 +36,7 @@ const selectStyles = {
   control: (base) => ({
     ...base, padding: "0.25rem", fontSize: "1rem", borderRadius: "0.5rem", background: "#fff",
     borderColor: "#d1d5db", boxShadow: "0 1px 2px rgba(0,0,0,0.1)", "&:hover": { borderColor: "#3b82f6" },
-    "@media (max-width: 640px)": { padding: "0.25rem", fontSize: "0.875rem", color:"#000000" }
+    "@media (max-width: 640px)": { padding: "0.25rem", fontSize: "0.875rem", color: "#000000" }
   }),
   menu: (base) => ({ ...base, zIndex: 20, background: "#fff" }),
   singleValue: (base) => ({ ...base, color: "#1f2937" }),
@@ -102,7 +101,7 @@ const QuotationTable = ({
     updateState({
       [cartKey]: cart.map(item => ({
         ...item,
-        discount: newDiscount,
+        discount: item.product_type === 'net_rate_products' ? item.discount : newDiscount,
       })),
     });
   };
@@ -120,7 +119,7 @@ const QuotationTable = ({
           }))}
           placeholder="Search for a product..."
           isClearable
-          className="mobile:w-full onefifty:w-96 text-black"
+          className="mobile:w-full onefifty:w-96"
           classNamePrefix="react-select"
           styles={selectStyles}
         />
@@ -315,7 +314,7 @@ const FormFields = ({
   setModalChangeDiscount,
   openNewProductModal,
   updateState,
-  modalLastAddedProduct, // Added prop
+  modalLastAddedProduct,
 }) => (
   <div className="space-y-6">
     <div className="flex flex-col items-center mobile:w-full">
@@ -425,12 +424,33 @@ const NewProductModal = ({ isOpen, onClose, onSubmit, newProductData, setNewProd
 
 export default function Direct() {
   const [state, setState] = useState({
-    customers: [], products: [], quotations: [], selectedCustomer: "", cart: [], selectedProduct: null,
-    error: "", loading: true, successMessage: "", showSuccess: false, quotationId: null, isQuotationCreated: false,
-    modalIsOpen: false, modalMode: null, modalCart: [], modalSelectedProduct: null, modalSelectedCustomer: "",
-    orderId: "", additionalDiscount: 0, modalAdditionalDiscount: 0, changeDiscount: 0, modalChangeDiscount: 0,
-    newProductModalIsOpen: false, newProductData: { productname: '', price: 0, discount: 0, quantity: 1, per: '' }, isModalNewProduct: false,
-    lastAddedProduct: null, modalLastAddedProduct: null
+    customers: [],
+    products: [],
+    quotations: [],
+    selectedCustomer: "",
+    cart: [],
+    selectedProduct: null,
+    error: "",
+    loading: true,
+    successMessage: "",
+    showSuccess: false,
+    quotationId: null,
+    isQuotationCreated: false,
+    modalIsOpen: false,
+    modalMode: null,
+    modalCart: [],
+    modalSelectedProduct: null,
+    modalSelectedCustomer: "",
+    orderId: "",
+    additionalDiscount: 0,
+    modalAdditionalDiscount: 0,
+    changeDiscount: 0,
+    modalChangeDiscount: 0,
+    newProductModalIsOpen: false,
+    newProductData: { productname: '', price: 0, discount: 0, quantity: 1, per: '' },
+    isModalNewProduct: false,
+    lastAddedProduct: null,
+    modalLastAddedProduct: null
   });
 
   const updateState = (updates) => setState(prev => ({ ...prev, ...updates }));
@@ -467,12 +487,24 @@ export default function Direct() {
   }, []);
 
   const addToCart = (isModal = false, customProduct = null) => {
-    const { cart, modalCart, selectedProduct, modalSelectedProduct, selectedCustomer, modalSelectedCustomer, products, customers, changeDiscount, modalChangeDiscount } = state;
+    const {
+      cart,
+      modalCart,
+      selectedProduct,
+      modalSelectedProduct,
+      selectedCustomer,
+      modalSelectedCustomer,
+      products,
+      customers,
+      changeDiscount,
+      modalChangeDiscount,
+    } = state;
     const targetCart = isModal ? modalCart : cart;
     const targetSelectedProduct = isModal ? modalSelectedProduct : selectedProduct;
     const targetDiscount = isModal ? modalChangeDiscount : changeDiscount;
 
-    if (!customProduct && !targetSelectedProduct) return updateState({ error: "Please select a product" });
+    if (!customProduct && !targetSelectedProduct)
+      return updateState({ error: "Please select a product" });
 
     let product;
     if (customProduct) {
@@ -484,128 +516,245 @@ export default function Direct() {
         customPrice: Math.round(Number(customProduct.price)),
         quantity: Number.parseInt(customProduct.quantity) || 1,
         discount: Number.parseFloat(customProduct.discount) || targetDiscount,
-        per: customProduct.per || 'Unit'
+        per: customProduct.per || 'Unit',
       };
     } else {
       const [id, type] = targetSelectedProduct.value.split("-");
-      product = products.find(p => p.id.toString() === id && p.product_type === type);
+      product = products.find(
+        (p) => p.id.toString() === id && p.product_type === type
+      );
       if (!product) return updateState({ error: "Product not found" });
-      const customer = customers.find(c => c.id.toString() === (isModal ? modalSelectedCustomer : selectedCustomer));
-      const effectivePrice = Math.round(Number(product.dprice || product.price));
+      const customer = customers.find(
+        (c) => c.id.toString() === (isModal ? modalSelectedCustomer : selectedCustomer)
+      );
+      const effectivePrice = getEffectivePrice(
+        product,
+        isModal ? modalSelectedCustomer : selectedCustomer,
+        customers
+      );
       product = {
         ...product,
         basePrice: Math.round(Number(product.price)),
         dprice: Math.round(Number(product.dprice)),
         customPrice: effectivePrice,
         quantity: 1,
-        discount: targetDiscount,
-        per: product.per || 'Unit'
+        discount: Number.parseFloat(product.discount) || 0, // Use product-specific discount from API
+        per: product.per || 'Unit',
       };
     }
 
     updateState({
-      [isModal ? 'modalCart' : 'cart']: targetCart.find(item => item.id === product.id && item.product_type === product.product_type)
-        ? targetCart.map(item => item.id === product.id && item.product_type === product.product_type ? { ...item, quantity: item.quantity + 1 } : item)
+      [isModal ? 'modalCart' : 'cart']: targetCart.find(
+        (item) => item.id === product.id && item.product_type === product.product_type
+      )
+        ? targetCart.map((item) =>
+            item.id === product.id && item.product_type === product.product_type
+              ? { ...item, quantity: item.quantity + 1 }
+              : item
+          )
         : [...targetCart, product],
       [isModal ? 'modalSelectedProduct' : 'selectedProduct']: null,
-      [isModal ? 'modalLastAddedProduct' : 'lastAddedProduct']: { id: product.id, product_type: product.product_type },
-      error: ""
+      [isModal ? 'modalLastAddedProduct' : 'lastAddedProduct']: {
+        id: product.id,
+        product_type: product.product_type,
+      },
+      error: "",
     });
   };
 
   const updateCartItem = (id, type, key, value, isModal = false) => {
     const cartKey = isModal ? 'modalCart' : 'cart';
     updateState({
-      [cartKey]: state[cartKey].map(item => item.id === id && item.product_type === type ? { ...item, [key]: key === 'customPrice' ? Math.round(value < 0 ? 0 : value) : key === 'discount' ? Math.max(0, Math.min(100, value)) : value < 0 ? 0 : value } : item)
+      [cartKey]: state[cartKey].map(item =>
+        item.id === id && item.product_type === type
+          ? {
+              ...item,
+              [key]:
+                key === 'customPrice'
+                  ? Math.round(value < 0 ? 0 : value)
+                  : key === 'discount'
+                  ? Math.max(0, Math.min(100, value))
+                  : value < 0
+                  ? 0
+                  : value,
+            }
+          : item
+      ),
     });
   };
 
   const removeFromCart = (id, type, isModal = false) => {
     const cartKey = isModal ? 'modalCart' : 'cart';
-    updateState({ [cartKey]: state[cartKey].filter(item => !(item.id === id && item.product_type === type)) });
+    updateState({
+      [cartKey]: state[cartKey].filter(
+        (item) => !(item.id === id && item.product_type === type)
+      ),
+    });
   };
 
   const calculateNetRate = (targetCart = [], customerId) =>
-    targetCart.reduce((total, item) => total + getEffectivePrice(item, customerId, state.customers) * item.quantity, 0);
+    targetCart.reduce(
+      (total, item) =>
+        total + getEffectivePrice(item, customerId, state.customers) * item.quantity,
+      0
+    );
 
   const calculateYouSave = (targetCart = [], customerId) =>
-    targetCart.reduce((total, item) => total + getEffectivePrice(item, customerId, state.customers) * (item.discount / 100) * item.quantity, 0);
+    targetCart.reduce(
+      (total, item) =>
+        total +
+        getEffectivePrice(item, customerId, state.customers) *
+          (item.discount / 100) *
+          item.quantity,
+      0
+    );
 
   const calculateTotal = (targetCart = [], customerId, isModal) => {
     const subtotal = calculateNetRate(targetCart, customerId) - calculateYouSave(targetCart, customerId);
     return Math.max(0, subtotal * (1 - (isModal ? state.modalAdditionalDiscount : state.additionalDiscount) / 100));
   };
 
-  const openNewProductModal = (isModal = false) => updateState({ newProductModalIsOpen: true, isModalNewProduct: isModal, newProductData: { productname: '', price: 0, discount: 0, quantity: 1, per: '' } });
+  const openNewProductModal = (isModal = false) =>
+    updateState({
+      newProductModalIsOpen: true,
+      isModalNewProduct: isModal,
+      newProductData: { productname: '', price: 0, discount: 0, quantity: 1, per: '' },
+    });
 
-  const closeNewProductModal = () => updateState({ newProductModalIsOpen: false, isModalNewProduct: false, newProductData: { productname: '', price: 0, discount: 0, quantity: 1, per: '' }, error: "" });
+  const closeNewProductModal = () =>
+    updateState({
+      newProductModalIsOpen: false,
+      isModalNewProduct: false,
+      newProductData: { productname: '', price: 0, discount: 0, quantity: 1, per: '' },
+      error: "",
+    });
 
   const handleAddNewProduct = () => {
     const { newProductData, isModalNewProduct, modalChangeDiscount, changeDiscount } = state;
-    if (!newProductData.productname || !newProductData.price || !newProductData.quantity) return updateState({ error: "Product name, price, and quantity are required" });
-    if (newProductData.quantity < 1) return updateState({ error: "Quantity must be at least 1" });
-    if (newProductData.discount < 0 || newProductData.discount > 100) return updateState({ error: "Discount must be between 0 and 100" });
+    if (!newProductData.productname || !newProductData.price || !newProductData.quantity)
+      return updateState({ error: "Product name, price, and quantity are required" });
+    if (newProductData.quantity < 1)
+      return updateState({ error: "Quantity must be at least 1" });
+    if (newProductData.discount < 0 || newProductData.discount > 100)
+      return updateState({ error: "Discount must be between 0 and 100" });
     addToCart(isModalNewProduct, {
       ...newProductData,
-      discount: Number.parseFloat(newProductData.discount) || (isModalNewProduct ? modalChangeDiscount : changeDiscount)
+      discount: Number.parseFloat(newProductData.discount) || (isModalNewProduct ? modalChangeDiscount : changeDiscount),
     });
     closeNewProductModal();
   };
 
   const createQuotation = async () => {
     const { selectedCustomer, cart, customers, additionalDiscount } = state;
-    if (!selectedCustomer || !cart.length) return updateState({ error: "Customer and products are required" });
-    if (cart.some(item => item.quantity === 0)) return updateState({ error: "Please remove products with zero quantity" });
+    if (!selectedCustomer || !cart.length)
+      return updateState({ error: "Customer and products are required" });
+    if (cart.some(item => item.quantity === 0))
+      return updateState({ error: "Please remove products with zero quantity" });
     const customer = customers.find(c => c.id.toString() === selectedCustomer);
     if (!customer) return updateState({ error: "Invalid customer" });
 
     const quotation_id = `QUO-${Date.now()}`;
     try {
       const payload = {
-        customer_id: Number(selectedCustomer), quotation_id,
+        customer_id: Number(selectedCustomer),
+        quotation_id,
         products: cart.map(item => ({
-          id: item.id, product_type: item.product_type, productname: item.productname,
-          price: getEffectivePrice(item, selectedCustomer, customers), discount: Number.parseFloat(item.discount) || 0,
-          quantity: Number.parseInt(item.quantity) || 0, per: item.per || 'Unit'
+          id: item.id,
+          product_type: item.product_type,
+          productname: item.productname,
+          price: getEffectivePrice(item, selectedCustomer, customers),
+          discount: Number.parseFloat(item.discount) || 0,
+          quantity: Number.parseInt(item.quantity) || 0,
+          per: item.per || 'Unit',
         })),
-        net_rate: Math.round(calculateNetRate(cart)), you_save: Math.round(calculateYouSave(cart)),
-        total: Math.round(calculateTotal(cart, selectedCustomer, false)), promo_discount: 0,
-        additional_discount: Number.parseFloat(additionalDiscount.toFixed(2)), customer_type: customer.customer_type || "User",
-        customer_name: customer.name, address: customer.address, mobile_number: customer.mobile_number,
-        email: customer.email, district: customer.district, state: customer.state, status: "pending"
+        net_rate: Math.round(calculateNetRate(cart)),
+        you_save: Math.round(calculateYouSave(cart)),
+        total: Math.round(calculateTotal(cart, selectedCustomer, false)),
+        promo_discount: 0,
+        additional_discount: Number.parseFloat(additionalDiscount.toFixed(2)),
+        customer_type: customer.customer_type || "User",
+        customer_name: customer.name,
+        address: customer.address,
+        mobile_number: customer.mobile_number,
+        email: customer.email,
+        district: customer.district,
+        state: customer.state,
+        status: "pending",
       };
 
-      const { data: { quotation_id: newQuotationId } } = await axios.post(`${API_BASE_URL}/api/direct/quotations`, payload);
+      const { data: { quotation_id: newQuotationId } } = await axios.post(
+        `${API_BASE_URL}/api/direct/quotations`,
+        payload
+      );
       updateState({
-        quotationId: newQuotationId, isQuotationCreated: true, successMessage: "Quotation created successfully! Check downloads for PDF.",
-        showSuccess: true, cart: [], selectedCustomer: "", selectedProduct: null, additionalDiscount: 0, changeDiscount: 0,
+        quotationId: newQuotationId,
+        isQuotationCreated: true,
+        successMessage: "Quotation created successfully! Check downloads for PDF.",
+        showSuccess: true,
+        cart: [],
+        selectedCustomer: "",
+        selectedProduct: null,
+        additionalDiscount: 0,
+        changeDiscount: 0,
         lastAddedProduct: null,
-        quotations: [{ ...payload, created_at: new Date().toISOString(), customer_name: customer.name || "N/A", total: payload.total }, ...state.quotations]
+        quotations: [
+          {
+            ...payload,
+            created_at: new Date().toISOString(),
+            customer_name: customer.name || "N/A",
+            total: payload.total,
+          },
+          ...state.quotations,
+        ],
       });
       setTimeout(() => updateState({ showSuccess: false }), 3000);
 
-      const pdfResponse = await axios.get(`${API_BASE_URL}/api/direct/quotation/${newQuotationId}`, { responseType: "blob" });
+      const pdfResponse = await axios.get(
+        `${API_BASE_URL}/api/direct/quotation/${newQuotationId}`,
+        { responseType: "blob" }
+      );
       const url = window.URL.createObjectURL(new Blob([pdfResponse.data]));
       const link = document.createElement("a");
       link.href = url;
-      link.setAttribute("download", `${(customer.name || "unknown").toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "")}-${newQuotationId}-quotation.pdf`);
+      link.setAttribute(
+        "download",
+        `${(customer.name || "unknown")
+          .toLowerCase()
+          .replace(/[^a-z0-9]+/g, "_")
+          .replace(/^_+|_+$/g, "")}-${newQuotationId}-quotation.pdf`
+      );
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
       window.URL.revokeObjectURL(url);
     } catch (err) {
-      updateState({ error: `Failed to create quotation: ${err.response?.data?.message || err.message}` });
+      updateState({
+        error: `Failed to create quotation: ${err.response?.data?.message || err.message}`,
+      });
     }
   };
 
   const editQuotation = async (quotation = null) => {
     if (quotation) {
-      const products = typeof quotation.products === "string" ? JSON.parse(quotation.products) : quotation.products;
-      const averageDiscount = products && products.length > 0
-        ? Number.parseFloat((products.reduce((sum, p) => sum + (Number.parseFloat(p.discount) || 0), 0) / products.length).toFixed(2))
-        : 0;
+      const products =
+        typeof quotation.products === "string"
+          ? JSON.parse(quotation.products)
+          : quotation.products;
+      const averageDiscount =
+        products && products.length > 0
+          ? Number.parseFloat(
+              (
+                products.reduce(
+                  (sum, p) => sum + (Number.parseFloat(p.discount) || 0),
+                  0
+                ) / products.length
+              ).toFixed(2)
+            )
+          : 0;
       updateState({
-        modalMode: "edit", modalSelectedCustomer: quotation.customer_id?.toString() || "", quotationId: quotation.quotation_id,
+        modalMode: "edit",
+        modalSelectedCustomer: quotation.customer_id?.toString() || "",
+        quotationId: quotation.quotation_id,
         modalAdditionalDiscount: Number.parseFloat(quotation.additional_discount) || 0,
         modalChangeDiscount: averageDiscount,
         modalCart: products?.map(p => ({
@@ -614,46 +763,78 @@ export default function Direct() {
           customPrice: Math.round(Number.parseFloat(p.price) || 0),
           discount: Number.parseFloat(p.discount) || averageDiscount,
           quantity: Number.parseInt(p.quantity) || 0,
-          per: p.per || 'Unit'
+          per: p.per || 'Unit',
         })) || [],
-        modalIsOpen: true
+        modalIsOpen: true,
       });
       return;
     }
 
     const { modalSelectedCustomer, modalCart, modalAdditionalDiscount, customers, quotationId } = state;
-    if (!modalSelectedCustomer || !modalCart.length) return updateState({ error: "Customer and products are required" });
-    if (modalCart.some(item => item.quantity === 0)) return updateState({ error: "Please remove products with zero quantity" });
+    if (!modalSelectedCustomer || !modalCart.length)
+      return updateState({ error: "Customer and products are required" });
+    if (modalCart.some(item => item.quantity === 0))
+      return updateState({ error: "Please remove products with zero quantity" });
 
     try {
       const customer = customers.find(c => c.id.toString() === modalSelectedCustomer);
       const payload = {
         customer_id: Number(modalSelectedCustomer),
         products: modalCart.map(item => ({
-          id: item.id, product_type: item.product_type, productname: item.productname,
-          price: getEffectivePrice(item, modalSelectedCustomer, customers), discount: Number.parseFloat(item.discount) || 0,
-          quantity: Number.parseInt(item.quantity) || 0, per: item.per || 'Unit'
+          id: item.id,
+          product_type: item.product_type,
+          productname: item.productname,
+          price: getEffectivePrice(item, modalSelectedCustomer, customers),
+          discount: Number.parseFloat(item.discount) || 0,
+          quantity: Number.parseInt(item.quantity) || 0,
+          per: item.per || 'Unit',
         })),
-        net_rate: Math.round(calculateNetRate(modalCart)), you_save: Math.round(calculateYouSave(modalCart)),
-        total: Math.round(calculateTotal(modalCart, modalSelectedCustomer, true)), promo_discount: 0,
-        additional_discount: Number.parseFloat(modalAdditionalDiscount.toFixed(2)), status: "pending"
+        net_rate: Math.round(calculateNetRate(modalCart)),
+        you_save: Math.round(calculateYouSave(modalCart)),
+        total: Math.round(calculateTotal(modalCart, modalSelectedCustomer, true)),
+        promo_discount: 0,
+        additional_discount: Number.parseFloat(modalAdditionalDiscount.toFixed(2)),
+        status: "pending",
       };
 
-      const response = await axios.put(`${API_BASE_URL}/api/direct/quotations/${quotationId}`, payload, { responseType: "blob" });
+      const response = await axios.put(
+        `${API_BASE_URL}/api/direct/quotations/${quotationId}`,
+        payload,
+        { responseType: "blob" }
+      );
       const url = window.URL.createObjectURL(new Blob([response.data]));
       const link = document.createElement("a");
       link.href = url;
-      link.setAttribute("download", `${(customer?.name || "unknown").toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "")}-${quotationId}-quotation.pdf`);
+      link.setAttribute(
+        "download",
+        `${(customer?.name || "unknown")
+          .toLowerCase()
+          .replace(/[^a-z0-9]+/g, "_")
+          .replace(/^_+|_+$/g, "")}-${quotationId}-quotation.pdf`
+      );
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
       window.URL.revokeObjectURL(url);
 
       updateState({
-        quotations: state.quotations.map(q => q.quotation_id === quotationId ? { ...q, ...payload, customer_name: customer?.name || "N/A", total: payload.total } : q),
-        successMessage: "Quotation updated successfully! Check downloads for PDF.", showSuccess: true, modalIsOpen: false, modalMode: null,
-        modalCart: [], modalSelectedCustomer: "", modalSelectedProduct: null, orderId: "", modalAdditionalDiscount: 0, modalChangeDiscount: 0, modalLastAddedProduct: null,
-        error: ""
+        quotations: state.quotations.map(q =>
+          q.quotation_id === quotationId
+            ? { ...q, ...payload, customer_name: customer?.name || "N/A", total: payload.total }
+            : q
+        ),
+        successMessage: "Quotation updated successfully! Check downloads for PDF.",
+        showSuccess: true,
+        modalIsOpen: false,
+        modalMode: null,
+        modalCart: [],
+        modalSelectedCustomer: "",
+        modalSelectedProduct: null,
+        orderId: "",
+        modalAdditionalDiscount: 0,
+        modalChangeDiscount: 0,
+        modalLastAddedProduct: null,
+        error: "",
       });
       setTimeout(() => updateState({ showSuccess: false }), 3000);
     } catch (err) {
@@ -675,24 +856,54 @@ export default function Direct() {
     try {
       await axios.put(`${API_BASE_URL}/api/direct/quotations/cancel/${targetQuotationId}`);
       updateState({
-        ...(quotationIdToCancel ? {} : { cart: [], selectedCustomer: "", selectedProduct: null, quotationId: null, isQuotationCreated: false, additionalDiscount: 0, changeDiscount: 0, lastAddedProduct: null }),
-        successMessage: "Quotation canceled successfully!", showSuccess: true,
-        quotations: state.quotations.map(q => q.quotation_id === targetQuotationId ? { ...q, status: "cancelled" } : q)
+        ...(quotationIdToCancel
+          ? {}
+          : {
+              cart: [],
+              selectedCustomer: "",
+              selectedProduct: null,
+              quotationId: null,
+              isQuotationCreated: false,
+              additionalDiscount: 0,
+              changeDiscount: 0,
+              lastAddedProduct: null,
+            }),
+        successMessage: "Quotation canceled successfully!",
+        showSuccess: true,
+        quotations: state.quotations.map(q =>
+          q.quotation_id === targetQuotationId ? { ...q, status: "cancelled" } : q
+        ),
       });
       setTimeout(() => updateState({ showSuccess: false }), 3000);
     } catch (err) {
-      updateState({ error: `Failed to cancel quotation: ${err.response?.data?.message || err.message}` });
+      updateState({
+        error: `Failed to cancel quotation: ${err.response?.data?.message || err.message}`,
+      });
     }
   };
 
   const convertToBooking = async (quotation = null) => {
     if (quotation) {
-      const products = typeof quotation.products === "string" ? JSON.parse(quotation.products) : quotation.products;
-      const averageDiscount = products && products.length > 0
-        ? Number.parseFloat((products.reduce((sum, p) => sum + (Number.parseFloat(p.discount) || 0), 0) / products.length).toFixed(2))
-        : 0;
+      const products =
+        typeof quotation.products === "string"
+          ? JSON.parse(quotation.products)
+          : quotation.products;
+      const averageDiscount =
+        products && products.length > 0
+          ? Number.parseFloat(
+              (
+                products.reduce(
+                  (sum, p) => sum + (Number.parseFloat(p.discount) || 0),
+                  0
+                ) / products.length
+              ).toFixed(2)
+            )
+          : 0;
       updateState({
-        modalMode: "book", modalSelectedCustomer: quotation.customer_id?.toString() || "", quotationId: quotation.quotation_id, orderId: `ORD-${Date.now()}`,
+        modalMode: "book",
+        modalSelectedCustomer: quotation.customer_id?.toString() || "",
+        quotationId: quotation.quotation_id,
+        orderId: `ORD-${Date.now()}`,
         modalAdditionalDiscount: Number.parseFloat(quotation.additional_discount) || 0,
         modalChangeDiscount: averageDiscount,
         modalCart: products?.map(p => ({
@@ -701,54 +912,95 @@ export default function Direct() {
           customPrice: Math.round(Number.parseFloat(p.price) || 0),
           discount: Number.parseFloat(p.discount) || averageDiscount,
           quantity: Number.parseInt(p.quantity) || 0,
-          per: p.per || 'Unit'
+          per: p.per || 'Unit',
         })) || [],
-        modalIsOpen: true
+        modalIsOpen: true,
       });
       return;
     }
 
     const { modalSelectedCustomer, modalCart, orderId, quotationId, customers, modalAdditionalDiscount } = state;
-    if (!modalSelectedCustomer || !modalCart.length || !orderId || !quotationId) return updateState({ error: "Customer, products, order ID, and quotation ID are required" });
-    if (modalCart.some(item => item.quantity <= 0)) return updateState({ error: "Please remove products with zero quantity" });
+    if (!modalSelectedCustomer || !modalCart.length || !orderId || !quotationId)
+      return updateState({ error: "Customer, products, order ID, and quotation ID are required" });
+    if (modalCart.some(item => item.quantity <= 0))
+      return updateState({ error: "Please remove products with zero quantity" });
     const customer = customers.find(c => c.id.toString() === modalSelectedCustomer);
-    if (!customer || !customer.name || !customer.address || !customer.mobile_number || !customer.district || !customer.state) return updateState({ error: "Customer data is incomplete" });
+    if (!customer || !customer.name || !customer.address || !customer.mobile_number || !customer.district || !customer.state)
+      return updateState({ error: "Customer data is incomplete" });
 
     try {
       const payload = {
-        customer_id: Number(modalSelectedCustomer), order_id: orderId, quotation_id: quotationId,
+        customer_id: Number(modalSelectedCustomer),
+        order_id: orderId,
+        quotation_id: quotationId,
         products: modalCart.map(item => ({
-          id: item.id, product_type: item.product_type || "", productname: item.productname || "",
-          price: getEffectivePrice(item, modalSelectedCustomer, customers) || 0, discount: Number.parseFloat(item.discount) || 0,
-          quantity: Number.parseInt(item.quantity) || 0, per: item.per || 'Unit'
+          id: item.id,
+          product_type: item.product_type || "",
+          productname: item.productname || "",
+          price: getEffectivePrice(item, modalSelectedCustomer, customers) || 0,
+          discount: Number.parseFloat(item.discount) || 0,
+          quantity: Number.parseInt(item.quantity) || 0,
+          per: item.per || 'Unit',
         })),
-        net_rate: Math.round(calculateNetRate(modalCart)), you_save: Math.round(calculateYouSave(modalCart)),
-        total: Math.round(calculateTotal(modalCart, modalSelectedCustomer, true)), promo_discount: 0,
-        additional_discount: Number.parseFloat(modalAdditionalDiscount.toFixed(2)) || 0, customer_type: customer.customer_type || "User",
-        customer_name: customer.name || "", address: customer.address || "", mobile_number: customer.mobile_number || "",
-        email: customer.email || "", district: customer.district || "", state: customer.state || ""
+        net_rate: Math.round(calculateNetRate(modalCart)),
+        you_save: Math.round(calculateYouSave(modalCart)),
+        total: Math.round(calculateTotal(modalCart, modalSelectedCustomer, true)),
+        promo_discount: 0,
+        additional_discount: Number.parseFloat(modalAdditionalDiscount.toFixed(2)) || 0,
+        customer_type: customer.customer_type || "User",
+        customer_name: customer.name || "",
+        address: customer.address || "",
+        mobile_number: customer.mobile_number || "",
+        email: customer.email || "",
+        district: customer.district || "",
+        state: customer.state || "",
       };
 
-      const { data: { order_id: newOrderId } } = await axios.post(`${API_BASE_URL}/api/direct/bookings`, payload);
-      const pdfResponse = await axios.get(`${API_BASE_URL}/api/direct/invoice/${newOrderId}`, { responseType: "blob" });
+      const { data: { order_id: newOrderId } } = await axios.post(
+        `${API_BASE_URL}/api/direct/bookings`,
+        payload
+      );
+      const pdfResponse = await axios.get(
+        `${API_BASE_URL}/api/direct/invoice/${newOrderId}`,
+        { responseType: "blob" }
+      );
       const url = window.URL.createObjectURL(new Blob([pdfResponse.data]));
       const link = document.createElement("a");
       link.href = url;
-      link.setAttribute("download", `${(customer.name || "unknown").toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "")}-${newOrderId}-invoice.pdf`);
+      link.setAttribute(
+        "download",
+        `${(customer.name || "unknown")
+          .toLowerCase()
+          .replace(/[^a-z0-9]+/g, "_")
+          .replace(/^_+|_+$/g, "")}-${newOrderId}-invoice.pdf`
+      );
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
       window.URL.revokeObjectURL(url);
 
       updateState({
-        quotations: state.quotations.map(q => q.quotation_id === quotationId ? { ...q, status: "booked" } : q),
-        successMessage: "Booking created successfully! Check downloads for PDF.", showSuccess: true,
-        modalIsOpen: false, modalMode: null, modalCart: [], modalSelectedCustomer: "", modalSelectedProduct: null, orderId: "", modalAdditionalDiscount: 0, modalChangeDiscount: 0, modalLastAddedProduct: null,
-        error: ""
+        quotations: state.quotations.map(q =>
+          q.quotation_id === quotationId ? { ...q, status: "booked" } : q
+        ),
+        successMessage: "Booking created successfully! Check downloads for PDF.",
+        showSuccess: true,
+        modalIsOpen: false,
+        modalMode: null,
+        modalCart: [],
+        modalSelectedCustomer: "",
+        modalSelectedProduct: null,
+        orderId: "",
+        modalAdditionalDiscount: 0,
+        modalChangeDiscount: 0,
+        modalLastAddedProduct: null,
+        error: "",
       });
       setTimeout(() => updateState({ showSuccess: false }), 3000);
     } catch (err) {
-      updateState({ error: `Failed to create booking: ${err.response?.data?.message || err.message}` });
+      updateState({
+        error: `Failed to create booking: ${err.response?.data?.message || err.message}`,
+      });
     }
   };
 
@@ -768,7 +1020,32 @@ export default function Direct() {
     </div>
   );
 
-  const { customers, products, quotations, selectedCustomer, cart, selectedProduct, error, loading, successMessage, showSuccess, modalIsOpen, modalMode, modalCart, modalSelectedProduct, modalSelectedCustomer, orderId, additionalDiscount, modalAdditionalDiscount, changeDiscount, modalChangeDiscount, newProductModalIsOpen, newProductData, lastAddedProduct, modalLastAddedProduct } = state;
+  const {
+    customers,
+    products,
+    quotations,
+    selectedCustomer,
+    cart,
+    selectedProduct,
+    error,
+    loading,
+    successMessage,
+    showSuccess,
+    modalIsOpen,
+    modalMode,
+    modalCart,
+    modalSelectedProduct,
+    modalSelectedCustomer,
+    orderId,
+    additionalDiscount,
+    modalAdditionalDiscount,
+    changeDiscount,
+    modalChangeDiscount,
+    newProductModalIsOpen,
+    newProductData,
+    lastAddedProduct,
+    modalLastAddedProduct,
+  } = state;
 
   return (
     <div className="flex min-h-screen dark:bg-gray-800 bg-gray-50 mobile:flex-col">
@@ -778,10 +1055,24 @@ export default function Direct() {
         <div className="w-full max-w-5xl mx-auto">
           <h1 className="text-4xl font-bold mb-8 text-center text-gray-800 mobile:text-2xl dark:text-gray-100">Direct Booking</h1>
           {loading && <div className="text-center text-gray-500">Loading...</div>}
-          {error && <div className="bg-red-100 border border-red-400 text-red-700 px-6 py-3 rounded-lg mb-6 text-center shadow-md mobile:text-sm">{error}</div>}
-          {showSuccess && <div className="bg-green-100 border border-green-400 text-green-700 px-6 py-3 rounded-lg mb-6 text-center shadow-md mobile:text-sm">{successMessage}</div>}
+          {error && (
+            <div className="bg-red-100 border border-red-400 text-red-700 px-6 py-3 rounded-lg mb-6 text-center shadow-md mobile:text-sm">
+              {error}
+            </div>
+          )}
+          {showSuccess && (
+            <div className="bg-green-100 border border-green-400 text-green-700 px-6 py-3 rounded-lg mb-6 text-center shadow-md mobile:text-sm">
+              {successMessage}
+            </div>
+          )}
           <div className="flex flex-wrap gap-6 justify-center mb-8 mobile:flex-col mobile:gap-3">
-            {renderSelect(selectedCustomer, (e) => updateState({ selectedCustomer: e.target.value }), customers, "Customer", "main-customer-select")}
+            {renderSelect(
+              selectedCustomer,
+              (e) => updateState({ selectedCustomer: e.target.value }),
+              customers,
+              "Customer",
+              "main-customer-select"
+            )}
             <QuotationTableErrorBoundary>
               <QuotationTable
                 cart={cart}
@@ -789,9 +1080,15 @@ export default function Direct() {
                 selectedProduct={selectedProduct}
                 setSelectedProduct={(val) => updateState({ selectedProduct: val })}
                 addToCart={addToCart}
-                updateQuantity={(id, type, val, isModal) => updateCartItem(id, type, 'quantity', val, isModal)}
-                updateDiscount={(id, type, val, isModal) => updateCartItem(id, type, 'discount', val, isModal)}
-                updatePrice={(id, type, val, isModal) => updateCartItem(id, type, 'customPrice', val, isModal)}
+                updateQuantity={(id, type, val, isModal) =>
+                  updateCartItem(id, type, 'quantity', val, isModal)
+                }
+                updateDiscount={(id, type, val, isModal) =>
+                  updateCartItem(id, type, 'discount', val, isModal)
+                }
+                updatePrice={(id, type, val, isModal) =>
+                  updateCartItem(id, type, 'customPrice', val, isModal)
+                }
                 removeFromCart={removeFromCart}
                 calculateNetRate={calculateNetRate}
                 calculateYouSave={calculateYouSave}
@@ -814,37 +1111,94 @@ export default function Direct() {
             <button
               onClick={createQuotation}
               disabled={!selectedCustomer || !cart.length}
-              className={`onefifty:w-50 h-10 text-white px-8 rounded-lg font-bold shadow ${!selectedCustomer || !cart.length ? "bg-gray-400 cursor-not-allowed" : "bg-blue-600 hover:bg-blue-700"}`}
+              className={`onefifty:w-50 h-10 text-white px-8 rounded-lg font-bold shadow ${
+                !selectedCustomer || !cart.length
+                  ? "bg-gray-400 cursor-not-allowed"
+                  : "bg-blue-600 hover:bg-blue-700"
+              }`}
               style={styles.button}
             >
               Create Quotation
             </button>
           </div>
           <div className="mt-12">
-            <h2 className="text-2xl font-semibold mb-4 text-center text-gray-800 mobile:text-xl">All Quotations</h2>
+            <h2 className="text-2xl font-semibold mb-4 text-center text-gray-800 mobile:text-xl">
+              All Quotations
+            </h2>
             {quotations.length ? (
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 mobile:gap-4">
                 {quotations.map(q => (
                   <div key={q.quotation_id} className="p-6 rounded-lg shadow-lg" style={styles.card}>
-                    <h3 className="text-lg font-bold mb-2 mobile:text-base text-gray-900">{q.quotation_id}</h3>
+                    <h3 className="text-lg font-bold mb-2 mobile:text-base text-gray-900">
+                      {q.quotation_id}
+                    </h3>
                     {[
                       { label: "Customer", value: q.customer_name || "N/A" },
                       { label: "Total", value: `₹${Math.round(Number.parseFloat(q.total))}` },
-                      q.additional_discount > 0 && { label: "Additional Discount", value: `${Number.parseFloat(q.additional_discount).toFixed(2)}%` },
-                      { label: "Status", value: <span className={`capitalize ${q.status === "pending" ? "text-yellow-600" : q.status === "booked" ? "text-green-600" : "text-red-600"}`}>{q.status}</span> },
-                      { label: "Created At", value: new Date(q.created_at).toLocaleDateString("en-GB", { day: "2-digit", month: "2-digit", year: "numeric" }) }
-                    ].filter(Boolean).map(({ label, value }) => (
-                      <div key={label} className="text-sm mb-1 mobile:text-xs text-gray-900">
-                        <span className="font-semibold">{label}:</span> {value}
-                      </div>
-                    ))}
+                      q.additional_discount > 0 && {
+                        label: "Additional Discount",
+                        value: `${Number.parseFloat(q.additional_discount).toFixed(2)}%`,
+                      },
+                      {
+                        label: "Status",
+                        value: (
+                          <span
+                            className={`capitalize ${
+                              q.status === "pending"
+                                ? "text-yellow-600"
+                                : q.status === "booked"
+                                ? "text-green-600"
+                                : "text-red-600"
+                            }`}
+                          >
+                            {q.status}
+                          </span>
+                        ),
+                      },
+                      {
+                        label: "Created At",
+                        value: new Date(q.created_at).toLocaleDateString("en-GB", {
+                          day: "2-digit",
+                          month: "2-digit",
+                          year: "numeric",
+                        }),
+                      },
+                    ]
+                      .filter(Boolean)
+                      .map(({ label, value }) => (
+                        <div key={label} className="text-sm mb-1 mobile:text-xs text-gray-900">
+                          <span className="font-semibold">{label}:</span> {value}
+                        </div>
+                      ))}
                     <div className="flex gap-2 mobile:flex-col">
                       {[
-                        { onClick: () => editQuotation(q), disabled: q.status !== "pending", className: "bg-yellow-600 hover:bg-yellow-700", text: "Edit" },
-                        { onClick: () => convertToBooking(q), disabled: q.status !== "pending", className: "bg-green-600 hover:bg-green-700", text: "Convert to Booking" },
-                        { onClick: () => cancelQuotation(q.quotation_id), disabled: q.status !== "pending", className: "bg-red-600 hover:bg-red-700", text: "Cancel" }
+                        {
+                          onClick: () => editQuotation(q),
+                          disabled: q.status !== "pending",
+                          className: "bg-yellow-600 hover:bg-yellow-700",
+                          text: "Edit",
+                        },
+                        {
+                          onClick: () => convertToBooking(q),
+                          disabled: q.status !== "pending",
+                          className: "bg-green-600 hover:bg-green-700",
+                          text: "Convert to Booking",
+                        },
+                        {
+                          onClick: () => cancelQuotation(q.quotation_id),
+                          disabled: q.status !== "pending",
+                          className: "bg-red-600 hover:bg-red-700",
+                          text: "Cancel",
+                        },
                       ].map(({ onClick, disabled, className, text }) => (
-                        <button key={text} onClick={onClick} disabled={disabled} className={`flex-1 text-white px-4 py-2 rounded-lg font-bold text-sm ${disabled ? "bg-gray-400 cursor-not-allowed" : className}`}>
+                        <button
+                          key={text}
+                          onClick={onClick}
+                          disabled={disabled}
+                          className={`flex-1 text-white px-4 py-2 rounded-lg font-bold text-sm ${
+                            disabled ? "bg-gray-400 cursor-not-allowed" : className
+                          }`}
+                        >
                           {text}
                         </button>
                       ))}
@@ -853,16 +1207,44 @@ export default function Direct() {
                 ))}
               </div>
             ) : (
-              <div className="p-4 text-center text-gray-500 mobile:p-2 mobile:text-xs">No quotations available</div>
+              <div className="p-4 text-center text-gray-500 mobile:p-2 mobile:text-xs">
+                No quotations available
+              </div>
             )}
           </div>
-          <Modal isOpen={modalIsOpen} onRequestClose={() => updateState({ modalIsOpen: false, modalMode: null, modalCart: [], modalSelectedCustomer: "", modalSelectedProduct: null, orderId: "", modalAdditionalDiscount: 0, modalChangeDiscount: 0, modalLastAddedProduct: null, error: "" })} className="fixed inset-0 flex items-center justify-center p-4" overlayClassName="fixed inset-0 bg-black/50">
+          <Modal
+            isOpen={modalIsOpen}
+            onRequestClose={() =>
+              updateState({
+                modalIsOpen: false,
+                modalMode: null,
+                modalCart: [],
+                modalSelectedCustomer: "",
+                modalSelectedProduct: null,
+                orderId: "",
+                modalAdditionalDiscount: 0,
+                modalChangeDiscount: 0,
+                modalLastAddedProduct: null,
+                error: "",
+              })
+            }
+            className="fixed inset-0 flex items-center justify-center p-4"
+            overlayClassName="fixed inset-0 bg-black/50"
+          >
             <div className="bg-white dark:bg-gray-800 rounded-lg p-6 max-w-4xl w-full mobile:p-4 max-h-[90vh] overflow-y-auto">
-              <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100 mb-6 text-center">{modalMode === "edit" ? "Edit Quotation" : "Convert to Booking"}</h2>
-              {error && <div className="bg-red-100 border border-red-400 text-red-700 px-6 py-3 rounded-lg mb-6 text-center shadow-md mobile:text-sm">{error}</div>}
+              <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100 mb-6 text-center">
+                {modalMode === "edit" ? "Edit Quotation" : "Convert to Booking"}
+              </h2>
+              {error && (
+                <div className="bg-red-100 border border-red-400 text-red-700 px-6 py-3 rounded-lg mb-6 text-center shadow-md mobile:text-sm">
+                  {error}
+                </div>
+              )}
               {modalMode === "book" && (
                 <div className="flex flex-col items-center mobile:w-full mb-6">
-                  <label className="text-lg font-semibold dark:text-gray-100 text-gray-700 mb-2 mobile:text-base">Order ID</label>
+                  <label className="text-lg font-semibold dark:text-gray-100 text-gray-700 mb-2 mobile:text-base">
+                    Order ID
+                  </label>
                   <input
                     type="text"
                     value={orderId}
@@ -883,15 +1265,34 @@ export default function Direct() {
                 modalSelectedProduct={modalSelectedProduct}
                 setModalSelectedProduct={(val) => updateState({ modalSelectedProduct: val })}
                 addToCart={addToCart}
-                updateQuantity={(id, type, val, isModal) => updateCartItem(id, type, 'quantity', val, isModal)}
-                updateDiscount={(id, type, val, isModal) => updateCartItem(id, type, 'discount', val, isModal)}
-                updatePrice={(id, type, val, isModal) => updateCartItem(id, type, 'customPrice', val, isModal)}
+                updateQuantity={(id, type, val, isModal) =>
+                  updateCartItem(id, type, 'quantity', val, isModal)
+                }
+                updateDiscount={(id, type, val, isModal) =>
+                  updateCartItem(id, type, 'discount', val, isModal)
+                }
+                updatePrice={(id, type, val, isModal) =>
+                  updateCartItem(id, type, 'customPrice', val, isModal)
+                }
                 removeFromCart={removeFromCart}
                 calculateNetRate={calculateNetRate}
                 calculateYouSave={calculateYouSave}
                 calculateTotal={calculateTotal}
                 handleSubmit={modalMode === "edit" ? () => editQuotation() : () => convertToBooking()}
-                closeModal={() => updateState({ modalIsOpen: false, modalMode: null, modalCart: [], modalSelectedCustomer: "", modalSelectedProduct: null, orderId: "", modalAdditionalDiscount: 0, modalChangeDiscount: 0, modalLastAddedProduct: null, error: "" })}
+                closeModal={() =>
+                  updateState({
+                    modalIsOpen: false,
+                    modalMode: null,
+                    modalCart: [],
+                    modalSelectedCustomer: "",
+                    modalSelectedProduct: null,
+                    orderId: "",
+                    modalAdditionalDiscount: 0,
+                    modalChangeDiscount: 0,
+                    modalLastAddedProduct: null,
+                    error: "",
+                  })
+                }
                 modalAdditionalDiscount={modalAdditionalDiscount}
                 setModalAdditionalDiscount={(val) => updateState({ modalAdditionalDiscount: val })}
                 modalChangeDiscount={modalChangeDiscount}
