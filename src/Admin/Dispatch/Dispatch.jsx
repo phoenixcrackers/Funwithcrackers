@@ -1,8 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
-import { jsPDF } from 'jspdf';
-import autoTable from 'jspdf-autotable';
 import { FaDownload } from 'react-icons/fa';
+import { toast } from 'react-toastify'; // Added for toast notifications
 import { API_BASE_URL } from '../../../Config';
 import Sidebar from '../Sidebar/Sidebar';
 import Logout from '../Logout';
@@ -106,41 +105,40 @@ export default function Dispatch() {
     setTransportDetails({ transportName: '', lrNumber: '', transportContact: '' });
   };
 
-  const generatePDF = (booking) => {
-    const doc = new jsPDF();
-    doc.setFontSize(22);
-    doc.text('Fun with Crackers', doc.internal.pageSize.width / 2, 20, { align: 'center' });
-    doc.setFontSize(12);
-    const lines = [
-      `Order ID: ${booking.order_id || 'N/A'}`,
-      `Customer Name: ${booking.customer_name || 'N/A'}`,
-      `Contact Number: ${booking.mobile_number || 'N/A'}`,
-      `District: ${booking.district || 'N/A'}`,
-      `State: ${booking.state || 'N/A'}`,
-      `Address: ${booking.address || 'N/A'}`
-    ];
-    let yOffset = 40;
-    lines.forEach(line => {
-      doc.text(line, 20, yOffset);
-      yOffset += 10;
-    });
-    autoTable(doc, {
-      startY: yOffset + 10,
-      head: [['Sl. No', 'Product Type', 'Product Name', 'Price', 'Quantity', 'Per']],
-      body: (booking.products || []).map((product, index) => [
-        index + 1,
-        product.product_type || 'N/A',
-        product.productname || 'N/A',
-        `Rs.${product.price || '0.00'}`,
-        product.quantity || 0,
-        product.per || 'N/A'
-      ])
-    });
-    const finalY = doc.lastAutoTable.finalY + 10;
-    doc.text(`Total: Rs.${booking.total || '0.00'}`, 150, finalY, { align: 'right' });
-    const sanitizedCustomerName = (booking.customer_name || 'order').replace(/[^a-zA-Z0-9]/g, '_');
-    doc.output('dataurlnewwindow');
-    doc.save(`${sanitizedCustomerName}_crackers_order.pdf`);
+  const generatePDF = async (booking) => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/direct/invoice/${booking.order_id}`, {
+        responseType: 'blob'
+      });
+      if (!response.ok) {
+        throw new Error('Failed to fetch PDF');
+      }
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      const safeCustomerName = (booking.customer_name || 'unknown').toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '');
+      link.setAttribute('download', `${safeCustomerName}-${booking.order_id}.pdf`);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+
+      toast.success("Downloaded estimate bill, check downloads", {
+        position: "top-center",
+        autoClose: 5000,
+        hideProgressBar: false,
+        closeOnClick: true,
+        pauseOnHover: true,
+        draggable: true,
+      });
+    } catch (err) {
+      console.error("PDF download error:", err);
+      toast.error("Failed to download PDF. Please try again.", {
+        position: "top-center",
+        autoClose: 5000,
+      });
+    }
   };
 
   const filteredBookings = bookings.filter(booking =>

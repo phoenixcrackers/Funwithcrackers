@@ -4,8 +4,7 @@ import { API_BASE_URL } from '../../../Config';
 import Sidebar from '../Sidebar/Sidebar';
 import Logout from '../Logout';
 import { FaDownload } from 'react-icons/fa';
-import autoTable from 'jspdf-autotable';
-import { jsPDF } from 'jspdf';
+import { toast } from 'react-toastify'; // Assuming you're using react-toastify for notifications
 
 export default function Tracking() {
   const [bookings, setBookings] = useState([]);
@@ -45,7 +44,7 @@ export default function Tracking() {
       const response = await axios.get(`${API_BASE_URL}/api/tracking/bookings`, {
         params: { status: filterStatus || undefined, customerType: filterCustomerType || undefined }
       });
-      const sortedBookings = response.data.sort((a, b) => b.id - a.id); // Sort by id in descending order (latest to oldest)
+      const sortedBookings = response.data.sort((a, b) => b.id - a.id);
       setBookings(sortedBookings);
       setError('');
       if (resetPage) {
@@ -57,8 +56,8 @@ export default function Tracking() {
   };
 
   useEffect(() => {
-    fetchBookings(true); // Initial fetch with page reset
-    const interval = setInterval(() => fetchBookings(false), 100000); // Interval fetch without page reset
+    fetchBookings(true);
+    const interval = setInterval(() => fetchBookings(false), 100000);
     return () => clearInterval(interval);
   }, [filterStatus, filterCustomerType]);
 
@@ -78,7 +77,7 @@ export default function Tracking() {
       setBookings(prev =>
         prev.map(booking =>
           booking.id === id ? { ...booking, status: newStatus, payment_method: paymentDetails?.paymentMethod || null, transaction_id: paymentDetails?.transactionId || null } : booking
-        ).sort((a, b) => b.id - a.id) // Re-sort after update
+        ).sort((a, b) => b.id - a.id)
       );
       setError('');
       setShowPaidModal(false);
@@ -105,42 +104,41 @@ export default function Tracking() {
     updateStatus(selectedBookingId, 'paid', { paymentMethod, transactionId });
   };
 
-  const generatePDF = (booking) => {
-      const doc = new jsPDF();
-      doc.setFontSize(22);
-      doc.text('Fun with Crackers', doc.internal.pageSize.width / 2, 20, { align: 'center' });
-      doc.setFontSize(12);
-      const lines = [
-        `Order ID: ${booking.order_id || 'N/A'}`,
-        `Customer Name: ${booking.customer_name || 'N/A'}`,
-        `Contact Number: ${booking.mobile_number || 'N/A'}`,
-        `District: ${booking.district || 'N/A'}`,
-        `State: ${booking.state || 'N/A'}`,
-        `Address: ${booking.address || 'N/A'}`
-      ];
-      let yOffset = 40;
-      lines.forEach(line => {
-        doc.text(line, 20, yOffset);
-        yOffset += 10;
+  const generatePDF = async (booking) => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/direct/invoice/${booking.order_id}`, {
+        responseType: 'blob'
       });
-      autoTable(doc, {
-        startY: yOffset + 10,
-        head: [['Sl. No', 'Product Type', 'Product Name', 'Price', 'Quantity', 'Per']],
-        body: (booking.products || []).map((product, index) => [
-          index + 1,
-          product.product_type || 'N/A',
-          product.productname || 'N/A',
-          `Rs.${product.price || '0.00'}`,
-          product.quantity || 0,
-          product.per || 'N/A'
-        ])
+      if (!response.ok) {
+        throw new Error('Failed to fetch PDF');
+      }
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      const safeCustomerName = (booking.customer_name || 'unknown').toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '');
+      link.setAttribute('download', `${safeCustomerName}-${booking.order_id}.pdf`);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+
+      toast.success("Downloaded estimate bill, check downloads", {
+        position: "top-center",
+        autoClose: 5000,
+        hideProgressBar: false,
+        closeOnClick: true,
+        pauseOnHover: true,
+        draggable: true,
       });
-      const finalY = doc.lastAutoTable.finalY + 10;
-      doc.text(`Total: Rs.${booking.total || '0.00'}`, 150, finalY, { align: 'right' });
-      const sanitizedCustomerName = (booking.customer_name || 'order').replace(/[^a-zA-Z0-9]/g, '_');
-      doc.output('dataurlnewwindow');
-      doc.save(`${sanitizedCustomerName}_crackers_order.pdf`);
-    };
+    } catch (err) {
+      console.error("PDF download error:", err);
+      toast.error("Failed to download PDF. Please try again.", {
+        position: "top-center",
+        autoClose: 5000,
+      });
+    }
+  };
 
   const filteredBookings = bookings.filter(booking =>
     ['customer_name', 'order_id', 'total', 'customer_type'].some(key =>
