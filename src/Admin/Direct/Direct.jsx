@@ -108,7 +108,7 @@ const QuotationTable = ({
     updateState({
       [cartKey]: cart.map(item => ({
         ...item,
-        discount: item.product_type === 'net' ? newDiscount : item.discount,
+        discount: item.product_type === 'net_rate_products' ? newDiscount : item.discount,
       })),
     });
   };
