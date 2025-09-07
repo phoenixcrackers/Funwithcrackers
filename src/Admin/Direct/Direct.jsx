@@ -606,7 +606,6 @@ export default function Direct() {
       };
     } else {
       const [id, type] = targetSelectedProduct.value.split("-");
-      const productType = type === 'net_rate_products' ? 'net' : type;
       product = products.find(
         (p) => p.id.toString() === id && p.product_type === type
       );
@@ -621,9 +620,9 @@ export default function Direct() {
         dprice: Math.round(Number(product.dprice)),
         customPrice: effectivePrice,
         quantity: 1,
-        discount: productType === 'net' ? targetDiscount : (Number.parseFloat(product.discount) || 0),
+        discount: type === 'net_rate_products' ? targetDiscount : (Number.parseFloat(product.discount) || 0),
         per: product.per || 'Unit',
-        product_type: productType,
+        product_type: type, // Preserve the original product_type from the selected product
       };
     }
 
@@ -865,7 +864,7 @@ export default function Direct() {
             per: p.per || 'Unit',
           };
           if (p.product_type === 'net_rate_products') {
-            mapped.product_type = 'net';
+            mapped.product_type = 'net_rate_products';
             mapped.discount = averageDiscount;
           } else {
             mapped.discount = Number.parseFloat(p.discount) || averageDiscount;
@@ -1030,7 +1029,7 @@ export default function Direct() {
             per: p.per || 'Unit',
           };
           if (p.product_type === 'net_rate_products') {
-            mapped.product_type = 'net';
+            mapped.product_type = 'net_rate_products';
             mapped.discount = averageDiscount;
           } else {
             mapped.discount = Number.parseFloat(p.discount) || averageDiscount;
