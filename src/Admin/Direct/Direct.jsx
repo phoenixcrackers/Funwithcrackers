@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import axios from 'axios';
 import Select from 'react-select';
 import Modal from 'react-modal';
@@ -12,11 +12,18 @@ Modal.setAppElement("#root");
 
 // Helper to calculate effective price
 const getEffectivePrice = (item, customerId, customers = []) => {
-  if (!Array.isArray(customers) || !customerId) return Math.round(Number(item.customPrice || item.price));
+  if (!item || (!Array.isArray(customers) && !customerId)) {
+    console.warn('getEffectivePrice: Invalid input - item or customer data missing', { item, customerId, customers });
+    return 0;
+  }
   const customer = customers.find((c) => c.id.toString() === customerId);
-  return customer?.customer_type === "Customer"
-    ? Math.round(Number(item.customPrice || item.dprice || item.price))
-    : Math.round(Number(item.customPrice || item.price));
+  const price = Math.round(
+    Number(item.customPrice) || Number(item.dprice) || Number(item.price) || 0
+  );
+  if (price === 0) {
+    console.warn('getEffectivePrice: Price is 0 for item', item);
+  }
+  return price;
 };
 
 // Error Boundary
@@ -101,7 +108,7 @@ const QuotationTable = ({
     updateState({
       [cartKey]: cart.map(item => ({
         ...item,
-        discount: item.product_type === 'net_rate_products' ? item.discount : newDiscount,
+        discount: item.product_type === 'net' ? newDiscount : item.discount,
       })),
     });
   };
@@ -181,8 +188,8 @@ const QuotationTable = ({
         <table className="w-full border-collapse shadow rounded-lg mobile:text-xs">
           <thead className="border border-white">
             <tr className="hundred:text-lg mobile:text-sm">
-              {['Product', 'Price', 'Dis (%)', 'Qty', 'Total', 'Actions'].map((header) => (
-                <th key={header} className="text-center border-r border-white text-black dark:text-white mobile:p-1">
+              {['Product', 'Price', 'Dis', 'Qty', 'Total', 'Actions'].map((header) => (
+                <th key={header} className="text-center border-r border-white text-black dark:text-white">
                   {header}
                 </th>
               ))}
@@ -372,16 +379,55 @@ const FormFields = ({
 
 // New Product Modal
 const NewProductModal = ({ isOpen, onClose, onSubmit, newProductData, setNewProductData }) => {
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [localProductData, setLocalProductData] = useState(newProductData);
+  const isMounted = useRef(true);
+
+  useEffect(() => {
+    setLocalProductData(newProductData);
+  }, [newProductData]);
+
   const handleInputChange = (e) => {
     const { name, value } = e.target;
-    setNewProductData(prev => ({
-      ...prev,
-      [name]: ['price', 'discount', 'quantity'].includes(name) ? Number.parseFloat(value) || 0 : value
-    }));
+    const updatedData = {
+      ...localProductData,
+      [name]: ['price', 'discount', 'quantity'].includes(name)
+        ? value === '' ? '' : Number.parseFloat(value) || 0
+        : value,
+    };
+    setLocalProductData(updatedData);
+    if (isMounted.current) {
+      setNewProductData(updatedData);
+    }
+  };
+
+  const handleKeyDown = (e) => {
+  };
+
+  const handleSubmit = async () => {
+    setIsSubmitting(true);
+    try {
+      await onSubmit(localProductData);
+      console.log('NewProductModal: Submission successful');
+      if (isMounted.current) {
+        onClose();
+      }
+    } catch (err) {
+      console.error('NewProductModal: Submission error:', err);
+    } finally {
+      if (isMounted.current) {
+        setIsSubmitting(false);
+      }
+    }
   };
 
   return (
-    <Modal isOpen={isOpen} onRequestClose={onClose} className="fixed inset-0 flex items-center justify-center p-4" overlayClassName="fixed inset-0 bg-black/50">
+    <Modal
+      isOpen={isOpen}
+      onRequestClose={onClose}
+      className="fixed inset-0 flex items-center justify-center p-4"
+      overlayClassName="fixed inset-0 bg-black/50"
+    >
       <div className="bg-white dark:bg-gray-800 rounded-lg p-6 max-w-lg w-full mobile:p-4">
         <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100 mb-6 text-center">Add New Product</h2>
         <div className="space-y-4">
@@ -397,8 +443,9 @@ const NewProductModal = ({ isOpen, onClose, onSubmit, newProductData, setNewProd
               <input
                 name={name}
                 type={type}
-                value={newProductData[name] || ''}
+                value={localProductData[name] || ''}
                 onChange={handleInputChange}
+                onKeyDown={handleKeyDown}
                 placeholder={placeholder}
                 className="p-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                 style={styles.input}
@@ -408,11 +455,17 @@ const NewProductModal = ({ isOpen, onClose, onSubmit, newProductData, setNewProd
           ))}
         </div>
         <div className="flex justify-end space-x-3 mt-6">
-          <button onClick={onClose} className="rounded-md bg-gray-600 px-4 py-2 text-sm text-white hover:bg-gray-700">Cancel</button>
           <button
-            onClick={onSubmit}
-            disabled={!newProductData.productname || !newProductData.price || !newProductData.quantity}
-            className={`rounded-md px-4 py-2 text-sm text-white ${!newProductData.productname || !newProductData.price || !newProductData.quantity ? "bg-gray-400 cursor-not-allowed" : "bg-green-600 hover:bg-green-700"}`}
+            onClick={onClose}
+            disabled={isSubmitting}
+            className={`rounded-md px-4 py-2 text-sm text-white ${isSubmitting ? "bg-gray-400 cursor-not-allowed" : "bg-gray-600 hover:bg-gray-700"}`}
+          >
+            Cancel
+          </button>
+          <button
+            onClick={handleSubmit}
+            disabled={isSubmitting || !localProductData.productname || localProductData.price === '' || localProductData.quantity === ''}
+            className={`rounded-md px-4 py-2 text-sm text-white ${isSubmitting || !localProductData.productname || localProductData.price === '' || localProductData.quantity === '' ? "bg-gray-400 cursor-not-allowed" : "bg-green-600 hover:bg-green-700"}`}
           >
             Add Product
           </button>
@@ -447,46 +500,79 @@ export default function Direct() {
     changeDiscount: 0,
     modalChangeDiscount: 0,
     newProductModalIsOpen: false,
-    newProductData: { productname: '', price: 0, discount: 0, quantity: 1, per: '' },
+    newProductData: { productname: '', price: '', discount: 0, quantity: 1, per: '' },
     isModalNewProduct: false,
     lastAddedProduct: null,
     modalLastAddedProduct: null
   });
 
-  const updateState = (updates) => setState(prev => ({ ...prev, ...updates }));
+  const isMounted = useRef(true);
+
+  const updateState = (updates) => {
+    if (!isMounted.current) return;
+    setState(prev => ({ ...prev, ...updates }));
+  };
 
   useEffect(() => {
+    isMounted.current = true;
+
+    const messageListener = (event) => {
+      console.log('Window message received:', event.data, event.origin);
+    };
+    window.addEventListener('message', messageListener);
+
     const fetchData = async () => {
+      const controller = new AbortController();
       updateState({ loading: true });
       try {
         const [customers, products, quotations] = await Promise.all([
-          axios.get(`${API_BASE_URL}/api/direct/customers`),
-          axios.get(`${API_BASE_URL}/api/direct/aproducts`),
-          axios.get(`${API_BASE_URL}/api/direct/quotations`)
+          axios.get(`${API_BASE_URL}/api/direct/customers`, { signal: controller.signal }),
+          axios.get(`${API_BASE_URL}/api/direct/aproducts`, { signal: controller.signal }),
+          axios.get(`${API_BASE_URL}/api/direct/quotations`, { signal: controller.signal })
         ]);
-        updateState({
-          customers: Array.isArray(customers.data) ? customers.data : [],
-          products: Array.isArray(products.data) ? products.data : [],
-          quotations: Array.isArray(quotations.data) ? quotations.data : [],
-          loading: false
-        });
+        if (isMounted.current) {
+          updateState({
+            customers: Array.isArray(customers.data) ? customers.data : [],
+            products: Array.isArray(products.data) ? products.data : [],
+            quotations: Array.isArray(quotations.data) ? quotations.data : [],
+            loading: false
+          });
+        }
       } catch (err) {
-        updateState({ error: `Failed to fetch data: ${err.message}`, loading: false });
+        if (err.name === 'AbortError') return;
+        console.error('Fetch error:', err);
+        if (isMounted.current) {
+          updateState({ error: `Failed to fetch data: ${err.message}`, loading: false });
+        }
       }
     };
     fetchData();
+
     const intervalId = setInterval(async () => {
+      const controller = new AbortController();
       try {
-        const { data } = await axios.get(`${API_BASE_URL}/api/direct/quotations`);
-        updateState({ quotations: Array.isArray(data) ? data : [] });
+        const { data } = await axios.get(`${API_BASE_URL}/api/direct/quotations`, { signal: controller.signal });
+        if (isMounted.current) {
+          updateState({ quotations: Array.isArray(data) ? data : [] });
+        }
       } catch (err) {
-        updateState({ error: `Failed to fetch quotations: ${err.message}` });
+        if (err.name === 'AbortError') return;
+        console.error('Interval fetch error:', err);
+        if (isMounted.current) {
+          updateState({ error: `Failed to fetch quotations: ${err.message}` });
+        }
       }
     }, 30000);
-    return () => clearInterval(intervalId);
+
+    return () => {
+      isMounted.current = false;
+      clearInterval(intervalId);
+      window.removeEventListener('message', messageListener);
+    };
   }, []);
 
   const addToCart = (isModal = false, customProduct = null) => {
+    console.log('Direct: Adding to cart:', { isModal, customProduct });
     const {
       cart,
       modalCart,
@@ -520,6 +606,7 @@ export default function Direct() {
       };
     } else {
       const [id, type] = targetSelectedProduct.value.split("-");
+      const productType = type === 'net_rate_products' ? 'net' : type;
       product = products.find(
         (p) => p.id.toString() === id && p.product_type === type
       );
@@ -527,19 +614,16 @@ export default function Direct() {
       const customer = customers.find(
         (c) => c.id.toString() === (isModal ? modalSelectedCustomer : selectedCustomer)
       );
-      const effectivePrice = getEffectivePrice(
-        product,
-        isModal ? modalSelectedCustomer : selectedCustomer,
-        customers
-      );
+      const effectivePrice = getEffectivePrice(product, isModal ? modalSelectedCustomer : selectedCustomer, customers);
       product = {
         ...product,
         basePrice: Math.round(Number(product.price)),
         dprice: Math.round(Number(product.dprice)),
         customPrice: effectivePrice,
         quantity: 1,
-        discount: Number.parseFloat(product.discount) || 0, // Use product-specific discount from API
+        discount: productType === 'net' ? targetDiscount : (Number.parseFloat(product.discount) || 0),
         per: product.per || 'Unit',
+        product_type: productType,
       };
     }
 
@@ -614,37 +698,48 @@ export default function Direct() {
     return Math.max(0, subtotal * (1 - (isModal ? state.modalAdditionalDiscount : state.additionalDiscount) / 100));
   };
 
-  const openNewProductModal = (isModal = false) =>
+  const openNewProductModal = (isModal = false) => {
     updateState({
       newProductModalIsOpen: true,
       isModalNewProduct: isModal,
-      newProductData: { productname: '', price: 0, discount: 0, quantity: 1, per: '' },
+      newProductData: { productname: '', price: '', discount: 0, quantity: 1, per: '' },
     });
+  };
 
-  const closeNewProductModal = () =>
+  const closeNewProductModal = () => {
     updateState({
       newProductModalIsOpen: false,
       isModalNewProduct: false,
-      newProductData: { productname: '', price: 0, discount: 0, quantity: 1, per: '' },
+      newProductData: { productname: '', price: '', discount: 0, quantity: 1, per: '' },
       error: "",
     });
-
-  const handleAddNewProduct = () => {
-    const { newProductData, isModalNewProduct, modalChangeDiscount, changeDiscount } = state;
-    if (!newProductData.productname || !newProductData.price || !newProductData.quantity)
-      return updateState({ error: "Product name, price, and quantity are required" });
-    if (newProductData.quantity < 1)
-      return updateState({ error: "Quantity must be at least 1" });
-    if (newProductData.discount < 0 || newProductData.discount > 100)
-      return updateState({ error: "Discount must be between 0 and 100" });
-    addToCart(isModalNewProduct, {
-      ...newProductData,
-      discount: Number.parseFloat(newProductData.discount) || (isModalNewProduct ? modalChangeDiscount : changeDiscount),
-    });
-    closeNewProductModal();
   };
 
+  const handleAddNewProduct = useCallback((productData) => {
+    const { isModalNewProduct, modalChangeDiscount, changeDiscount } = state;
+    if (!productData.productname) {
+      return updateState({ error: "Product name is required" });
+    }
+    if (productData.price === '' || productData.price < 0) {
+      return updateState({ error: "Price must be a non-negative number" });
+    }
+    if (productData.quantity === '' || productData.quantity < 1) {
+      return updateState({ error: "Quantity must be at least 1" });
+    }
+    if (productData.discount < 0 || productData.discount > 100) {
+      return updateState({ error: "Discount must be between 0 and 100" });
+    }
+    addToCart(isModalNewProduct, {
+      ...productData,
+      price: Number.parseFloat(productData.price) || 0,
+      discount: Number.parseFloat(productData.discount) || (isModalNewProduct ? modalChangeDiscount : changeDiscount),
+      quantity: Number.parseInt(productData.quantity) || 1,
+    });
+    closeNewProductModal();
+  }, [state.isModalNewProduct, state.modalChangeDiscount, state.changeDiscount, addToCart, closeNewProductModal]);
+
   const createQuotation = async () => {
+    const controller = new AbortController();
     const { selectedCustomer, cart, customers, additionalDiscount } = state;
     if (!selectedCustomer || !cart.length)
       return updateState({ error: "Customer and products are required" });
@@ -684,7 +779,8 @@ export default function Direct() {
 
       const { data: { quotation_id: newQuotationId } } = await axios.post(
         `${API_BASE_URL}/api/direct/quotations`,
-        payload
+        payload,
+        { signal: controller.signal }
       );
       updateState({
         quotationId: newQuotationId,
@@ -711,7 +807,7 @@ export default function Direct() {
 
       const pdfResponse = await axios.get(
         `${API_BASE_URL}/api/direct/quotation/${newQuotationId}`,
-        { responseType: "blob" }
+        { responseType: "blob", signal: controller.signal }
       );
       const url = window.URL.createObjectURL(new Blob([pdfResponse.data]));
       const link = document.createElement("a");
@@ -728,10 +824,13 @@ export default function Direct() {
       document.body.removeChild(link);
       window.URL.revokeObjectURL(url);
     } catch (err) {
+      if (err.name === 'AbortError') return;
+      console.error('Create quotation error:', err);
       updateState({
         error: `Failed to create quotation: ${err.response?.data?.message || err.message}`,
       });
     }
+    return () => controller.abort();
   };
 
   const editQuotation = async (quotation = null) => {
@@ -757,19 +856,28 @@ export default function Direct() {
         quotationId: quotation.quotation_id,
         modalAdditionalDiscount: Number.parseFloat(quotation.additional_discount) || 0,
         modalChangeDiscount: averageDiscount,
-        modalCart: products?.map(p => ({
-          ...p,
-          price: Math.round(Number.parseFloat(p.price) || 0),
-          customPrice: Math.round(Number.parseFloat(p.price) || 0),
-          discount: Number.parseFloat(p.discount) || averageDiscount,
-          quantity: Number.parseInt(p.quantity) || 0,
-          per: p.per || 'Unit',
-        })) || [],
+        modalCart: products?.map(p => {
+          const mapped = {
+            ...p,
+            price: Math.round(Number.parseFloat(p.price) || 0),
+            customPrice: Math.round(Number.parseFloat(p.price) || 0),
+            quantity: Number.parseInt(p.quantity) || 0,
+            per: p.per || 'Unit',
+          };
+          if (p.product_type === 'net_rate_products') {
+            mapped.product_type = 'net';
+            mapped.discount = averageDiscount;
+          } else {
+            mapped.discount = Number.parseFloat(p.discount) || averageDiscount;
+          }
+          return mapped;
+        }) || [],
         modalIsOpen: true,
       });
       return;
     }
 
+    const controller = new AbortController();
     const { modalSelectedCustomer, modalCart, modalAdditionalDiscount, customers, quotationId } = state;
     if (!modalSelectedCustomer || !modalCart.length)
       return updateState({ error: "Customer and products are required" });
@@ -800,7 +908,7 @@ export default function Direct() {
       const response = await axios.put(
         `${API_BASE_URL}/api/direct/quotations/${quotationId}`,
         payload,
-        { responseType: "blob" }
+        { responseType: "blob", signal: controller.signal }
       );
       const url = window.URL.createObjectURL(new Blob([response.data]));
       const link = document.createElement("a");
@@ -838,6 +946,8 @@ export default function Direct() {
       });
       setTimeout(() => updateState({ showSuccess: false }), 3000);
     } catch (err) {
+      if (err.name === 'AbortError') return;
+      console.error('Edit quotation error:', err);
       let errorMessage = "Failed to update quotation";
       if (err.response?.status === 400) {
         try {
@@ -847,14 +957,16 @@ export default function Direct() {
       }
       updateState({ error: `Failed to update quotation: ${errorMessage}` });
     }
+    return () => controller.abort();
   };
 
   const cancelQuotation = async (quotationIdToCancel = null) => {
+    const controller = new AbortController();
     const { quotationId, customers, selectedCustomer, cart, selectedProduct, additionalDiscount, changeDiscount } = state;
     const targetQuotationId = quotationIdToCancel || quotationId;
     if (!targetQuotationId) return updateState({ error: "No quotation to cancel" });
     try {
-      await axios.put(`${API_BASE_URL}/api/direct/quotations/cancel/${targetQuotationId}`);
+      await axios.put(`${API_BASE_URL}/api/direct/quotations/cancel/${targetQuotationId}`, {}, { signal: controller.signal });
       updateState({
         ...(quotationIdToCancel
           ? {}
@@ -876,10 +988,13 @@ export default function Direct() {
       });
       setTimeout(() => updateState({ showSuccess: false }), 3000);
     } catch (err) {
+      if (err.name === 'AbortError') return;
+      console.error('Cancel quotation error:', err);
       updateState({
         error: `Failed to cancel quotation: ${err.response?.data?.message || err.message}`,
       });
     }
+    return () => controller.abort();
   };
 
   const convertToBooking = async (quotation = null) => {
@@ -906,19 +1021,28 @@ export default function Direct() {
         orderId: `ORD-${Date.now()}`,
         modalAdditionalDiscount: Number.parseFloat(quotation.additional_discount) || 0,
         modalChangeDiscount: averageDiscount,
-        modalCart: products?.map(p => ({
-          ...p,
-          price: Math.round(Number.parseFloat(p.price) || 0),
-          customPrice: Math.round(Number.parseFloat(p.price) || 0),
-          discount: Number.parseFloat(p.discount) || averageDiscount,
-          quantity: Number.parseInt(p.quantity) || 0,
-          per: p.per || 'Unit',
-        })) || [],
+        modalCart: products?.map(p => {
+          const mapped = {
+            ...p,
+            price: Math.round(Number.parseFloat(p.price) || 0),
+            customPrice: Math.round(Number.parseFloat(p.price) || 0),
+            quantity: Number.parseInt(p.quantity) || 0,
+            per: p.per || 'Unit',
+          };
+          if (p.product_type === 'net_rate_products') {
+            mapped.product_type = 'net';
+            mapped.discount = averageDiscount;
+          } else {
+            mapped.discount = Number.parseFloat(p.discount) || averageDiscount;
+          }
+          return mapped;
+        }) || [],
         modalIsOpen: true,
       });
       return;
     }
 
+    const controller = new AbortController();
     const { modalSelectedCustomer, modalCart, orderId, quotationId, customers, modalAdditionalDiscount } = state;
     if (!modalSelectedCustomer || !modalCart.length || !orderId || !quotationId)
       return updateState({ error: "Customer, products, order ID, and quotation ID are required" });
@@ -935,9 +1059,9 @@ export default function Direct() {
         quotation_id: quotationId,
         products: modalCart.map(item => ({
           id: item.id,
-          product_type: item.product_type || "",
-          productname: item.productname || "",
-          price: getEffectivePrice(item, modalSelectedCustomer, customers) || 0,
+          product_type: item.product_type,
+          productname: item.productname,
+          price: getEffectivePrice(item, modalSelectedCustomer, customers),
           discount: Number.parseFloat(item.discount) || 0,
           quantity: Number.parseInt(item.quantity) || 0,
           per: item.per || 'Unit',
@@ -946,23 +1070,24 @@ export default function Direct() {
         you_save: Math.round(calculateYouSave(modalCart)),
         total: Math.round(calculateTotal(modalCart, modalSelectedCustomer, true)),
         promo_discount: 0,
-        additional_discount: Number.parseFloat(modalAdditionalDiscount.toFixed(2)) || 0,
+        additional_discount: Number.parseFloat(modalAdditionalDiscount.toFixed(2)),
         customer_type: customer.customer_type || "User",
-        customer_name: customer.name || "",
-        address: customer.address || "",
-        mobile_number: customer.mobile_number || "",
-        email: customer.email || "",
-        district: customer.district || "",
-        state: customer.state || "",
+        customer_name: customer.name,
+        address: customer.address,
+        mobile_number: customer.mobile_number,
+        email: customer.email,
+        district: customer.district,
+        state: customer.state,
       };
 
       const { data: { order_id: newOrderId } } = await axios.post(
         `${API_BASE_URL}/api/direct/bookings`,
-        payload
+        payload,
+        { signal: controller.signal }
       );
       const pdfResponse = await axios.get(
         `${API_BASE_URL}/api/direct/invoice/${newOrderId}`,
-        { responseType: "blob" }
+        { responseType: "blob", signal: controller.signal }
       );
       const url = window.URL.createObjectURL(new Blob([pdfResponse.data]));
       const link = document.createElement("a");
@@ -998,10 +1123,13 @@ export default function Direct() {
       });
       setTimeout(() => updateState({ showSuccess: false }), 3000);
     } catch (err) {
+      if (err.name === 'AbortError') return;
+      console.error('Convert to booking error:', err);
       updateState({
         error: `Failed to create booking: ${err.response?.data?.message || err.message}`,
       });
     }
+    return () => controller.abort();
   };
 
   const renderSelect = (value, onChange, options, label, id) => (
