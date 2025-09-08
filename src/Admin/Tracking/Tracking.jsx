@@ -4,7 +4,7 @@ import { API_BASE_URL } from '../../../Config';
 import Sidebar from '../Sidebar/Sidebar';
 import Logout from '../Logout';
 import { FaDownload } from 'react-icons/fa';
-import { toast } from 'react-toastify'; // Assuming you're using react-toastify for notifications
+import { toast } from 'react-toastify';
 
 export default function Tracking() {
   const [bookings, setBookings] = useState([]);
@@ -18,6 +18,7 @@ export default function Tracking() {
   const [selectedBookingId, setSelectedBookingId] = useState(null);
   const [paymentMethod, setPaymentMethod] = useState('cash');
   const [transactionId, setTransactionId] = useState('');
+  const [amountPaid, setAmountPaid] = useState('');
   const ordersPerPage = 9;
 
   const styles = {
@@ -72,11 +73,23 @@ export default function Tracking() {
 
   const updateStatus = async (id, newStatus, paymentDetails = null) => {
     try {
-      const payload = { status: newStatus, ...paymentDetails };
+      const payload = { 
+        status: newStatus, 
+        payment_method: paymentDetails?.paymentMethod || null, 
+        transaction_id: paymentDetails?.transactionId || null, 
+        amount_paid: paymentDetails?.amountPaid || null 
+      };
+      console.log('Request Payload:', payload);
       await axios.put(`${API_BASE_URL}/api/tracking/bookings/${id}/status`, payload);
       setBookings(prev =>
         prev.map(booking =>
-          booking.id === id ? { ...booking, status: newStatus, payment_method: paymentDetails?.paymentMethod || null, transaction_id: paymentDetails?.transactionId || null } : booking
+          booking.id === id ? { 
+            ...booking, 
+            status: newStatus, 
+            payment_method: paymentDetails?.paymentMethod || null, 
+            transaction_id: paymentDetails?.transactionId || null,
+            amount_paid: paymentDetails?.amountPaid || null 
+          } : booking
         ).sort((a, b) => b.id - a.id)
       );
       setError('');
@@ -84,12 +97,17 @@ export default function Tracking() {
       setShowDetailsModal(false);
       setPaymentMethod('cash');
       setTransactionId('');
+      setAmountPaid('');
     } catch (err) {
+      console.error('Error Response:', err.response?.data);
       setError(err.response?.data?.message || 'Failed to update status');
     }
   };
 
-  const handleProceed = () => updateStatus(selectedBookingId, 'paid');
+  const handleProceed = () => {
+    setShowPaidModal(false);
+    setShowDetailsModal(true);
+  };
 
   const handleFillDetails = () => {
     setShowPaidModal(false);
@@ -97,11 +115,19 @@ export default function Tracking() {
   };
 
   const handleDetailsSubmit = () => {
+    if (!amountPaid.trim() || isNaN(amountPaid) || Number(amountPaid) <= 0) {
+      setError('Please enter a valid amount paid');
+      return;
+    }
     if (paymentMethod === 'bank' && !transactionId.trim()) {
       setError('Transaction ID is required for bank transactions');
       return;
     }
-    updateStatus(selectedBookingId, 'paid', { paymentMethod, transactionId });
+    updateStatus(selectedBookingId, 'paid', { 
+      paymentMethod, 
+      transactionId, 
+      amountPaid: Number(amountPaid)
+    });
   };
 
   const generatePDF = async (booking) => {
@@ -215,6 +241,13 @@ export default function Tracking() {
                   <p className="text-gray-700 dark:text-gray-300"><strong>District:</strong> {booking.district}</p>
                   <p className="text-gray-700 dark:text-gray-300"><strong>State:</strong> {booking.state}</p>
                   <p className="text-gray-700 dark:text-gray-300"><strong>Status:</strong> {booking.status}</p>
+                  <p className="text-gray-700 dark:text-gray-300"><strong>Amount Paid:</strong> {booking.amount_paid ? `Rs.${booking.amount_paid}` : 'N/A'}</p>
+                  {booking.payment_method && (
+                    <p className="text-gray-700 dark:text-gray-300"><strong>Payment Method:</strong> {booking.payment_method}</p>
+                  )}
+                  {booking.transaction_id && (
+                    <p className="text-gray-700 dark:text-gray-300"><strong>Transaction ID:</strong> {booking.transaction_id}</p>
+                  )}
                   <button
                     onClick={() => generatePDF(booking)}
                     className="flex items-center justify-center px-4 py-2 text-sm text-white rounded-lg hover:bg-indigo-700 dark:hover:bg-blue-600 mobile:text-sm"
@@ -270,15 +303,8 @@ export default function Tracking() {
             <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
               <div className="bg-white dark:bg-gray-900 p-6 rounded-lg shadow-lg w-96 border border-gray-200 dark:border-gray-700">
                 <h2 className="text-xl font-semibold text-gray-800 dark:text-gray-100 mb-4">Update Status to Paid</h2>
-                <p className="text-gray-700 dark:text-gray-300 mb-4">Do you want to proceed with the default payment or fill in payment details?</p>
+                <p className="text-gray-700 dark:text-gray-300 mb-4">Please fill in the payment details.</p>
                 <div className="flex justify-end space-x-4">
-                  <button
-                    onClick={handleProceed}
-                    className="px-4 py-2 rounded-lg text-white hover:bg-indigo-700 dark:hover:bg-blue-600 mobile:px-2 mobile:py-1 mobile:text-sm"
-                    style={{ background: styles.button.background, backgroundDark: styles.button.backgroundDark, border: styles.button.border, borderDark: styles.button.borderDark, boxShadow: styles.button.boxShadow, boxShadowDark: styles.button.boxShadowDark }}
-                  >
-                    Proceed
-                  </button>
                   <button
                     onClick={handleFillDetails}
                     className="px-4 py-2 rounded-lg text-white hover:bg-green-700 dark:hover:bg-green-600 mobile:px-2 mobile:py-1 mobile:text-sm"
@@ -306,6 +332,17 @@ export default function Tracking() {
                     { value: 'cash', label: 'Cash' },
                     { value: 'bank', label: 'Bank Transaction' }
                   ], 'Select Payment Method')}
+                </div>
+                <div className="mb-4">
+                  <label className="block text-gray-700 dark:text-gray-300 mb-2">Amount Paid</label>
+                  <input
+                    type="number"
+                    value={amountPaid}
+                    onChange={e => setAmountPaid(e.target.value)}
+                    placeholder="Enter amount paid"
+                    className="w-full p-2 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-900 border-gray-300 dark:border-gray-600 focus:outline-none focus:ring-2 focus:ring-indigo-600 dark:focus:ring-blue-500 mobile:text-sm"
+                    style={{ background: styles.input.background, backgroundDark: styles.input.backgroundDark, border: styles.input.border, borderDark: styles.input.borderDark, backdropFilter: styles.input.backdropFilter }}
+                  />
                 </div>
                 {paymentMethod === 'bank' && (
                   <div className="mb-4">

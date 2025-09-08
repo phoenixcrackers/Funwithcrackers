@@ -58,26 +58,15 @@ export default function Report() {
     const orderDetails = [
       ['Order ID', booking.order_id || 'N/A', 'Customer Name', booking.customer_name || 'N/A'],
       ['Phone', booking.mobile_number || 'N/A', 'District', booking.district || 'N/A'],
-      ['State', booking.state || 'N/A', 'Date', formatDate(booking.created_at)]
+      ['State', booking.state || 'N/A', 'Date', formatDate(booking.created_at)],
+      ['Payment Method', booking.payment_method || 'N/A', 'Amount Paid', booking.amount_paid ? `Rs.${booking.amount_paid}` : 'N/A'],
+      ['Transaction ID', booking.transaction_id || 'N/A', '', '']
     ];
     autoTable(doc, {
       startY: 40,
       body: orderDetails,
       columnStyles: { 0: { cellWidth: 50 }, 1: { cellWidth: 50 }, 2: { cellWidth: 50 }, 3: { cellWidth: 50 } },
       styles: { fontSize: 12 }
-    });
-    autoTable(doc, {
-      startY: doc.lastAutoTable.finalY + 10,
-      head: [['Sl. No', 'Serial No', 'Product Type', 'Product Name', 'Price', 'Quantity', 'Per']],
-      body: (booking.products || []).map((product, index) => [
-        index + 1,
-        product.serial_number || 'N/A',
-        product.product_type || 'N/A',
-        product.productname || 'N/A',
-        `Rs.${product.price || '0.00'}`,
-        product.quantity || 0,
-        product.per || 'N/A'
-      ])
     });
     const finalY = doc.lastAutoTable.finalY + 10;
     doc.text(`Total: Rs.${booking.total || '0.00'}`, 150, finalY, { align: 'right' });
@@ -97,9 +86,9 @@ export default function Report() {
       'Date': new Date(b.created_at).toLocaleDateString('en-GB'),
       'Address': b.address || '',
       'Total Amount': b.total || '',
-      'Products': (b.products || []).map(p =>
-        `${p.productname} (x${p.quantity}) - Rs.${p.price} [${p.product_type}]`
-      ).join('\n')
+      'Payment Method': b.payment_method || '',
+      'Amount Paid': b.amount_paid ? `Rs.${b.amount_paid}` : '',
+      'Transaction ID': b.transaction_id || ''
     }));
     const worksheet = XLSX.utils.json_to_sheet(data);
     const workbook = XLSX.utils.book_new();
@@ -166,6 +155,11 @@ export default function Report() {
                     <p className="text-gray-700 dark:text-gray-300"><span className="font-medium">State:</span> {booking.state || 'N/A'}</p>
                     <p className="text-gray-700 dark:text-gray-300"><span className="font-medium">Status:</span> {booking.status || 'N/A'}</p>
                     <p className="text-gray-700 dark:text-gray-300"><span className="font-medium">Date:</span> {formatDate(booking.created_at)}</p>
+                    <p className="text-gray-700 dark:text-gray-300"><span className="font-medium">Payment Method:</span> {booking.payment_method || 'N/A'}</p>
+                    <p className="text-gray-700 dark:text-gray-300"><span className="font-medium">Amount Paid:</span> {booking.amount_paid ? `Rs.${booking.amount_paid}` : 'N/A'}</p>
+                    {booking.transaction_id && (
+                      <p className="text-gray-700 dark:text-gray-300"><span className="font-medium">Transaction ID:</span> {booking.transaction_id}</p>
+                    )}
                   </div>
                 </div>
               ))
