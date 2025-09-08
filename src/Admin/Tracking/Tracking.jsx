@@ -131,40 +131,40 @@ export default function Tracking() {
   };
 
   const generatePDF = async (booking) => {
-    try {
-      const response = await fetch(`${API_BASE_URL}/api/direct/invoice/${booking.order_id}`, {
-        responseType: 'blob'
-      });
-      if (!response.ok) {
-        throw new Error('Failed to fetch PDF');
+      try {
+        const response = await fetch(`${API_BASE_URL}/api/direct/invoice/${booking.order_id}`, {
+          responseType: 'blob'
+        });
+        if (!response.ok) {
+          throw new Error('Failed to fetch PDF');
+        }
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        const safeCustomerName = (booking.customer_name || 'unknown').toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '');
+        link.setAttribute('download', `${safeCustomerName}-${booking.order_id}.pdf`);
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        window.URL.revokeObjectURL(url);
+  
+        toast.success("Downloaded estimate bill, check downloads", {
+          position: "top-center",
+          autoClose: 5000,
+          hideProgressBar: false,
+          closeOnClick: true,
+          pauseOnHover: true,
+          draggable: true,
+        });
+      } catch (err) {
+        console.error("PDF download error:", err);
+        toast.error("Failed to download PDF. Please try again.", {
+          position: "top-center",
+          autoClose: 5000,
+        });
       }
-      const blob = await response.blob();
-      const url = window.URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      const safeCustomerName = (booking.customer_name || 'unknown').toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '');
-      link.setAttribute('download', `${safeCustomerName}-${booking.order_id}.pdf`);
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      window.URL.revokeObjectURL(url);
-
-      toast.success("Downloaded estimate bill, check downloads", {
-        position: "top-center",
-        autoClose: 5000,
-        hideProgressBar: false,
-        closeOnClick: true,
-        pauseOnHover: true,
-        draggable: true,
-      });
-    } catch (err) {
-      console.error("PDF download error:", err);
-      toast.error("Failed to download PDF. Please try again.", {
-        position: "top-center",
-        autoClose: 5000,
-      });
-    }
-  };
+    };
 
   const filteredBookings = bookings.filter(booking =>
     ['customer_name', 'order_id', 'total', 'customer_type'].some(key =>
