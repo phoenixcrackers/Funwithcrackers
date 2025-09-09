@@ -581,7 +581,8 @@ const Pricelist = () => {
         "Matches",
         "Guns and Caps",
         "Sparklers",
-        "Gift Boxes"
+        "Gift Boxes",
+        "Combo Pack"
       ];
 
       orderedTypes.forEach(type => {
@@ -1053,7 +1054,8 @@ const Pricelist = () => {
       "Matches",
       "Guns and Caps",
       "Sparklers",
-      "Gift Boxes"
+      "Gift Boxes",
+      "Combo Pack"
     ];
     const availableTypes = [...new Set(products
       .filter(p => p.product_type !== "gift_box_dealers")
@@ -1080,7 +1082,8 @@ const Pricelist = () => {
       "Matches",
       "Guns and Caps",
       "Sparklers",
-      "Gift Boxes"
+      "Gift Boxes",
+      "Combo Pack"
     ];
     const result = products
       .filter(p => p.product_type !== "gift_box_dealers" &&
