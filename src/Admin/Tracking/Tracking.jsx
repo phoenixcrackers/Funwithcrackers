@@ -3,7 +3,7 @@ import axios from 'axios';
 import { API_BASE_URL } from '../../../Config';
 import Sidebar from '../Sidebar/Sidebar';
 import Logout from '../Logout';
-import { FaDownload } from 'react-icons/fa';
+import { FaDownload, FaTrash } from 'react-icons/fa';
 import { toast } from 'react-toastify';
 
 export default function Tracking() {
@@ -15,7 +15,9 @@ export default function Tracking() {
   const [currentPage, setCurrentPage] = useState(1);
   const [showPaidModal, setShowPaidModal] = useState(false);
   const [showDetailsModal, setShowDetailsModal] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [selectedBookingId, setSelectedBookingId] = useState(null);
+  const [selectedOrderId, setSelectedOrderId] = useState(null);
   const [paymentMethod, setPaymentMethod] = useState('cash');
   const [transactionId, setTransactionId] = useState('');
   const [amountPaid, setAmountPaid] = useState('');
@@ -104,6 +106,27 @@ export default function Tracking() {
     }
   };
 
+  const handleDeleteBooking = async () => {
+    try {
+      await axios.delete(`${API_BASE_URL}/api/tracking/bookings/${selectedOrderId}`);
+      setBookings(prev => prev.filter(booking => booking.order_id !== selectedOrderId));
+      setShowDeleteModal(false);
+      setError('');
+      toast.success("Booking deleted successfully", {
+        position: "top-center",
+        autoClose: 5000,
+        hideProgressBar: false,
+        closeOnClick: true,
+        pauseOnHover: true,
+        draggable: true,
+      });
+    } catch (err) {
+      console.error('Error Response:', err.response?.data);
+      setError(err.response?.data?.message || 'Failed to delete booking');
+      setShowDeleteModal(false);
+    }
+  };
+
   const handleProceed = () => {
     setShowPaidModal(false);
     setShowDetailsModal(true);
@@ -131,40 +154,40 @@ export default function Tracking() {
   };
 
   const generatePDF = async (booking) => {
-      try {
-        const response = await fetch(`${API_BASE_URL}/api/direct/invoice/${booking.order_id}`, {
-          responseType: 'blob'
-        });
-        if (!response.ok) {
-          throw new Error('Failed to fetch PDF');
-        }
-        const blob = await response.blob();
-        const url = window.URL.createObjectURL(blob);
-        const link = document.createElement('a');
-        link.href = url;
-        const safeCustomerName = (booking.customer_name || 'unknown').toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '');
-        link.setAttribute('download', `${safeCustomerName}-${booking.order_id}.pdf`);
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        window.URL.revokeObjectURL(url);
-  
-        toast.success("Downloaded estimate bill, check downloads", {
-          position: "top-center",
-          autoClose: 5000,
-          hideProgressBar: false,
-          closeOnClick: true,
-          pauseOnHover: true,
-          draggable: true,
-        });
-      } catch (err) {
-        console.error("PDF download error:", err);
-        toast.error("Failed to download PDF. Please try again.", {
-          position: "top-center",
-          autoClose: 5000,
-        });
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/direct/invoice/${booking.order_id}`, {
+        responseType: 'blob'
+      });
+      if (!response.ok) {
+        throw new Error('Failed to fetch PDF');
       }
-    };
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      const safeCustomerName = (booking.customer_name || 'unknown').toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '');
+      link.setAttribute('download', `${safeCustomerName}-${booking.order_id}.pdf`);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+
+      toast.success("Downloaded estimate bill, check downloads", {
+        position: "top-center",
+        autoClose: 5000,
+        hideProgressBar: false,
+        closeOnClick: true,
+        pauseOnHover: true,
+        draggable: true,
+      });
+    } catch (err) {
+      console.error("PDF download error:", err);
+      toast.error("Failed to download PDF. Please try again.", {
+        position: "top-center",
+        autoClose: 5000,
+      });
+    }
+  };
 
   const filteredBookings = bookings.filter(booking =>
     ['customer_name', 'order_id', 'total', 'customer_type'].some(key =>
@@ -248,13 +271,32 @@ export default function Tracking() {
                   {booking.transaction_id && (
                     <p className="text-gray-700 dark:text-gray-300"><strong>Transaction ID:</strong> {booking.transaction_id}</p>
                   )}
-                  <button
-                    onClick={() => generatePDF(booking)}
-                    className="flex items-center justify-center px-4 py-2 text-sm text-white rounded-lg hover:bg-indigo-700 dark:hover:bg-blue-600 mobile:text-sm"
-                    style={{ background: styles.button.background, backgroundDark: styles.button.backgroundDark, border: styles.button.border, borderDark: styles.button.borderDark, boxShadow: styles.button.boxShadow, boxShadowDark: styles.button.boxShadowDark }}
-                  >
-                    <FaDownload className="mr-2" /> Download Booking
-                  </button>
+                  <div className="flex gap-2 mt-2">
+                    <button
+                      onClick={() => generatePDF(booking)}
+                      className="flex items-center justify-center px-4 py-2 text-sm text-white rounded-lg hover:bg-indigo-700 dark:hover:bg-blue-600 mobile:text-sm"
+                      style={{ background: styles.button.background, backgroundDark: styles.button.backgroundDark, border: styles.button.border, borderDark: styles.button.borderDark, boxShadow: styles.button.boxShadow, boxShadowDark: styles.button.boxShadowDark }}
+                    >
+                      <FaDownload className="mr-2" /> Download
+                    </button>
+                    <button
+                      onClick={() => {
+                        setSelectedOrderId(booking.order_id);
+                        setShowDeleteModal(true);
+                      }}
+                      className="flex items-center justify-center px-4 py-2 text-sm text-white rounded-lg hover:bg-red-700 dark:hover:bg-red-600 mobile:text-sm"
+                      style={{ 
+                        background: "linear-gradient(135deg, rgba(220,38,38,0.9), rgba(239,68,68,0.95))", 
+                        backgroundDark: "linear-gradient(135deg, rgba(185,28,28,0.9), rgba(220,38,38,0.95))",
+                        border: "1px solid rgba(252,165,165,0.4)", 
+                        borderDark: "1px solid rgba(252,165,165,0.4)",
+                        boxShadow: "0 15px 35px rgba(220,38,38,0.3), inset 0 1px 0 rgba(255,255,255,0.2)",
+                        boxShadowDark: "0 15px 35px rgba(185,28,28,0.4), inset 0 1px 0 rgba(255,255,255,0.1)"
+                      }}
+                    >
+                      <FaTrash className="mr-2" /> Delete Booking
+                    </button>
+                  </div>
                   <div className="mt-4">
                     {renderSelect(booking.status, e => handleStatusChange(booking.id, e.target.value), [
                       { value: 'booked', label: 'Booked' },
@@ -367,6 +409,38 @@ export default function Tracking() {
                   </button>
                   <button
                     onClick={() => setShowDetailsModal(false)}
+                    className="px-4 py-2 rounded-lg bg-gray-300 dark:bg-gray-700 text-gray-700 dark:text-gray-100 hover:bg-gray-400 dark:hover:bg-gray-600 mobile:px-2 mobile:py-1 mobile:text-sm"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+          {showDeleteModal && (
+            <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+              <div className="bg-white dark:bg-gray-900 p-6 rounded-lg shadow-lg w-96 border border-gray-200 dark:border-gray-700">
+                <h2 className="text-xl font-semibold text-gray-800 dark:text-gray-100 mb-4">Confirm Delete</h2>
+                <p className="text-gray-700 dark:text-gray-300 mb-4">
+                  Are you sure you want to delete this booking and its associated quotation (if any)?
+                </p>
+                <div className="flex justify-end space-x-4">
+                  <button
+                    onClick={handleDeleteBooking}
+                    className="px-4 py-2 rounded-lg text-white hover:bg-red-700 dark:hover:bg-red-600 mobile:px-2 mobile:py-1 mobile:text-sm"
+                    style={{ 
+                      background: "linear-gradient(135deg, rgba(220,38,38,0.9), rgba(239,68,68,0.95))", 
+                      backgroundDark: "linear-gradient(135deg, rgba(185,28,28,0.9), rgba(220,38,38,0.95))",
+                      border: "1px solid rgba(252,165,165,0.4)", 
+                      borderDark: "1px solid rgba(252,165,165,0.4)",
+                      boxShadow: "0 15px 35px rgba(220,38,38,0.3), inset 0 1px 0 rgba(255,255,255,0.2)",
+                      boxShadowDark: "0 15px 35px rgba(185,28,28,0.4), inset 0 1px 0 rgba(255,255,255,0.1)"
+                    }}
+                  >
+                    Delete
+                  </button>
+                  <button
+                    onClick={() => setShowDeleteModal(false)}
                     className="px-4 py-2 rounded-lg bg-gray-300 dark:bg-gray-700 text-gray-700 dark:text-gray-100 hover:bg-gray-400 dark:hover:bg-gray-600 mobile:px-2 mobile:py-1 mobile:text-sm"
                   >
                     Cancel

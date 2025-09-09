@@ -106,10 +106,17 @@ const QuotationTable = ({
     setChangeDiscount(newDiscount);
     const cartKey = isModal ? 'modalCart' : 'cart';
     updateState({
-      [cartKey]: cart.map(item => ({
-        ...item,
-        discount: item.product_type === 'net_rate_products' ? newDiscount : item.discount,
-      })),
+      [cartKey]: cart.map(item => {
+        // Find the original product from the products array
+        const originalProduct = products.find(p => p.id.toString() === item.id && p.product_type === item.product_type);
+        // Only update discount if product type is not 'net_rate_products' and initial discount is not 0
+        const shouldUpdateDiscount = item.product_type !== 'net_rate_products' && 
+                                   (!originalProduct || Number(originalProduct.discount) !== 0);
+        return {
+          ...item,
+          discount: shouldUpdateDiscount ? newDiscount : item.discount
+        };
+      }),
     });
   };
 
@@ -620,9 +627,9 @@ export default function Direct() {
         dprice: Math.round(Number(product.dprice)),
         customPrice: effectivePrice,
         quantity: 1,
-        discount: type === 'net_rate_products' ? targetDiscount : (Number.parseFloat(product.discount) || 0),
+        discount: Number.parseFloat(product.discount) || 0,
         per: product.per || 'Unit',
-        product_type: type, // Preserve the original product_type from the selected product
+        product_type: type,
       };
     }
 
@@ -838,39 +845,21 @@ export default function Direct() {
         typeof quotation.products === "string"
           ? JSON.parse(quotation.products)
           : quotation.products;
-      const averageDiscount =
-        products && products.length > 0
-          ? Number.parseFloat(
-              (
-                products.reduce(
-                  (sum, p) => sum + (Number.parseFloat(p.discount) || 0),
-                  0
-                ) / products.length
-              ).toFixed(2)
-            )
-          : 0;
       updateState({
         modalMode: "edit",
         modalSelectedCustomer: quotation.customer_id?.toString() || "",
         quotationId: quotation.quotation_id,
         modalAdditionalDiscount: Number.parseFloat(quotation.additional_discount) || 0,
-        modalChangeDiscount: averageDiscount,
-        modalCart: products?.map(p => {
-          const mapped = {
-            ...p,
-            price: Math.round(Number.parseFloat(p.price) || 0),
-            customPrice: Math.round(Number.parseFloat(p.price) || 0),
-            quantity: Number.parseInt(p.quantity) || 0,
-            per: p.per || 'Unit',
-          };
-          if (p.product_type === 'net_rate_products') {
-            mapped.product_type = 'net_rate_products';
-            mapped.discount = averageDiscount;
-          } else {
-            mapped.discount = Number.parseFloat(p.discount) || averageDiscount;
-          }
-          return mapped;
-        }) || [],
+        modalChangeDiscount: 0,
+        modalCart: products?.map(p => ({
+          ...p,
+          price: Math.round(Number(p.price) || 0),
+          customPrice: Math.round(Number(p.price) || 0),
+          quantity: Number(p.quantity) || 0,
+          discount: Number(p.discount) || 0,
+          per: p.per || 'Unit',
+          product_type: p.product_type,
+        })) || [],
         modalIsOpen: true,
       });
       return;
@@ -1002,40 +991,22 @@ export default function Direct() {
         typeof quotation.products === "string"
           ? JSON.parse(quotation.products)
           : quotation.products;
-      const averageDiscount =
-        products && products.length > 0
-          ? Number.parseFloat(
-              (
-                products.reduce(
-                  (sum, p) => sum + (Number.parseFloat(p.discount) || 0),
-                  0
-                ) / products.length
-              ).toFixed(2)
-            )
-          : 0;
       updateState({
         modalMode: "book",
         modalSelectedCustomer: quotation.customer_id?.toString() || "",
         quotationId: quotation.quotation_id,
         orderId: `ORD-${Date.now()}`,
         modalAdditionalDiscount: Number.parseFloat(quotation.additional_discount) || 0,
-        modalChangeDiscount: averageDiscount,
-        modalCart: products?.map(p => {
-          const mapped = {
-            ...p,
-            price: Math.round(Number.parseFloat(p.price) || 0),
-            customPrice: Math.round(Number.parseFloat(p.price) || 0),
-            quantity: Number.parseInt(p.quantity) || 0,
-            per: p.per || 'Unit',
-          };
-          if (p.product_type === 'net_rate_products') {
-            mapped.product_type = 'net_rate_products';
-            mapped.discount = averageDiscount;
-          } else {
-            mapped.discount = Number.parseFloat(p.discount) || averageDiscount;
-          }
-          return mapped;
-        }) || [],
+        modalChangeDiscount: 0,
+        modalCart: products?.map(p => ({
+          ...p,
+          price: Math.round(Number(p.price) || 0),
+          customPrice: Math.round(Number(p.price) || 0),
+          quantity: Number(p.quantity) || 0,
+          discount: Number(p.discount) || 0,
+          per: p.per || 'Unit',
+          product_type: p.product_type,
+        })) || [],
         modalIsOpen: true,
       });
       return;
