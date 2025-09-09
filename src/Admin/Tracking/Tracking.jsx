@@ -75,31 +75,53 @@ export default function Tracking() {
 
   const updateStatus = async (id, newStatus, paymentDetails = null) => {
     try {
-      const payload = { 
-        status: newStatus, 
-        payment_method: paymentDetails?.paymentMethod || null, 
-        transaction_id: paymentDetails?.transactionId || null, 
-        amount_paid: paymentDetails?.amountPaid || null 
-      };
-      console.log('Request Payload:', payload);
+      // Prepare the payload for the API request
+      const payload = { status: newStatus };
+
+      // Only include payment details when explicitly provided (e.g., when setting status to 'paid')
+      if (paymentDetails) {
+        payload.payment_method = paymentDetails.paymentMethod;
+        payload.transaction_id = paymentDetails.transactionId || null;
+        payload.amount_paid = paymentDetails.amountPaid;
+      }
+
+      console.log('Sending Payload to Backend:', payload);
       await axios.put(`${API_BASE_URL}/api/tracking/bookings/${id}/status`, payload);
-      setBookings(prev =>
-        prev.map(booking =>
-          booking.id === id ? { 
-            ...booking, 
-            status: newStatus, 
-            payment_method: paymentDetails?.paymentMethod || null, 
-            transaction_id: paymentDetails?.transactionId || null,
-            amount_paid: paymentDetails?.amountPaid || null 
-          } : booking
-        ).sort((a, b) => b.id - a.id)
+
+      // Update the local state without clearing payment details unless explicitly set
+      setBookings((prev) =>
+        prev
+          .map((booking) =>
+            booking.id === id
+              ? {
+                  ...booking,
+                  status: newStatus,
+                  // Only update payment details if provided
+                  ...(paymentDetails && {
+                    payment_method: paymentDetails.paymentMethod || booking.payment_method,
+                    transaction_id: paymentDetails.transactionId || booking.transaction_id,
+                    amount_paid: paymentDetails.amountPaid || booking.amount_paid,
+                  }),
+                }
+              : booking
+          )
+          .sort((a, b) => b.id - a.id)
       );
+
       setError('');
       setShowPaidModal(false);
       setShowDetailsModal(false);
       setPaymentMethod('cash');
       setTransactionId('');
       setAmountPaid('');
+      toast.success("Status updated successfully", {
+        position: "top-center",
+        autoClose: 5000,
+        hideProgressBar: false,
+        closeOnClick: true,
+        pauseOnHover: true,
+        draggable: true,
+      });
     } catch (err) {
       console.error('Error Response:', err.response?.data);
       setError(err.response?.data?.message || 'Failed to update status');
@@ -109,7 +131,7 @@ export default function Tracking() {
   const handleDeleteBooking = async () => {
     try {
       await axios.delete(`${API_BASE_URL}/api/tracking/bookings/${selectedOrderId}`);
-      setBookings(prev => prev.filter(booking => booking.order_id !== selectedOrderId));
+      setBookings((prev) => prev.filter((booking) => booking.order_id !== selectedOrderId));
       setShowDeleteModal(false);
       setError('');
       toast.success("Booking deleted successfully", {
@@ -125,11 +147,6 @@ export default function Tracking() {
       setError(err.response?.data?.message || 'Failed to delete booking');
       setShowDeleteModal(false);
     }
-  };
-
-  const handleProceed = () => {
-    setShowPaidModal(false);
-    setShowDetailsModal(true);
   };
 
   const handleFillDetails = () => {
@@ -148,7 +165,7 @@ export default function Tracking() {
     }
     updateStatus(selectedBookingId, 'paid', { 
       paymentMethod, 
-      transactionId, 
+      transactionId: paymentMethod === 'bank' ? transactionId : null, 
       amountPaid: Number(amountPaid)
     });
   };
@@ -189,11 +206,17 @@ export default function Tracking() {
     }
   };
 
-  const filteredBookings = bookings.filter(booking =>
-    ['customer_name', 'order_id', 'total', 'customer_type'].some(key =>
+  const filteredBookings = bookings.filter((booking) =>
+    ['customer_name', 'order_id', 'total', 'customer_type'].some((key) =>
       booking[key].toString().toLowerCase().includes(searchTerm.toLowerCase())
     )
   );
+  const formatDate = (dateStr) => {
+    if (!dateStr) return 'N/A';
+    const date = new Date(dateStr);
+    if (isNaN(date)) return 'N/A';
+    return `${String(date.getDate()).padStart(2, '0')}-${String(date.getMonth() + 1).padStart(2, '0')}-${date.getFullYear()}`;
+  };
 
   const indexOfLastOrder = currentPage * ordersPerPage;
   const indexOfFirstOrder = indexOfLastOrder - ordersPerPage;
@@ -208,7 +231,11 @@ export default function Tracking() {
       style={{ background: styles.input.background, backgroundDark: styles.input.backgroundDark, border: styles.input.border, borderDark: styles.input.borderDark, backdropFilter: styles.input.backdropFilter }}
     >
       <option value="">{placeholder}</option>
-      {options.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
+      {options.map((opt) => (
+        <option key={opt.value} value={opt.value}>
+          {opt.label}
+        </option>
+      ))}
     </select>
   );
 
@@ -225,14 +252,11 @@ export default function Tracking() {
             </div>
           )}
           <div className="mb-6 flex justify-center flex-wrap gap-4 mobile:gap-2">
-            {renderSelect(filterStatus, e => setFilterStatus(e.target.value), [
+            {renderSelect(filterStatus, (e) => setFilterStatus(e.target.value), [
               { value: 'booked', label: 'Booked' },
               { value: 'paid', label: 'Paid' },
-              { value: 'packed', label: 'Packed' },
-              { value: 'dispatched', label: 'Dispatched' },
-              { value: 'delivered', label: 'Delivered' }
             ], 'All Statuses')}
-            {renderSelect(filterCustomerType, e => setFilterCustomerType(e.target.value), [
+            {renderSelect(filterCustomerType, (e) => setFilterCustomerType(e.target.value), [
               { value: 'Customer', label: 'Customer' },
               { value: 'Agent', label: 'Agent' },
               { value: 'Customer of Selected Agent', label: 'Customer of Selected Agent' },
@@ -242,7 +266,7 @@ export default function Tracking() {
               type="text"
               placeholder="Search name, order ID, total, type..."
               value={searchTerm}
-              onChange={e => setSearchTerm(e.target.value)}
+              onChange={(e) => setSearchTerm(e.target.value)}
               className="w-96 p-3 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-900 border-gray-300 dark:border-gray-600 focus:outline-none focus:ring-2 focus:ring-indigo-600 dark:focus:ring-blue-500 mobile:w-full mobile:p-2 mobile:text-sm"
               style={{ background: styles.input.background, backgroundDark: styles.input.backgroundDark, border: styles.input.border, borderDark: styles.input.borderDark, backdropFilter: styles.input.backdropFilter }}
             />
@@ -250,7 +274,10 @@ export default function Tracking() {
           <div className="grid mobile:grid-cols-1 onefifty:grid-cols-2 hundred:grid-cols-3 gap-6 mobile:gap-4">
             {currentOrders.length > 0 ? (
               currentOrders.map((booking, index) => (
-                <div key={booking.id} className="bg-white dark:bg-gray-900 p-6 rounded-lg shadow-md border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800 mobile:p-4">
+                <div
+                  key={booking.id}
+                  className="bg-white dark:bg-gray-900 p-6 rounded-lg shadow-md border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800 mobile:p-4"
+                >
                   <div className="text-sm text-gray-600 dark:text-gray-400 mb-2">#{indexOfFirstOrder + index + 1}</div>
                   <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-100 mb-2">{booking.customer_name}</h3>
                   <p className="text-gray-700 dark:text-gray-300">
@@ -260,22 +287,38 @@ export default function Tracking() {
                     </a>
                   </p>
                   <p className="text-gray-700 dark:text-gray-300"><strong>Order ID:</strong> {booking.order_id}</p>
+                  <p className="text-gray-700 dark:text-gray-300"><span className="font-medium">Date:</span> {formatDate(booking.created_at)}</p>
                   <p className="text-gray-700 dark:text-gray-300"><strong>Type:</strong> {booking.customer_type}</p>
                   <p className="text-gray-700 dark:text-gray-300"><strong>District:</strong> {booking.district}</p>
                   <p className="text-gray-700 dark:text-gray-300"><strong>State:</strong> {booking.state}</p>
                   <p className="text-gray-700 dark:text-gray-300"><strong>Status:</strong> {booking.status}</p>
-                  <p className="text-gray-700 dark:text-gray-300"><strong>Amount Paid:</strong> {booking.amount_paid ? `Rs.${booking.amount_paid}` : 'N/A'}</p>
+                  {booking.amount_paid && (
+                    <p className="text-gray-700 dark:text-gray-300">
+                      <strong>Amount Paid:</strong> Rs.{booking.amount_paid}
+                    </p>
+                  )}
                   {booking.payment_method && (
-                    <p className="text-gray-700 dark:text-gray-300"><strong>Payment Method:</strong> {booking.payment_method}</p>
+                    <p className="text-gray-700 dark:text-gray-300">
+                      <strong>Payment Method:</strong> {booking.payment_method}
+                    </p>
                   )}
                   {booking.transaction_id && (
-                    <p className="text-gray-700 dark:text-gray-300"><strong>Transaction ID:</strong> {booking.transaction_id}</p>
+                    <p className="text-gray-700 dark:text-gray-300">
+                      <strong>Transaction ID:</strong> {booking.transaction_id}
+                    </p>
                   )}
                   <div className="flex gap-2 mt-2">
                     <button
                       onClick={() => generatePDF(booking)}
                       className="flex items-center justify-center px-4 py-2 text-sm text-white rounded-lg hover:bg-indigo-700 dark:hover:bg-blue-600 mobile:text-sm"
-                      style={{ background: styles.button.background, backgroundDark: styles.button.backgroundDark, border: styles.button.border, borderDark: styles.button.borderDark, boxShadow: styles.button.boxShadow, boxShadowDark: styles.button.boxShadowDark }}
+                      style={{
+                        background: styles.button.background,
+                        backgroundDark: styles.button.backgroundDark,
+                        border: styles.button.border,
+                        borderDark: styles.button.borderDark,
+                        boxShadow: styles.button.boxShadow,
+                        boxShadowDark: styles.button.boxShadowDark,
+                      }}
                     >
                       <FaDownload className="mr-2" /> Download
                     </button>
@@ -285,57 +328,74 @@ export default function Tracking() {
                         setShowDeleteModal(true);
                       }}
                       className="flex items-center justify-center px-4 py-2 text-sm text-white rounded-lg hover:bg-red-700 dark:hover:bg-red-600 mobile:text-sm"
-                      style={{ 
-                        background: "linear-gradient(135deg, rgba(220,38,38,0.9), rgba(239,68,68,0.95))", 
+                      style={{
+                        background: "linear-gradient(135deg, rgba(220,38,38,0.9), rgba(239,68,68,0.95))",
                         backgroundDark: "linear-gradient(135deg, rgba(185,28,28,0.9), rgba(220,38,38,0.95))",
-                        border: "1px solid rgba(252,165,165,0.4)", 
+                        border: "1px solid rgba(252,165,165,0.4)",
                         borderDark: "1px solid rgba(252,165,165,0.4)",
                         boxShadow: "0 15px 35px rgba(220,38,38,0.3), inset 0 1px 0 rgba(255,255,255,0.2)",
-                        boxShadowDark: "0 15px 35px rgba(185,28,28,0.4), inset 0 1px 0 rgba(255,255,255,0.1)"
+                        boxShadowDark: "0 15px 35px rgba(185,28,28,0.4), inset 0 1px 0 rgba(255,255,255,0.1)",
                       }}
                     >
                       <FaTrash className="mr-2" /> Delete Booking
                     </button>
                   </div>
                   <div className="mt-4">
-                    {renderSelect(booking.status, e => handleStatusChange(booking.id, e.target.value), [
+                    {renderSelect(booking.status, (e) => handleStatusChange(booking.id, e.target.value), [
                       { value: 'booked', label: 'Booked' },
                       { value: 'paid', label: 'Paid' },
-                      { value: 'packed', label: 'Packed' },
-                      { value: 'dispatched', label: 'Dispatched' },
-                      { value: 'delivered', label: 'Delivered' }
                     ], 'Update Status')}
                   </div>
                 </div>
               ))
             ) : (
-              <div className="col-span-full text-center text-gray-600 dark:text-gray-400 p-4 mobile:text-sm">No bookings found</div>
+              <div className="col-span-full text-center text-gray-600 dark:text-gray-400 p-4 mobile:text-sm">
+                No bookings found
+              </div>
             )}
           </div>
           {totalPages > 1 && (
             <div className="mt-6 flex justify-center space-x-2 mobile:space-x-1">
               <button
-                onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
                 disabled={currentPage === 1}
                 className="px-4 py-2 rounded-lg text-white disabled:bg-gray-400 dark:disabled:bg-gray-700 hover:bg-indigo-700 dark:hover:bg-blue-600 mobile:px-2 mobile:py-1 mobile:text-sm"
-                style={{ background: styles.button.background, backgroundDark: styles.button.backgroundDark, border: styles.button.border, borderDark: styles.button.borderDark, boxShadow: styles.button.boxShadow, boxShadowDark: styles.button.boxShadowDark }}
+                style={{
+                  background: styles.button.background,
+                  backgroundDark: styles.button.backgroundDark,
+                  border: styles.button.border,
+                  borderDark: styles.button.borderDark,
+                  boxShadow: styles.button.boxShadow,
+                  boxShadowDark: styles.button.boxShadowDark,
+                }}
               >
                 Previous
               </button>
-              {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
+              {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
                 <button
                   key={page}
                   onClick={() => setCurrentPage(page)}
-                  className={`px-4 py-2 rounded-lg ${currentPage === page ? 'bg-indigo-600 dark:bg-blue-600 text-white' : 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-100 hover:bg-gray-300 dark:hover:bg-gray-600'} mobile:px-2 mobile:py-1 mobile:text-sm`}
+                  className={`px-4 py-2 rounded-lg ${
+                    currentPage === page
+                      ? 'bg-indigo-600 dark:bg-blue-600 text-white'
+                      : 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-100 hover:bg-gray-300 dark:hover:bg-gray-600'
+                  } mobile:px-2 mobile:py-1 mobile:text-sm`}
                 >
                   {page}
                 </button>
               ))}
               <button
-                onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                onClick={() => setCurrentPage((prev) => Math.min(prev + 1, totalPages))}
                 disabled={currentPage === totalPages}
                 className="px-4 py-2 rounded-lg text-white disabled:bg-gray-400 dark:disabled:bg-gray-700 hover:bg-indigo-700 dark:hover:bg-blue-600 mobile:px-2 mobile:py-1 mobile:text-sm"
-                style={{ background: styles.button.background, backgroundDark: styles.button.backgroundDark, border: styles.button.border, borderDark: styles.button.borderDark, boxShadow: styles.button.boxShadow, boxShadowDark: styles.button.boxShadowDark }}
+                style={{
+                  background: styles.button.background,
+                  backgroundDark: styles.button.backgroundDark,
+                  border: styles.button.border,
+                  borderDark: styles.button.borderDark,
+                  boxShadow: styles.button.boxShadow,
+                  boxShadowDark: styles.button.boxShadowDark,
+                }}
               >
                 Next
               </button>
@@ -350,7 +410,14 @@ export default function Tracking() {
                   <button
                     onClick={handleFillDetails}
                     className="px-4 py-2 rounded-lg text-white hover:bg-green-700 dark:hover:bg-green-600 mobile:px-2 mobile:py-1 mobile:text-sm"
-                    style={{ background: styles.button.background.replace('2,132,199', '22,163,74').replace('14,165,233', '34,197,94'), backgroundDark: styles.button.backgroundDark.replace('59,130,246', '22,163,74').replace('37,99,235', '20,83,45'), border: styles.button.border.replace('125,211,252', '134,239,172'), borderDark: styles.button.borderDark.replace('147,197,253', '134,239,172'), boxShadow: styles.button.boxShadow.replace('2,132,199', '22,163,74'), boxShadowDark: styles.button.boxShadowDark.replace('59,130,246', '22,163,74') }}
+                    style={{
+                      background: styles.button.background.replace('2,132,199', '22,163,74').replace('14,165,233', '34,197,94'),
+                      backgroundDark: styles.button.backgroundDark.replace('59,130,246', '22,163,74').replace('37,99,235', '20,83,45'),
+                      border: styles.button.border.replace('125,211,252', '134,239,172'),
+                      borderDark: styles.button.borderDark.replace('147,197,253', '134,239,172'),
+                      boxShadow: styles.button.boxShadow.replace('2,132,199', '22,163,74'),
+                      boxShadowDark: styles.button.boxShadowDark.replace('59,130,246', '22,163,74'),
+                    }}
                   >
                     Fill Details
                   </button>
@@ -370,7 +437,7 @@ export default function Tracking() {
                 <h2 className="text-xl font-semibold text-gray-800 dark:text-gray-100 mb-4">Payment Details</h2>
                 <div className="mb-4">
                   <label className="block text-gray-700 dark:text-gray-300 mb-2">Payment Method</label>
-                  {renderSelect(paymentMethod, e => setPaymentMethod(e.target.value), [
+                  {renderSelect(paymentMethod, (e) => setPaymentMethod(e.target.value), [
                     { value: 'cash', label: 'Cash' },
                     { value: 'bank', label: 'Bank Transaction' }
                   ], 'Select Payment Method')}
@@ -380,10 +447,16 @@ export default function Tracking() {
                   <input
                     type="number"
                     value={amountPaid}
-                    onChange={e => setAmountPaid(e.target.value)}
+                    onChange={(e) => setAmountPaid(e.target.value)}
                     placeholder="Enter amount paid"
                     className="w-full p-2 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-900 border-gray-300 dark:border-gray-600 focus:outline-none focus:ring-2 focus:ring-indigo-600 dark:focus:ring-blue-500 mobile:text-sm"
-                    style={{ background: styles.input.background, backgroundDark: styles.input.backgroundDark, border: styles.input.border, borderDark: styles.input.borderDark, backdropFilter: styles.input.backdropFilter }}
+                    style={{
+                      background: styles.input.background,
+                      backgroundDark: styles.input.backgroundDark,
+                      border: styles.input.border,
+                      borderDark: styles.input.borderDark,
+                      backdropFilter: styles.input.backdropFilter,
+                    }}
                   />
                 </div>
                 {paymentMethod === 'bank' && (
@@ -392,10 +465,16 @@ export default function Tracking() {
                     <input
                       type="text"
                       value={transactionId}
-                      onChange={e => setTransactionId(e.target.value)}
+                      onChange={(e) => setTransactionId(e.target.value)}
                       placeholder="Enter transaction ID"
                       className="w-full p-2 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-900 border-gray-300 dark:border-gray-600 focus:outline-none focus:ring-2 focus:ring-indigo-600 dark:focus:ring-blue-500 mobile:text-sm"
-                      style={{ background: styles.input.background, backgroundDark: styles.input.backgroundDark, border: styles.input.border, borderDark: styles.input.borderDark, backdropFilter: styles.input.backdropFilter }}
+                      style={{
+                        background: styles.input.background,
+                        backgroundDark: styles.input.backgroundDark,
+                        border: styles.input.border,
+                        borderDark: styles.input.borderDark,
+                        backdropFilter: styles.input.backdropFilter,
+                      }}
                     />
                   </div>
                 )}
@@ -403,7 +482,14 @@ export default function Tracking() {
                   <button
                     onClick={handleDetailsSubmit}
                     className="px-4 py-2 rounded-lg text-white hover:bg-indigo-700 dark:hover:bg-blue-600 mobile:px-2 mobile:py-1 mobile:text-sm"
-                    style={{ background: styles.button.background, backgroundDark: styles.button.backgroundDark, border: styles.button.border, borderDark: styles.button.borderDark, boxShadow: styles.button.boxShadow, boxShadowDark: styles.button.boxShadowDark }}
+                    style={{
+                      background: styles.button.background,
+                      backgroundDark: styles.button.backgroundDark,
+                      border: styles.button.border,
+                      borderDark: styles.button.borderDark,
+                      boxShadow: styles.button.boxShadow,
+                      boxShadowDark: styles.button.boxShadowDark,
+                    }}
                   >
                     Submit
                   </button>
@@ -428,13 +514,13 @@ export default function Tracking() {
                   <button
                     onClick={handleDeleteBooking}
                     className="px-4 py-2 rounded-lg text-white hover:bg-red-700 dark:hover:bg-red-600 mobile:px-2 mobile:py-1 mobile:text-sm"
-                    style={{ 
-                      background: "linear-gradient(135deg, rgba(220,38,38,0.9), rgba(239,68,68,0.95))", 
+                    style={{
+                      background: "linear-gradient(135deg, rgba(220,38,38,0.9), rgba(239,68,68,0.95))",
                       backgroundDark: "linear-gradient(135deg, rgba(185,28,28,0.9), rgba(220,38,38,0.95))",
-                      border: "1px solid rgba(252,165,165,0.4)", 
+                      border: "1px solid rgba(252,165,165,0.4)",
                       borderDark: "1px solid rgba(252,165,165,0.4)",
                       boxShadow: "0 15px 35px rgba(220,38,38,0.3), inset 0 1px 0 rgba(255,255,255,0.2)",
-                      boxShadowDark: "0 15px 35px rgba(185,28,28,0.4), inset 0 1px 0 rgba(255,255,255,0.1)"
+                      boxShadowDark: "0 15px 35px rgba(185,28,28,0.4), inset 0 1px 0 rgba(255,255,255,0.1)",
                     }}
                   >
                     Delete

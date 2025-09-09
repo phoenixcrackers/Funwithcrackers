@@ -74,14 +74,24 @@ export default function SalesAnalysis() {
             type: 'line',
             data: {
               labels: salesData.trends.map(t => t.month),
-              datasets: [{
-                label: 'Revenue (Rs)',
-                data: salesData.trends.map(t => t.revenue),
-                borderColor: 'rgba(75, 192, 192, 1)',
-                backgroundColor: 'rgba(75, 192, 192, 0.2)',
-                fill: true,
-                tension: 0.4
-              }]
+              datasets: [
+                {
+                  label: 'Total Revenue (Rs)',
+                  data: salesData.trends.map(t => t.total_revenue),
+                  borderColor: 'rgba(75, 192, 192, 1)',
+                  backgroundColor: 'rgba(75, 192, 192, 0.2)',
+                  fill: true,
+                  tension: 0.4
+                },
+                {
+                  label: 'Actual Revenue (Rs)',
+                  data: salesData.trends.map(t => t.actual_revenue),
+                  borderColor: 'rgba(255, 99, 132, 1)',
+                  backgroundColor: 'rgba(255, 99, 132, 0.2)',
+                  fill: true,
+                  tension: 0.4
+                }
+              ]
             },
             options: {
               responsive: true,
@@ -169,7 +179,7 @@ export default function SalesAnalysis() {
         console.warn('Canvas #quotationChart not found');
       }
 
-      // Regional Demand (Bar Chart) - Added for better visualization
+      // Regional Demand (Bar Chart)
       const regionalCtx = document.getElementById('regionalDemandChart')?.getContext('2d');
       if (regionalCtx && salesData.cities?.length) {
         chartsRef.current.regionalDemandChart = new Chart(regionalCtx, {
@@ -263,7 +273,8 @@ export default function SalesAnalysis() {
                       <tr className="bg-gray-200 dark:bg-gray-700">
                         <th className="border p-2 text-left dark:text-gray-100">Month</th>
                         <th className="border p-2 text-right dark:text-gray-100">Sales Volume</th>
-                        <th className="border p-2 text-right dark:text-gray-100">Revenue (Rs)</th>
+                        <th className="border p-2 text-right dark:text-gray-100">Total Revenue (Rs)</th>
+                        <th className="border p-2 text-right dark:text-gray-100">Actual Revenue (Rs)</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -272,12 +283,13 @@ export default function SalesAnalysis() {
                           <tr key={index}>
                             <td className="border p-2 dark:text-gray-100">{t.month}</td>
                             <td className="border p-2 text-right dark:text-gray-100">{t.volume}</td>
-                            <td className="border p-2 text-right dark:text-gray-100">₹{formatValue(t.revenue)}</td>
+                            <td className="border p-2 text-right dark:text-gray-100">₹{formatValue(t.total_revenue)}</td>
+                            <td className="border p-2 text-right dark:text-gray-100">₹{formatValue(t.actual_revenue)}</td>
                           </tr>
                         ))
                       ) : (
                         <tr>
-                          <td colSpan="3" className="border p-2 text-center dark:text-gray-100">No data available</td>
+                          <td colSpan="4" className="border p-2 text-center dark:text-gray-100">No data available</td>
                         </tr>
                       )}
                     </tbody>
@@ -393,6 +405,10 @@ export default function SalesAnalysis() {
                       <tr>
                         <td className="border p-2 dark:text-gray-100">Total Revenue</td>
                         <td className="border p-2 text-right dark:text-gray-100">₹{formatValue(salesData.profitability.total_revenue)}</td>
+                      </tr>
+                      <tr>
+                        <td className="border p-2 dark:text-gray-100">Actual Revenue (Paid)</td>
+                        <td className="border p-2 text-right dark:text-gray-100">₹{formatValue(salesData.profitability.actual_revenue)}</td>
                       </tr>
                       <tr>
                         <td className="border p-2 dark:text-gray-100">Total Discounts Given</td>
