@@ -76,19 +76,19 @@ export default function SalesAnalysis() {
               labels: salesData.trends.map(t => t.month),
               datasets: [
                 {
-                  label: 'Total Revenue (Rs)',
-                  data: salesData.trends.map(t => t.total_revenue),
+                  label: 'Total Amount (Rs)',
+                  data: salesData.trends.map(t => t.total_amount),
                   borderColor: 'rgba(75, 192, 192, 1)',
                   backgroundColor: 'rgba(75, 192, 192, 0.2)',
-                  fill: true,
+                  fill: false,
                   tension: 0.4
                 },
                 {
-                  label: 'Actual Revenue (Rs)',
-                  data: salesData.trends.map(t => t.actual_revenue),
+                  label: 'Amount Paid (Rs)',
+                  data: salesData.trends.map(t => t.amount_paid),
                   borderColor: 'rgba(255, 99, 132, 1)',
                   backgroundColor: 'rgba(255, 99, 132, 0.2)',
-                  fill: true,
+                  fill: false,
                   tension: 0.4
                 }
               ]
@@ -123,8 +123,8 @@ export default function SalesAnalysis() {
             data: {
               labels: salesData.customer_types.map(ct => ct.customer_type),
               datasets: [{
-                label: 'Revenue (Rs)',
-                data: salesData.customer_types.map(ct => ct.revenue),
+                label: 'Total Amount (Rs)',
+                data: salesData.customer_types.map(ct => ct.total_amount),
                 backgroundColor: 'rgba(54, 162, 235, 0.6)',
                 borderColor: 'rgba(54, 162, 235, 1)',
                 borderWidth: 1
@@ -187,8 +187,8 @@ export default function SalesAnalysis() {
           data: {
             labels: salesData.cities.map(c => c.district),
             datasets: [{
-              label: 'Revenue (Rs)',
-              data: salesData.cities.map(c => c.revenue),
+              label: 'Total Amount (Rs)',
+              data: salesData.cities.map(c => c.total_amount),
               backgroundColor: 'rgba(153, 102, 255, 0.6)',
               borderColor: 'rgba(153, 102, 255, 1)',
               borderWidth: 1
@@ -273,8 +273,9 @@ export default function SalesAnalysis() {
                       <tr className="bg-gray-200 dark:bg-gray-700">
                         <th className="border p-2 text-left dark:text-gray-100">Month</th>
                         <th className="border p-2 text-right dark:text-gray-100">Sales Volume</th>
-                        <th className="border p-2 text-right dark:text-gray-100">Total Revenue (Rs)</th>
-                        <th className="border p-2 text-right dark:text-gray-100">Actual Revenue (Rs)</th>
+                        <th className="border p-2 text-right dark:text-gray-100">Total Amount (Rs)</th>
+                        <th className="border p-2 text-right dark:text-gray-100">Amount Paid (Rs)</th>
+                        <th className="border p-2 text-right dark:text-gray-100">Unpaid Amount (Rs)</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -283,13 +284,14 @@ export default function SalesAnalysis() {
                           <tr key={index}>
                             <td className="border p-2 dark:text-gray-100">{t.month}</td>
                             <td className="border p-2 text-right dark:text-gray-100">{t.volume}</td>
-                            <td className="border p-2 text-right dark:text-gray-100">₹{formatValue(t.total_revenue)}</td>
-                            <td className="border p-2 text-right dark:text-gray-100">₹{formatValue(t.actual_revenue)}</td>
+                            <td className="border p-2 text-right dark:text-gray-100">₹{formatValue(t.total_amount)}</td>
+                            <td className="border p-2 text-right dark:text-gray-100">₹{formatValue(t.amount_paid)}</td>
+                            <td className="border p-2 text-right dark:text-gray-100">₹{formatValue(t.unpaid_amount)}</td>
                           </tr>
                         ))
                       ) : (
                         <tr>
-                          <td colSpan="4" className="border p-2 text-center dark:text-gray-100">No data available</td>
+                          <td colSpan="5" className="border p-2 text-center dark:text-gray-100">No data available</td>
                         </tr>
                       )}
                     </tbody>
@@ -304,8 +306,6 @@ export default function SalesAnalysis() {
                       <tr className="bg-gray-200 dark:bg-gray-700">
                         <th className="border p-2 text-left dark:text-gray-100">Product</th>
                         <th className="border p-2 text-right dark:text-gray-100">Units Sold</th>
-                        <th className="border p-2 text-right dark:text-gray-100">Revenue (Rs)</th>
-                        <th className="border p-2 text-right dark:text-gray-100">Avg. Discount</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -314,13 +314,11 @@ export default function SalesAnalysis() {
                           <tr key={index}>
                             <td className="border p-2 dark:text-gray-100">{p.productname}</td>
                             <td className="border p-2 text-right dark:text-gray-100">{p.quantity}</td>
-                            <td className="border p-2 text-right dark:text-gray-100">₹{formatValue(p.revenue)}</td>
-                            <td className="border p-2 text-right dark:text-gray-100">{formatValue(p.avg_discount)}%</td>
                           </tr>
                         ))
                       ) : (
                         <tr>
-                          <td colSpan="4" className="border p-2 text-center dark:text-gray-100">No data available</td>
+                          <td colSpan="2" className="border p-2 text-center dark:text-gray-100">No data available</td>
                         </tr>
                       )}
                     </tbody>
@@ -370,7 +368,7 @@ export default function SalesAnalysis() {
                       <tr className="bg-gray-200 dark:bg-gray-700">
                         <th className="border p-2 text-left dark:text-gray-100">District</th>
                         <th className="border p-2 text-right dark:text-gray-100">Bookings</th>
-                        <th className="border p-2 text-right dark:text-gray-100">Revenue (Rs)</th>
+                        <th className="border p-2 text-right dark:text-gray-100">Total Amount (Rs)</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -379,7 +377,7 @@ export default function SalesAnalysis() {
                           <tr key={index}>
                             <td className="border p-2 dark:text-gray-100">{c.district}</td>
                             <td className="border p-2 text-right dark:text-gray-100">{c.count}</td>
-                            <td className="border p-2 text-right dark:text-gray-100">₹{formatValue(c.revenue)}</td>
+                            <td className="border p-2 text-right dark:text-gray-100">₹{formatValue(c.total_amount)}</td>
                           </tr>
                         ))
                       ) : (
@@ -403,20 +401,16 @@ export default function SalesAnalysis() {
                     </thead>
                     <tbody>
                       <tr>
-                        <td className="border p-2 dark:text-gray-100">Total Revenue</td>
-                        <td className="border p-2 text-right dark:text-gray-100">₹{formatValue(salesData.profitability.total_revenue)}</td>
+                        <td className="border p-2 dark:text-gray-100">Total Amount (from Total Column)</td>
+                        <td className="border p-2 text-right dark:text-gray-100">₹{formatValue(salesData.profitability.total_amount)}</td>
                       </tr>
                       <tr>
-                        <td className="border p-2 dark:text-gray-100">Actual Revenue (Paid)</td>
-                        <td className="border p-2 text-right dark:text-gray-100">₹{formatValue(salesData.profitability.actual_revenue)}</td>
+                        <td className="border p-2 dark:text-gray-100">Amount Paid (from Amount Paid Column)</td>
+                        <td className="border p-2 text-right dark:text-gray-100">₹{formatValue(salesData.profitability.amount_paid)}</td>
                       </tr>
                       <tr>
-                        <td className="border p-2 dark:text-gray-100">Total Discounts Given</td>
-                        <td className="border p-2 text-right dark:text-gray-100">₹{formatValue(salesData.profitability.total_discounts)}</td>
-                      </tr>
-                      <tr>
-                        <td className="border p-2 dark:text-gray-100">Estimated Net Profit</td>
-                        <td className="border p-2 text-right dark:text-gray-100">₹{formatValue(salesData.profitability.estimated_profit)}</td>
+                        <td className="border p-2 dark:text-gray-100">Unpaid Amount (Total - Paid)</td>
+                        <td className="border p-2 text-right dark:text-gray-100">₹{formatValue(salesData.profitability.unpaid_amount)}</td>
                       </tr>
                     </tbody>
                   </table>
@@ -434,7 +428,7 @@ export default function SalesAnalysis() {
                         <th className="border p-2 text-left dark:text-gray-100">Status</th>
                         <th className="border p-2 text-right dark:text-gray-100">Count</th>
                         <th className="border p-2 text-right dark:text-gray-100">Percentage</th>
-                        <th className="border p-2 text-right dark:text-gray-100">Revenue (Rs)</th>
+                        <th className="border p-2 text-right dark:text-gray-100">Total Amount (Rs)</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -445,7 +439,7 @@ export default function SalesAnalysis() {
                             <td className="border p-2 dark:text-gray-100">{status.charAt(0).toUpperCase() + status.slice(1)}</td>
                             <td className="border p-2 text-right dark:text-gray-100">{salesData.quotations[status]?.count || 0}</td>
                             <td className="border p-2 text-right dark:text-gray-100">{calculatePercentage(salesData.quotations[status]?.count || 0, total)}</td>
-                            <td className="border p-2 text-right dark:text-gray-100">₹{formatValue(salesData.quotations[status]?.revenue || 0)}</td>
+                            <td className="border p-2 text-right dark:text-gray-100">₹{formatValue(salesData.quotations[status]?.total_amount || 0)}</td>
                           </tr>
                         );
                       })}
@@ -464,7 +458,7 @@ export default function SalesAnalysis() {
                       <tr className="bg-gray-200 dark:bg-gray-700">
                         <th className="border p-2 text-left dark:text-gray-100">Customer Type</th>
                         <th className="border p-2 text-right dark:text-gray-100">Bookings</th>
-                        <th className="border p-2 text-right dark:text-gray-100">Revenue (Rs)</th>
+                        <th className="border p-2 text-right dark:text-gray-100">Total Amount (Rs)</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -473,7 +467,7 @@ export default function SalesAnalysis() {
                           <tr key={index}>
                             <td className="border p-2 dark:text-gray-100">{ct.customer_type}</td>
                             <td className="border p-2 text-right dark:text-gray-100">{ct.count}</td>
-                            <td className="border p-2 text-right dark:text-gray-100">₹{formatValue(ct.revenue)}</td>
+                            <td className="border p-2 text-right dark:text-gray-100">₹{formatValue(ct.total_amount)}</td>
                           </tr>
                         ))
                       ) : (
