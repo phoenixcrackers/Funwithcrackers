@@ -288,6 +288,7 @@ export default function Tracking() {
                   </p>
                   <p className="text-gray-700 dark:text-gray-300"><strong>Order ID:</strong> {booking.order_id}</p>
                   <p className="text-gray-700 dark:text-gray-300"><span className="font-medium">Date:</span> {formatDate(booking.created_at)}</p>
+                  <p className="text-gray-700 dark:text-gray-300"><strong>Total Amount:</strong> {booking.total}</p>
                   <p className="text-gray-700 dark:text-gray-300"><strong>Type:</strong> {booking.customer_type}</p>
                   <p className="text-gray-700 dark:text-gray-300"><strong>District:</strong> {booking.district}</p>
                   <p className="text-gray-700 dark:text-gray-300"><strong>State:</strong> {booking.state}</p>
