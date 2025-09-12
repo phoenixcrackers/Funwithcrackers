@@ -60,7 +60,6 @@ export default function SalesAnalysis() {
 
   useEffect(() => {
     if (salesData) {
-      console.log('Fetched salesData:', salesData);
       // Destroy existing charts
       Object.values(chartsRef.current).forEach(chart => chart?.destroy());
 
@@ -275,7 +274,6 @@ export default function SalesAnalysis() {
                         <th className="border p-2 text-right dark:text-gray-100">Sales Volume</th>
                         <th className="border p-2 text-right dark:text-gray-100">Total Amount (Rs)</th>
                         <th className="border p-2 text-right dark:text-gray-100">Amount Paid (Rs)</th>
-                        <th className="border p-2 text-right dark:text-gray-100">Unpaid Amount (Rs)</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -286,7 +284,6 @@ export default function SalesAnalysis() {
                             <td className="border p-2 text-right dark:text-gray-100">{t.volume}</td>
                             <td className="border p-2 text-right dark:text-gray-100">₹{formatValue(t.total_amount)}</td>
                             <td className="border p-2 text-right dark:text-gray-100">₹{formatValue(t.amount_paid)}</td>
-                            <td className="border p-2 text-right dark:text-gray-100">₹{formatValue(t.unpaid_amount)}</td>
                           </tr>
                         ))
                       ) : (
