@@ -16,8 +16,10 @@ const getEffectivePrice = (item, customerId, customers = [], userType) => {
     console.warn('getEffectivePrice: Invalid input - item missing', { item });
     return 0;
   }
-  // Always use dprice as initial price, regardless of customer type
-  const price = Math.round(Number(item.dprice) || Number(item.price) || 0);
+  // Use dprice by default, switch to price only if userType is explicitly 'User'
+  const price = userType === 'User' 
+    ? Math.round(Number(item.price) || 0)
+    : Math.round(Number(item.dprice) || Number(item.price) || 0);
   if (price === 0) {
     console.warn('getEffectivePrice: Price is 0 for item', item);
   }
