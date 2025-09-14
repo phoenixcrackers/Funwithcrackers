@@ -19,7 +19,7 @@ const getEffectivePrice = (item, customerId, customers = [], userType) => {
   const customer = customers.find((c) => c.id.toString() === customerId);
   const price = Math.round(
     Number(item.customPrice) ||
-    (userType === 'User' ? Number(item.dprice) : Number(item.price)) || 0
+    (userType === 'User' ? Number(item.price) : Number(item.dprice)) || 0
   );
   if (price === 0) {
     console.warn('getEffectivePrice: Price is 0 for item', item);
