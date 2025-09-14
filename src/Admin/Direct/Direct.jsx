@@ -11,14 +11,15 @@ import Logout from '../Logout';
 Modal.setAppElement("#root");
 
 // Helper to calculate effective price
-const getEffectivePrice = (item, customerId, customers = []) => {
+const getEffectivePrice = (item, customerId, customers = [], userType) => {
   if (!item || (!Array.isArray(customers) && !customerId)) {
     console.warn('getEffectivePrice: Invalid input - item or customer data missing', { item, customerId, customers });
     return 0;
   }
   const customer = customers.find((c) => c.id.toString() === customerId);
   const price = Math.round(
-    Number(item.customPrice) || Number(item.dprice) || Number(item.price) || 0
+    Number(item.customPrice) ||
+    (userType === 'User' ? Number(item.dprice) : Number(item.price)) || 0
   );
   if (price === 0) {
     console.warn('getEffectivePrice: Price is 0 for item', item);
@@ -41,16 +42,39 @@ class QuotationTableErrorBoundary extends React.Component {
 // Shared select styles
 const selectStyles = {
   control: (base) => ({
-    ...base, padding: "0.25rem", fontSize: "1rem", borderRadius: "0.5rem", background: "#fff",
-    borderColor: "#d1d5db", boxShadow: "0 1px 2px rgba(0,0,0,0.1)", "&:hover": { borderColor: "#3b82f6" },
-    "@media (max-width: 640px)": { padding: "0.25rem", fontSize: "0.875rem", color: "#000000" }
+    ...base,
+    padding: "0.25rem",
+    fontSize: "1rem",
+    borderRadius: "0.5rem",
+    background: "#fff",
+    borderColor: "#d1d5db",
+    boxShadow: "0 1px 2px rgba(0,0,0,0.1)",
+    color: "#1f2937", // Ensure text is visible
+    "&:hover": { borderColor: "#3b82f6" },
+    "@media (max-width: 640px)": {
+      padding: "0.25rem",
+      fontSize: "0.875rem",
+      color: "#1f2937" // Ensure text visibility in mobile
+    }
   }),
-  menu: (base) => ({ ...base, zIndex: 20, background: "#fff" }),
-  singleValue: (base) => ({ ...base, color: "#1f2937" }),
+  menu: (base) => ({
+    ...base,
+    zIndex: 20,
+    background: "#fff"
+  }),
+  singleValue: (base) => ({
+    ...base,
+    color: "#1f2937" // Explicitly set text color to ensure visibility
+  }),
   option: (base, { isFocused, isSelected }) => ({
-    ...base, background: isSelected ? "#3b82f6" : isFocused ? "#e5e7eb" : "#fff", color: isSelected ? "#fff" : "#1f2937"
+    ...base,
+    background: isSelected ? "#3b82f6" : isFocused ? "#e5e7eb" : "#fff",
+    color: isSelected ? "#fff" : "#1f2937"
   }),
-  placeholder: (base) => ({ ...base, color: "#9ca3af" })
+  placeholder: (base) => ({
+    ...base,
+    color: "#9ca3af" // Ensure placeholder text is visible
+  })
 };
 
 // Shared component styles
@@ -85,7 +109,8 @@ const QuotationTable = ({
   openNewProductModal,
   updateState,
   lastAddedProduct,
-  setLastAddedProduct
+  setLastAddedProduct,
+  userType
 }) => {
   const quantityInputRefs = useRef({});
 
@@ -107,9 +132,7 @@ const QuotationTable = ({
     const cartKey = isModal ? 'modalCart' : 'cart';
     updateState({
       [cartKey]: cart.map(item => {
-        // Find the original product from the products array
         const originalProduct = products.find(p => p.id.toString() === item.id && p.product_type === item.product_type);
-        // Only update discount if product type is not 'net_rate_products' and initial discount is not 0
         const shouldUpdateDiscount = item.product_type !== 'net_rate_products' && 
                                    (!originalProduct || Number(originalProduct.discount) !== 0);
         return {
@@ -213,7 +236,7 @@ const QuotationTable = ({
                   <td className="text-center border-r mobile:p-1">
                     <input
                       type="number"
-                      value={getEffectivePrice(item, isModal ? modalSelectedCustomer : selectedCustomer, customers)}
+                      value={getEffectivePrice(item, isModal ? modalSelectedCustomer : selectedCustomer, customers, userType)}
                       onChange={(e) =>
                         updatePrice(item.id, item.product_type, Math.round(Number.parseFloat(e.target.value) || 0), isModal)
                       }
@@ -249,7 +272,7 @@ const QuotationTable = ({
                   </td>
                   <td className="text-center border-r mobile:p-1">
                     ₹{Math.round(
-                      getEffectivePrice(item, isModal ? modalSelectedCustomer : selectedCustomer, customers) *
+                      getEffectivePrice(item, isModal ? modalSelectedCustomer : selectedCustomer, customers, userType) *
                         (1 - item.discount / 100) *
                         item.quantity
                     )}
@@ -329,6 +352,7 @@ const FormFields = ({
   openNewProductModal,
   updateState,
   modalLastAddedProduct,
+  modalUserType
 }) => (
   <div className="space-y-6">
     <div className="flex flex-col items-center mobile:w-full">
@@ -338,6 +362,19 @@ const FormFields = ({
         onChange={(option) => setModalSelectedCustomer(option ? option.value : '')}
         options={customers.map(c => ({ value: c.id, label: c.name }))}
         placeholder="Search for a customer..."
+        isClearable
+        className="mobile:w-full onefifty:w-96"
+        classNamePrefix="react-select"
+        styles={selectStyles}
+      />
+    </div>
+    <div className="flex flex-col items-center mobile:w-full">
+      <label className="text-lg font-semibold text-gray-700 dark:text-gray-100 mb-2 mobile:text-base">User Type</label>
+      <Select
+        value={{ value: modalUserType, label: modalUserType || 'Select user type...' }}
+        onChange={(option) => updateState({ modalUserType: option ? option.value : '' })}
+        options={[{ value: 'User', label: 'User' }, { value: 'Customer', label: 'Customer' }]}
+        placeholder="Select user type..."
         isClearable
         className="mobile:w-full onefifty:w-96"
         classNamePrefix="react-select"
@@ -369,6 +406,7 @@ const FormFields = ({
         updateState={updateState}
         lastAddedProduct={modalLastAddedProduct}
         setLastAddedProduct={(val) => updateState({ modalLastAddedProduct: val })}
+        userType={modalUserType}
       />
     </QuotationTableErrorBoundary>
     <div className="flex justify-end space-x-3">
@@ -510,7 +548,9 @@ export default function Direct() {
     newProductData: { productname: '', price: '', discount: 0, quantity: 1, per: '' },
     isModalNewProduct: false,
     lastAddedProduct: null,
-    modalLastAddedProduct: null
+    modalLastAddedProduct: null,
+    userType: '',
+    modalUserType: ''
   });
 
   const isMounted = useRef(true);
@@ -591,10 +631,13 @@ export default function Direct() {
       customers,
       changeDiscount,
       modalChangeDiscount,
+      userType,
+      modalUserType
     } = state;
     const targetCart = isModal ? modalCart : cart;
     const targetSelectedProduct = isModal ? modalSelectedProduct : selectedProduct;
     const targetDiscount = isModal ? modalChangeDiscount : changeDiscount;
+    const targetUserType = isModal ? modalUserType : userType;
 
     if (!customProduct && !targetSelectedProduct)
       return updateState({ error: "Please select a product" });
@@ -620,7 +663,7 @@ export default function Direct() {
       const customer = customers.find(
         (c) => c.id.toString() === (isModal ? modalSelectedCustomer : selectedCustomer)
       );
-      const effectivePrice = getEffectivePrice(product, isModal ? modalSelectedCustomer : selectedCustomer, customers);
+      const effectivePrice = getEffectivePrice(product, isModal ? modalSelectedCustomer : selectedCustomer, customers, targetUserType);
       product = {
         ...product,
         basePrice: Math.round(Number(product.price)),
@@ -685,7 +728,7 @@ export default function Direct() {
   const calculateNetRate = (targetCart = [], customerId) =>
     targetCart.reduce(
       (total, item) =>
-        total + getEffectivePrice(item, customerId, state.customers) * item.quantity,
+        total + getEffectivePrice(item, customerId, state.customers, state.userType) * item.quantity,
       0
     );
 
@@ -693,7 +736,7 @@ export default function Direct() {
     targetCart.reduce(
       (total, item) =>
         total +
-        getEffectivePrice(item, customerId, state.customers) *
+        getEffectivePrice(item, customerId, state.customers, state.userType) *
           (item.discount / 100) *
           item.quantity,
       0
@@ -746,7 +789,7 @@ export default function Direct() {
 
   const createQuotation = async () => {
     const controller = new AbortController();
-    const { selectedCustomer, cart, customers, additionalDiscount } = state;
+    const { selectedCustomer, cart, customers, additionalDiscount, userType } = state;
     if (!selectedCustomer || !cart.length)
       return updateState({ error: "Customer and products are required" });
     if (cart.some(item => item.quantity === 0))
@@ -763,7 +806,7 @@ export default function Direct() {
           id: item.id,
           product_type: item.product_type,
           productname: item.productname,
-          price: getEffectivePrice(item, selectedCustomer, customers),
+          price: getEffectivePrice(item, selectedCustomer, customers, userType),
           discount: Number.parseFloat(item.discount) || 0,
           quantity: Number.parseInt(item.quantity) || 0,
           per: item.per || 'Unit',
@@ -773,7 +816,7 @@ export default function Direct() {
         total: Math.round(calculateTotal(cart, selectedCustomer, false)),
         promo_discount: 0,
         additional_discount: Number.parseFloat(additionalDiscount.toFixed(2)),
-        customer_type: customer.customer_type || "User",
+        customer_type: customer.customer_type || userType || "User",
         customer_name: customer.name,
         address: customer.address,
         mobile_number: customer.mobile_number,
@@ -799,6 +842,7 @@ export default function Direct() {
         additionalDiscount: 0,
         changeDiscount: 0,
         lastAddedProduct: null,
+        userType: '',
         quotations: [
           {
             ...payload,
@@ -861,12 +905,13 @@ export default function Direct() {
           product_type: p.product_type,
         })) || [],
         modalIsOpen: true,
+        modalUserType: quotation.customer_type || '',
       });
       return;
     }
 
     const controller = new AbortController();
-    const { modalSelectedCustomer, modalCart, modalAdditionalDiscount, customers, quotationId } = state;
+    const { modalSelectedCustomer, modalCart, modalAdditionalDiscount, customers, quotationId, modalUserType } = state;
     if (!modalSelectedCustomer || !modalCart.length)
       return updateState({ error: "Customer and products are required" });
     if (modalCart.some(item => item.quantity === 0))
@@ -880,7 +925,7 @@ export default function Direct() {
           id: item.id,
           product_type: item.product_type,
           productname: item.productname,
-          price: getEffectivePrice(item, modalSelectedCustomer, customers),
+          price: getEffectivePrice(item, modalSelectedCustomer, customers, modalUserType),
           discount: Number.parseFloat(item.discount) || 0,
           quantity: Number.parseInt(item.quantity) || 0,
           per: item.per || 'Unit',
@@ -930,6 +975,7 @@ export default function Direct() {
         modalAdditionalDiscount: 0,
         modalChangeDiscount: 0,
         modalLastAddedProduct: null,
+        modalUserType: '',
         error: "",
       });
       setTimeout(() => updateState({ showSuccess: false }), 3000);
@@ -950,7 +996,7 @@ export default function Direct() {
 
   const cancelQuotation = async (quotationIdToCancel = null) => {
     const controller = new AbortController();
-    const { quotationId, customers, selectedCustomer, cart, selectedProduct, additionalDiscount, changeDiscount } = state;
+    const { quotationId, customers, selectedCustomer, cart, selectedProduct, additionalDiscount, changeDiscount, userType } = state;
     const targetQuotationId = quotationIdToCancel || quotationId;
     if (!targetQuotationId) return updateState({ error: "No quotation to cancel" });
     try {
@@ -967,6 +1013,7 @@ export default function Direct() {
               additionalDiscount: 0,
               changeDiscount: 0,
               lastAddedProduct: null,
+              userType: '',
             }),
         successMessage: "Quotation canceled successfully!",
         showSuccess: true,
@@ -1008,12 +1055,13 @@ export default function Direct() {
           product_type: p.product_type,
         })) || [],
         modalIsOpen: true,
+        modalUserType: quotation.customer_type || '',
       });
       return;
     }
 
     const controller = new AbortController();
-    const { modalSelectedCustomer, modalCart, orderId, quotationId, customers, modalAdditionalDiscount } = state;
+    const { modalSelectedCustomer, modalCart, orderId, quotationId, customers, modalAdditionalDiscount, modalUserType } = state;
     if (!modalSelectedCustomer || !modalCart.length || !orderId || !quotationId)
       return updateState({ error: "Customer, products, order ID, and quotation ID are required" });
     if (modalCart.some(item => item.quantity <= 0))
@@ -1031,7 +1079,7 @@ export default function Direct() {
           id: item.id,
           product_type: item.product_type,
           productname: item.productname,
-          price: getEffectivePrice(item, modalSelectedCustomer, customers),
+          price: getEffectivePrice(item, modalSelectedCustomer, customers, modalUserType),
           discount: Number.parseFloat(item.discount) || 0,
           quantity: Number.parseInt(item.quantity) || 0,
           per: item.per || 'Unit',
@@ -1041,7 +1089,7 @@ export default function Direct() {
         total: Math.round(calculateTotal(modalCart, modalSelectedCustomer, true)),
         promo_discount: 0,
         additional_discount: Number.parseFloat(modalAdditionalDiscount.toFixed(2)),
-        customer_type: customer.customer_type || "User",
+        customer_type: customer.customer_type || modalUserType || "User",
         customer_name: customer.name,
         address: customer.address,
         mobile_number: customer.mobile_number,
@@ -1089,6 +1137,7 @@ export default function Direct() {
         modalAdditionalDiscount: 0,
         modalChangeDiscount: 0,
         modalLastAddedProduct: null,
+        modalUserType: '',
         error: "",
       });
       setTimeout(() => updateState({ showSuccess: false }), 3000);
@@ -1104,11 +1153,11 @@ export default function Direct() {
 
   const renderSelect = (value, onChange, options, label, id) => (
     <div className="flex flex-col items-center mobile:w-full">
-      <label className="text-lg font-semibold text-gray-700 dark:text-gray-800 mb-2 mobile:text-base">{label}</label>
+      <label className="text-lg font-semibold text-gray-700 dark:text-gray-100 mb-2 mobile:text-base">{label}</label>
       <Select
-        value={options.find(c => c.id.toString() === value) || null}
-        onChange={(option) => onChange({ target: { value: option ? option.value : '' } })}
-        options={options.map(c => ({ value: c.id.toString(), label: c.name }))}
+        value={options.find(c => c.value === value) || null}
+        onChange={onChange}
+        options={options}
         placeholder={`Search for a ${label.toLowerCase()}...`}
         isClearable
         className="mobile:w-full onefifty:w-96"
@@ -1143,6 +1192,7 @@ export default function Direct() {
     newProductData,
     lastAddedProduct,
     modalLastAddedProduct,
+    userType,
   } = state;
 
   return (
@@ -1166,10 +1216,17 @@ export default function Direct() {
           <div className="flex flex-wrap gap-6 justify-center mb-8 mobile:flex-col mobile:gap-3">
             {renderSelect(
               selectedCustomer,
-              (e) => updateState({ selectedCustomer: e.target.value }),
-              customers,
+              (option) => updateState({ selectedCustomer: option ? option.value : '' }),
+              customers.map(c => ({ value: c.id.toString(), label: c.name })),
               "Customer",
               "main-customer-select"
+            )}
+            {renderSelect(
+              userType,
+              (option) => updateState({ userType: option ? option.value : '' }),
+              [{ value: 'User', label: 'User' }, { value: 'Customer', label: 'Customer' }],
+              "User Type",
+              "main-user-type-select"
             )}
             <QuotationTableErrorBoundary>
               <QuotationTable
@@ -1202,6 +1259,7 @@ export default function Direct() {
                 updateState={updateState}
                 lastAddedProduct={lastAddedProduct}
                 setLastAddedProduct={(val) => updateState({ lastAddedProduct: val })}
+                userType={userType}
               />
             </QuotationTableErrorBoundary>
           </div>
@@ -1323,6 +1381,7 @@ export default function Direct() {
                 modalAdditionalDiscount: 0,
                 modalChangeDiscount: 0,
                 modalLastAddedProduct: null,
+                modalUserType: '',
                 error: "",
               })
             }
@@ -1388,6 +1447,7 @@ export default function Direct() {
                     modalAdditionalDiscount: 0,
                     modalChangeDiscount: 0,
                     modalLastAddedProduct: null,
+                    modalUserType: '',
                     error: "",
                   })
                 }
@@ -1398,6 +1458,7 @@ export default function Direct() {
                 openNewProductModal={() => openNewProductModal(true)}
                 updateState={updateState}
                 modalLastAddedProduct={modalLastAddedProduct}
+                modalUserType={state.modalUserType}
               />
             </div>
           </Modal>
