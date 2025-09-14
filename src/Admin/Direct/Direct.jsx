@@ -12,15 +12,12 @@ Modal.setAppElement("#root");
 
 // Helper to calculate effective price
 const getEffectivePrice = (item, customerId, customers = [], userType) => {
-  if (!item || (!Array.isArray(customers) && !customerId)) {
-    console.warn('getEffectivePrice: Invalid input - item or customer data missing', { item, customerId, customers });
+  if (!item) {
+    console.warn('getEffectivePrice: Invalid input - item missing', { item });
     return 0;
   }
-  const customer = customers.find((c) => c.id.toString() === customerId);
-  const price = Math.round(
-    Number(item.customPrice) ||
-    (userType === 'User' ? Number(item.price) : Number(item.dprice)) || 0
-  );
+  // Always use dprice as initial price, regardless of customer type
+  const price = Math.round(Number(item.dprice) || Number(item.price) || 0);
   if (price === 0) {
     console.warn('getEffectivePrice: Price is 0 for item', item);
   }
@@ -49,12 +46,12 @@ const selectStyles = {
     background: "#fff",
     borderColor: "#d1d5db",
     boxShadow: "0 1px 2px rgba(0,0,0,0.1)",
-    color: "#1f2937", // Ensure text is visible
+    color: "#1f2937",
     "&:hover": { borderColor: "#3b82f6" },
     "@media (max-width: 640px)": {
       padding: "0.25rem",
       fontSize: "0.875rem",
-      color: "#1f2937" // Ensure text visibility in mobile
+      color: "#1f2937"
     }
   }),
   menu: (base) => ({
@@ -64,7 +61,7 @@ const selectStyles = {
   }),
   singleValue: (base) => ({
     ...base,
-    color: "#1f2937" // Explicitly set text color to ensure visibility
+    color: "#1f2937"
   }),
   option: (base, { isFocused, isSelected }) => ({
     ...base,
@@ -73,7 +70,7 @@ const selectStyles = {
   }),
   placeholder: (base) => ({
     ...base,
-    color: "#9ca3af" // Ensure placeholder text is visible
+    color: "#9ca3af"
   })
 };
 
@@ -110,9 +107,11 @@ const QuotationTable = ({
   updateState,
   lastAddedProduct,
   setLastAddedProduct,
-  userType
+  userType,
+  productSelectRef // New prop for select ref
 }) => {
   const quantityInputRefs = useRef({});
+  const localSelectRef = useRef(null);
 
   useEffect(() => {
     if (lastAddedProduct) {
@@ -143,11 +142,21 @@ const QuotationTable = ({
     });
   };
 
+  // Handle quantity input blur to focus back on product select
+  const handleQuantityBlur = () => {
+    if (localSelectRef.current) {
+      localSelectRef.current.focus();
+    }
+    // Also clear the selected product to reset the select field
+    setSelectedProduct(null);
+  };
+
   return (
     <div className="space-y-4">
       <div className="flex flex-col items-center mobile:w-full">
         <label className="text-lg font-semibold text-gray-700 dark:text-gray-100 mb-2 mobile:text-base">Product</label>
         <Select
+          ref={localSelectRef}
           value={selectedProduct}
           onChange={setSelectedProduct}
           options={products.map(p => ({
@@ -265,6 +274,7 @@ const QuotationTable = ({
                       onChange={(e) =>
                         updateQuantity(item.id, item.product_type, Number.parseInt(e.target.value) || 0, isModal)
                       }
+                      onBlur={handleQuantityBlur} // Add blur handler
                       min="0"
                       ref={(el) => (quantityInputRefs.current[`${item.id}-${item.product_type}`] = el)}
                       className="w-16 text-center border border-gray-300 rounded p-1 focus:outline-none focus:ring-2 focus:ring-blue-600"
@@ -407,6 +417,7 @@ const FormFields = ({
         lastAddedProduct={modalLastAddedProduct}
         setLastAddedProduct={(val) => updateState({ modalLastAddedProduct: val })}
         userType={modalUserType}
+        productSelectRef={React.createRef()} // Pass ref for modal
       />
     </QuotationTableErrorBoundary>
     <div className="flex justify-end space-x-3">
@@ -554,6 +565,7 @@ export default function Direct() {
   });
 
   const isMounted = useRef(true);
+  const productSelectRef = useRef(null); // Add ref for main product select
 
   const updateState = (updates) => {
     if (!isMounted.current) return;
@@ -650,6 +662,7 @@ export default function Direct() {
         product_type: 'Custom',
         basePrice: Math.round(Number(customProduct.price)),
         customPrice: Math.round(Number(customProduct.price)),
+        dprice: Math.round(Number(customProduct.price)), // Add dprice for consistency
         quantity: Number.parseInt(customProduct.quantity) || 1,
         discount: Number.parseFloat(customProduct.discount) || targetDiscount,
         per: customProduct.per || 'Unit',
@@ -693,6 +706,11 @@ export default function Direct() {
       },
       error: "",
     });
+
+    // Focus on product select after adding to cart
+    if (!isModal && productSelectRef.current) {
+      productSelectRef.current.focus();
+    }
   };
 
   const updateCartItem = (id, type, key, value, isModal = false) => {
@@ -1260,6 +1278,7 @@ export default function Direct() {
                 lastAddedProduct={lastAddedProduct}
                 setLastAddedProduct={(val) => updateState({ lastAddedProduct: val })}
                 userType={userType}
+                productSelectRef={productSelectRef} // Pass ref to main QuotationTable
               />
             </QuotationTableErrorBoundary>
           </div>
