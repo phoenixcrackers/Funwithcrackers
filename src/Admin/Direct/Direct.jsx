@@ -1311,6 +1311,7 @@ export default function Direct() {
                     </h3>
                     {[
                       { label: "Customer", value: q.customer_name || "N/A" },
+                      { label: "District", value: q.district || "N/A" },
                       { label: "Total", value: `₹${Math.round(Number.parseFloat(q.total))}` },
                       q.additional_discount > 0 && {
                         label: "Additional Discount",
