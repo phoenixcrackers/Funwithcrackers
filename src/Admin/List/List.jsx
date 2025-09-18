@@ -34,7 +34,7 @@ export default function List() {
     productname: "",
     serial_number: "",
     price: "",
-    dprice: "", // Added dprice
+    dprice: "",
     discount: "",
     per: "",
     product_type: "",
@@ -90,7 +90,7 @@ export default function List() {
           ...product,
           images: product.image ? (typeof product.image === "string" ? JSON.parse(product.image) : product.image) : [],
           box_count: product.box_count || 1,
-          dprice: product.dprice || "0", // Ensure dprice is a string
+          dprice: product.dprice || "0",
         }))
         .sort((a, b) => a.serial_number.localeCompare(b.serial_number));
       setProducts(normalizedData);
@@ -406,15 +406,15 @@ export default function List() {
       // Prepare table data
       const tableData = [];
       let serialNumber = 1;
-      let hasActiveProducts = false;
+      let hasProducts = false;
 
       productTypes.forEach((type) => {
         const typeProducts = products
-          .filter((product) => product.product_type === type && product.status === "on")
+          .filter((product) => product.product_type === type)
           .sort((a, b) => a.productname.localeCompare(b.productname));
 
         if (typeProducts.length > 0) {
-          hasActiveProducts = true;
+          hasProducts = true;
           tableData.push([
             {
               content: capitalize(type),
@@ -423,7 +423,7 @@ export default function List() {
             },
           ]);
 
-          tableData.push(["S.No", "Product No.", "Product", "Net Rate", "Direct Price", "Per", "Quantity", "Amount"]);
+          tableData.push(["S.No", "Code", "Product", "Net Rate", "Direct Price", "Per", "Quantity"]);
 
           typeProducts.forEach((product) => {
             const productKey = `${product.product_type}-${product.id}`;
@@ -458,28 +458,27 @@ export default function List() {
         }
       });
 
-      if (!hasActiveProducts) {
-        setError("No active products (status: on) available to export");
+      if (!hasProducts) {
+        setError("No products available to export");
         return;
       }
 
       // Generate table
       autoTable(doc, {
         startY: yOffset,
-        head: [["S.No", "Product No.", "Product", "Net Rate", "Direct Price", "Per", "Quantity", "Amount"]],
+        head: [["S.No", "Code", "Product", "Net Rate", "Direct Price", "Per", "Quantity"]],
         body: tableData,
         theme: "grid",
         styles: { fontSize: 10, cellPadding: 3 },
         headStyles: { fillColor: [100, 100, 100], textColor: [255, 255, 255] },
         columnStyles: {
           0: { cellWidth: 15 }, // S.No
-          1: { cellWidth: 25 }, // Product No.
+          1: { cellWidth: 15 }, // Product No.
           2: { cellWidth: 50 }, // Product
           3: { cellWidth: 30 }, // Net Rate
           4: { cellWidth: 30 }, // Direct Price
           5: { cellWidth: 20 }, // Per
           6: { cellWidth: 25 }, // Quantity
-          7: { cellWidth: 25 }, // Amount
         },
         didDrawCell: (data) => {
           if (data.row.section === "body" && data.cell.raw && data.cell.raw.colSpan === 8) {
