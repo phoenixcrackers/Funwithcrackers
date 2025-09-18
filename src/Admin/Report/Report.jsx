@@ -77,7 +77,7 @@ export default function Report() {
   };
 
   const exportToExcel = () => {
-    const data = currentOrders.map((b, i) => {
+    const data = bookings.map((b, i) => {
       // Calculate total if not provided: subtotal - discount (assume subtotal is base amount before discount)
       const subtotal = b.subtotal || (b.total ? parseFloat(b.total) + (b.discount || 0) : 0);
       const discount = parseFloat(b.discount) || 0;
@@ -85,7 +85,7 @@ export default function Report() {
       const totalAmount = b.total ? parseFloat(b.total).toFixed(2) : calculatedTotal.toFixed(2);
 
       return {
-        'Sl. No': indexOfFirstOrder + i + 1,
+        'Sl. No': i + 1,
         'Order ID': b.order_id || '',
         'Customer Name': b.customer_name || '',
         'Mobile Number': b.mobile_number || '',
@@ -106,7 +106,7 @@ export default function Report() {
     const worksheet = XLSX.utils.json_to_sheet(data);
     const workbook = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(workbook, worksheet, 'Bookings');
-    XLSX.writeFile(workbook, `Bookings_Report_Page_${currentPage}.xlsx`);
+    XLSX.writeFile(workbook, `Bookings_Report_All.xlsx`);
   };
 
   const indexOfLastOrder = currentPage * ordersPerPage;
