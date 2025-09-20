@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { FaDownload } from 'react-icons/fa';
-import { toast } from 'react-toastify'; // Added for toast notifications
+import { toast } from 'react-toastify';
 import { API_BASE_URL } from '../../../Config';
 import Sidebar from '../Sidebar/Sidebar';
 import Logout from '../Logout';
@@ -57,7 +57,7 @@ export default function Dispatch() {
       }
     };
     fetchBookings();
-    const interval = setInterval(fetchBookings, 10000);
+    const interval = setInterval(fetchBookings, 60000);
     return () => clearInterval(interval);
   }, [filterStatus]);
 
@@ -152,6 +152,20 @@ export default function Dispatch() {
   const currentOrders = filteredBookings.slice(indexOfFirstOrder, indexOfLastOrder);
   const totalPages = Math.ceil(filteredBookings.length / ordersPerPage);
 
+  // Pagination logic to show only 3 page numbers
+  const getVisiblePages = () => {
+    const maxVisiblePages = 3;
+    let startPage = Math.max(1, currentPage - Math.floor(maxVisiblePages / 2));
+    let endPage = Math.min(totalPages, startPage + maxVisiblePages - 1);
+
+    // Adjust startPage if endPage reaches totalPages
+    if (endPage - startPage < maxVisiblePages - 1) {
+      startPage = Math.max(1, endPage - maxVisiblePages + 1);
+    }
+
+    return Array.from({ length: endPage - startPage + 1 }, (_, i) => startPage + i);
+  };
+
   const renderInput = (value, onChange, placeholder) => (
     <input
       type="text"
@@ -241,6 +255,14 @@ export default function Dispatch() {
           {totalPages > 1 && (
             <div className="mt-6 flex justify-center space-x-2 mobile:space-x-1">
               <button
+                onClick={() => setCurrentPage(1)}
+                disabled={currentPage === 1}
+                className="px-4 py-2 rounded-lg text-white disabled:bg-gray-400 dark:disabled:bg-gray-700 hover:bg-indigo-700 dark:hover:bg-blue-600 mobile:px-2 mobile:py-1 mobile:text-sm"
+                style={{ background: styles.button.background, backgroundDark: styles.button.backgroundDark, border: styles.button.border, borderDark: styles.button.borderDark, boxShadow: styles.button.boxShadow, boxShadowDark: styles.button.boxShadowDark }}
+              >
+                First
+              </button>
+              <button
                 onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
                 disabled={currentPage === 1}
                 className="px-4 py-2 rounded-lg text-white disabled:bg-gray-400 dark:disabled:bg-gray-700 hover:bg-indigo-700 dark:hover:bg-blue-600 mobile:px-2 mobile:py-1 mobile:text-sm"
@@ -248,7 +270,7 @@ export default function Dispatch() {
               >
                 Previous
               </button>
-              {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
+              {getVisiblePages().map(page => (
                 <button
                   key={page}
                   onClick={() => setCurrentPage(page)}
@@ -264,6 +286,14 @@ export default function Dispatch() {
                 style={{ background: styles.button.background, backgroundDark: styles.button.backgroundDark, border: styles.button.border, borderDark: styles.button.borderDark, boxShadow: styles.button.boxShadow, boxShadowDark: styles.button.boxShadowDark }}
               >
                 Next
+              </button>
+              <button
+                onClick={() => setCurrentPage(totalPages)}
+                disabled={currentPage === totalPages}
+                className="px-4 py-2 rounded-lg text-white disabled:bg-gray-400 dark:disabled:bg-gray-700 hover:bg-indigo-700 dark:hover:bg-blue-600 mobile:px-2 mobile:py-1 mobile:text-sm"
+                style={{ background: styles.button.background, backgroundDark: styles.button.backgroundDark, border: styles.button.border, borderDark: styles.button.borderDark, boxShadow: styles.button.boxShadow, boxShadowDark: styles.button.boxShadowDark }}
+              >
+                Last
               </button>
             </div>
           )}

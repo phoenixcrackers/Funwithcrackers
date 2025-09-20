@@ -60,10 +60,8 @@ export default function SalesAnalysis() {
 
   useEffect(() => {
     if (salesData) {
-      // Destroy existing charts
       Object.values(chartsRef.current).forEach(chart => chart?.destroy());
 
-      // Sales Trends Over Time (Line Chart)
       const salesCtx = document.getElementById('salesTrendChart')?.getContext('2d');
       if (salesCtx) {
         if (!salesData.trends?.length) {
@@ -111,7 +109,6 @@ export default function SalesAnalysis() {
         console.warn('Canvas #salesTrendChart not found');
       }
 
-      // Customer Type Analysis (Bar Chart)
       const customerCtx = document.getElementById('customerTypeChart')?.getContext('2d');
       if (customerCtx) {
         if (!salesData.customer_types?.length) {
@@ -148,7 +145,6 @@ export default function SalesAnalysis() {
         console.warn('Canvas #customerTypeChart not found');
       }
 
-      // Quotation Conversion Rates (Pie Chart)
       const quotationCtx = document.getElementById('quotationChart')?.getContext('2d');
       if (quotationCtx) {
         chartsRef.current.quotationChart = new Chart(quotationCtx, {
@@ -178,7 +174,6 @@ export default function SalesAnalysis() {
         console.warn('Canvas #quotationChart not found');
       }
 
-      // Regional Demand (Bar Chart)
       const regionalCtx = document.getElementById('regionalDemandChart')?.getContext('2d');
       if (regionalCtx && salesData.cities?.length) {
         chartsRef.current.regionalDemandChart = new Chart(regionalCtx, {
@@ -232,6 +227,17 @@ export default function SalesAnalysis() {
     ? salesData.products.slice(indexOfFirstItem, indexOfLastItem)
     : [];
   const totalPages = Math.ceil((Array.isArray(salesData?.products) ? salesData.products.length : 0) / itemsPerPage);
+
+  // Pagination logic to show only 3 page numbers
+  const getVisiblePages = () => {
+    const maxVisiblePages = 3;
+    let startPage = Math.max(1, currentPage - Math.floor(maxVisiblePages / 2));
+    let endPage = Math.min(totalPages, startPage + maxVisiblePages - 1);
+    if (endPage - startPage < maxVisiblePages - 1) {
+      startPage = Math.max(1, endPage - maxVisiblePages + 1);
+    }
+    return Array.from({ length: endPage - startPage + 1 }, (_, i) => startPage + i);
+  };
 
   const paginate = (pageNumber) => setCurrentPage(pageNumber);
 
@@ -324,23 +330,30 @@ export default function SalesAnalysis() {
                   {totalPages > 1 && (
                     <div className="flex justify-center mt-4 space-x-2">
                       <button
+                        onClick={() => paginate(1)}
+                        disabled={currentPage === 1}
+                        className="px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-100 rounded disabled:opacity-50"
+                      >
+                        First
+                      </button>
+                      <button
                         onClick={() => paginate(currentPage - 1)}
                         disabled={currentPage === 1}
                         className="px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-100 rounded disabled:opacity-50"
                       >
                         Previous
                       </button>
-                      {Array.from({ length: totalPages }, (_, i) => (
+                      {getVisiblePages().map((page) => (
                         <button
-                          key={i + 1}
-                          onClick={() => paginate(i + 1)}
+                          key={page}
+                          onClick={() => paginate(page)}
                           className={`px-4 py-2 rounded ${
-                            currentPage === i + 1
+                            currentPage === page
                               ? 'bg-blue-500 text-white'
                               : 'bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-100'
                           }`}
                         >
-                          {i + 1}
+                          {page}
                         </button>
                       ))}
                       <button
@@ -349,6 +362,13 @@ export default function SalesAnalysis() {
                         className="px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-100 rounded disabled:opacity-50"
                       >
                         Next
+                      </button>
+                      <button
+                        onClick={() => paginate(totalPages)}
+                        disabled={currentPage === totalPages}
+                        className="px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-100 rounded disabled:opacity-50"
+                      >
+                        Last
                       </button>
                     </div>
                   )}

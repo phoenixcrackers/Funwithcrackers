@@ -75,20 +75,13 @@ export default function Tracking() {
 
   const updateStatus = async (id, newStatus, paymentDetails = null) => {
     try {
-      // Prepare the payload for the API request
       const payload = { status: newStatus };
-
-      // Only include payment details when explicitly provided (e.g., when setting status to 'paid')
       if (paymentDetails) {
         payload.payment_method = paymentDetails.paymentMethod;
         payload.transaction_id = paymentDetails.transactionId || null;
         payload.amount_paid = paymentDetails.amountPaid;
       }
-
-      console.log('Sending Payload to Backend:', payload);
       await axios.put(`${API_BASE_URL}/api/tracking/bookings/${id}/status`, payload);
-
-      // Update the local state without clearing payment details unless explicitly set
       setBookings((prev) =>
         prev
           .map((booking) =>
@@ -96,7 +89,6 @@ export default function Tracking() {
               ? {
                   ...booking,
                   status: newStatus,
-                  // Only update payment details if provided
                   ...(paymentDetails && {
                     payment_method: paymentDetails.paymentMethod || booking.payment_method,
                     transaction_id: paymentDetails.transactionId || booking.transaction_id,
@@ -107,7 +99,6 @@ export default function Tracking() {
           )
           .sort((a, b) => b.id - a.id)
       );
-
       setError('');
       setShowPaidModal(false);
       setShowDetailsModal(false);
@@ -188,7 +179,6 @@ export default function Tracking() {
       link.click();
       document.body.removeChild(link);
       window.URL.revokeObjectURL(url);
-
       toast.success("Downloaded estimate bill, check downloads", {
         position: "top-center",
         autoClose: 5000,
@@ -211,6 +201,7 @@ export default function Tracking() {
       booking[key].toString().toLowerCase().includes(searchTerm.toLowerCase())
     )
   );
+
   const formatDate = (dateStr) => {
     if (!dateStr) return 'N/A';
     const date = new Date(dateStr);
@@ -222,6 +213,17 @@ export default function Tracking() {
   const indexOfFirstOrder = indexOfLastOrder - ordersPerPage;
   const currentOrders = filteredBookings.slice(indexOfFirstOrder, indexOfLastOrder);
   const totalPages = Math.ceil(filteredBookings.length / ordersPerPage);
+
+  // Pagination logic to show only 3 page numbers
+  const getVisiblePages = () => {
+    const maxVisiblePages = 3;
+    let startPage = Math.max(1, currentPage - Math.floor(maxVisiblePages / 2));
+    let endPage = Math.min(totalPages, startPage + maxVisiblePages - 1);
+    if (endPage - startPage < maxVisiblePages - 1) {
+      startPage = Math.max(1, endPage - maxVisiblePages + 1);
+    }
+    return Array.from({ length: endPage - startPage + 1 }, (_, i) => startPage + i);
+  };
 
   const renderSelect = (value, onChange, options, placeholder) => (
     <select
@@ -358,6 +360,21 @@ export default function Tracking() {
           {totalPages > 1 && (
             <div className="mt-6 flex justify-center space-x-2 mobile:space-x-1">
               <button
+                onClick={() => setCurrentPage(1)}
+                disabled={currentPage === 1}
+                className="px-4 py-2 rounded-lg text-white disabled:bg-gray-400 dark:disabled:bg-gray-700 hover:bg-indigo-700 dark:hover:bg-blue-600 mobile:px-2 mobile:py-1 mobile:text-sm"
+                style={{
+                  background: styles.button.background,
+                  backgroundDark: styles.button.backgroundDark,
+                  border: styles.button.border,
+                  borderDark: styles.button.borderDark,
+                  boxShadow: styles.button.boxShadow,
+                  boxShadowDark: styles.button.boxShadowDark,
+                }}
+              >
+                First
+              </button>
+              <button
                 onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
                 disabled={currentPage === 1}
                 className="px-4 py-2 rounded-lg text-white disabled:bg-gray-400 dark:disabled:bg-gray-700 hover:bg-indigo-700 dark:hover:bg-blue-600 mobile:px-2 mobile:py-1 mobile:text-sm"
@@ -372,7 +389,7 @@ export default function Tracking() {
               >
                 Previous
               </button>
-              {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
+              {getVisiblePages().map((page) => (
                 <button
                   key={page}
                   onClick={() => setCurrentPage(page)}
@@ -400,13 +417,28 @@ export default function Tracking() {
               >
                 Next
               </button>
+              <button
+                onClick={() => setCurrentPage(totalPages)}
+                disabled={currentPage === totalPages}
+                className="px-4 py-2 rounded-lg text-white disabled:bg-gray-400 dark:disabled:bg-gray-700 hover:bg-indigo-700 dark:hover:bg-blue-600 mobile:px-2 mobile:py-1 mobile:text-sm"
+                style={{
+                  background: styles.button.background,
+                  backgroundDark: styles.button.backgroundDark,
+                  border: styles.button.border,
+                  borderDark: styles.button.borderDark,
+                  boxShadow: styles.button.boxShadow,
+                  boxShadowDark: styles.button.boxShadowDark,
+                }}
+              >
+                Last
+              </button>
             </div>
           )}
           {showPaidModal && (
             <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
               <div className="bg-white dark:bg-gray-900 p-6 rounded-lg shadow-lg w-96 border border-gray-200 dark:border-gray-700">
                 <h2 className="text-xl font-semibold text-gray-800 dark:text-gray-100 mb-4">Update Status to Paid</h2>
-                <p className="text-gray-700 dark:text-gray-300 mb-4">Please fill in the payment details.</p>
+                <p className="text-gray-7`00 dark:text-gray-300 mb-4">Please fill in the payment details.</p>
                 <div className="flex justify-end space-x-4">
                   <button
                     onClick={handleFillDetails}
