@@ -77,37 +77,46 @@ export default function Report() {
   };
 
   const exportToExcel = () => {
-    const data = bookings.map((b, i) => {
-      // Calculate total if not provided: subtotal - discount (assume subtotal is base amount before discount)
-      const subtotal = b.subtotal || (b.total ? parseFloat(b.total) + (b.discount || 0) : 0);
-      const discount = parseFloat(b.discount) || 0;
-      const calculatedTotal = subtotal - discount;
-      const totalAmount = b.total ? parseFloat(b.total).toFixed(2) : calculatedTotal.toFixed(2);
+  // Sort bookings by month ascending
+  const sortedBookings = [...bookings].sort((a, b) => {
+    const dateA = new Date(a.created_at);
+    const dateB = new Date(b.created_at);
+    const monthA = dateA.getMonth();
+    const monthB = dateB.getMonth();
+    return monthA - monthB;
+  });
 
-      return {
-        'Sl. No': i + 1,
-        'Order ID': b.order_id || '',
-        'Customer Name': b.customer_name || '',
-        'Mobile Number': b.mobile_number || '',
-        'District': b.district || '',
-        'State': b.state || '',
-        'Status': b.status || '',
-        'Date': new Date(b.created_at).toLocaleDateString('en-GB'),
-        'Address': b.address || '',
-        'Subtotal': subtotal.toFixed(2),
-        'Discount': discount.toFixed(2),
-        'Promocode': b.promocode || '',
-        'Total Amount': `Rs.${totalAmount}`,
-        'Payment Method': b.payment_method || '',
-        'Amount Paid': b.amount_paid ? `Rs.${b.amount_paid}` : '',
-        'Transaction ID': b.transaction_id || ''
-      };
-    });
-    const worksheet = XLSX.utils.json_to_sheet(data);
-    const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, worksheet, 'Bookings');
-    XLSX.writeFile(workbook, `Bookings_Report_All.xlsx`);
-  };
+  const data = sortedBookings.map((b, i) => {
+    // Calculate total if not provided: subtotal - discount (assume subtotal is base amount before discount)
+    const subtotal = b.subtotal || (b.total ? parseFloat(b.total) + (b.discount || 0) : 0);
+    const discount = parseFloat(b.discount) || 0;
+    const calculatedTotal = subtotal - discount;
+    const totalAmount = b.total ? parseFloat(b.total).toFixed(2) : calculatedTotal.toFixed(2);
+
+    return {
+      'Sl. No': i + 1,
+      'Order ID': b.order_id || '',
+      'Customer Name': b.customer_name || '',
+      'Mobile Number': b.mobile_number || '',
+      'District': b.district || '',
+      'State': b.state || '',
+      'Status': b.status || '',
+      'Date': new Date(b.created_at).toLocaleDateString('en-GB'),
+      'Address': b.address || '',
+      'Subtotal': subtotal.toFixed(2),
+      'Discount': discount.toFixed(2),
+      'Promocode': b.promocode || '',
+      'Total Amount': `Rs.${totalAmount}`,
+      'Payment Method': b.payment_method || '',
+      'Amount Paid': b.amount_paid ? `Rs.${b.amount_paid}` : '',
+      'Transaction ID': b.transaction_id || ''
+    };
+  });
+  const worksheet = XLSX.utils.json_to_sheet(data);
+  const workbook = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(workbook, worksheet, 'Bookings');
+  XLSX.writeFile(workbook, `Bookings_Report_All.xlsx`);
+};
 
   const indexOfLastOrder = currentPage * ordersPerPage;
   const indexOfFirstOrder = indexOfLastOrder - ordersPerPage;
