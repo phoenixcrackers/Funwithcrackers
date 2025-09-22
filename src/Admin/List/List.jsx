@@ -94,7 +94,6 @@ export default function List() {
         }))
         .sort((a, b) => a.serial_number.localeCompare(b.serial_number));
       setProducts(normalizedData);
-      applyFilters(normalizedData, filterType, searchQuery);
       setToggleStates(
         normalizedData.reduce(
           (acc, p) => ({
@@ -107,7 +106,7 @@ export default function List() {
       );
     });
 
-  const applyFilters = (productsData, type, query) => {
+  const applyFilters = (productsData, type, query, resetPage = true) => {
     let filtered = productsData;
     if (type !== "all") {
       filtered = filtered.filter((p) => p.product_type === type);
@@ -119,7 +118,15 @@ export default function List() {
       );
     }
     setFilteredProducts(filtered);
-    setCurrentPage(1);
+    if (resetPage) {
+      setCurrentPage(1);
+    } else {
+      // Adjust currentPage if it exceeds the new totalPages
+      const totalPages = Math.ceil(filtered.length / productsPerPage);
+      if (currentPage > totalPages && totalPages > 0) {
+        setCurrentPage(totalPages);
+      }
+    }
   };
 
   const applyRateChangeFilter = () => {
@@ -160,8 +167,12 @@ export default function List() {
   }, []);
 
   useEffect(() => {
-    applyFilters(products, filterType, searchQuery);
-  }, [filterType, searchQuery, products]);
+    applyFilters(products, filterType, searchQuery, filterType !== "all" || searchQuery !== "");
+  }, [filterType, searchQuery]);
+
+  useEffect(() => {
+    applyFilters(products, filterType, searchQuery, false);
+  }, [products]);
 
   const handleImageChange = (e) => {
     const files = Array.from(e.target.files);
@@ -201,12 +212,12 @@ export default function List() {
         setDiscountWarning("");
         setFormData((prev) => ({ ...prev, [name]: value }));
       }
-    } else if (name === "dprice") {
+    } else if (name === "price" || name === "dprice") {
       const numValue = Number.parseFloat(value);
       if (value === "") {
         setFormData((prev) => ({ ...prev, [name]: value }));
       } else if (isNaN(numValue) || numValue < 0) {
-        setError("Direct Customer Price must be a valid positive number");
+        setError(`${name === "price" ? "Price" : "Direct Customer Price"} must be a valid positive number`);
         setFormData((prev) => ({ ...prev, [name]: "0" }));
       } else {
         setFormData((prev) => ({ ...prev, [name]: value }));
@@ -274,6 +285,9 @@ export default function List() {
       if (remainingExistingImages.length > 0) {
         formDataToSend.append("existingImages", JSON.stringify(remainingExistingImages));
       }
+      if (formData.imagesToDelete.length > 0) {
+        formDataToSend.append("imagesToDelete", JSON.stringify(formData.imagesToDelete));
+      }
       formData.images.forEach((file) => formDataToSend.append("images", file));
     } else {
       formData.images.forEach((file) => formDataToSend.append("images", file));
@@ -295,7 +309,30 @@ export default function List() {
         throw new Error(result.message || `Failed to ${isEdit ? "update" : "add"} product`);
       }
 
-      fetchProducts();
+      if (isEdit) {
+        // Update products in place to avoid resetting filters
+        setProducts((prev) =>
+          prev.map((p) =>
+            p.id === selectedProduct.id && p.product_type === selectedProduct.product_type
+              ? {
+                  ...p,
+                  productname: formData.productname,
+                  serial_number: formData.serial_number,
+                  price: formData.price,
+                  dprice: formData.dprice,
+                  discount: formData.discount,
+                  per: formData.per,
+                  description: formData.description,
+                  box_count: Math.max(1, Number.parseInt(formData.box_count) || 1),
+                  images: result.images || formData.existingImages.concat(formData.images),
+                }
+              : p,
+          ),
+        );
+      } else {
+        fetchProducts();
+      }
+
       closeModal();
       e.target.reset();
       setFormData({
@@ -324,9 +361,14 @@ export default function List() {
         `${API_BASE_URL}/api/products/${product.product_type.toLowerCase().replace(/\s+/g, "_")}/${product.id}`,
         { method: "DELETE" },
       );
-      fetchProducts();
+      setProducts((prev) => prev.filter((p) => p.id !== product.id || p.product_type !== product.product_type));
       setDeleteModalIsOpen(false);
       setProductToDelete(null);
+      // Adjust currentPage if necessary
+      const totalPages = Math.ceil((filteredProducts.length - 1) / productsPerPage);
+      if (currentPage > totalPages && totalPages > 0) {
+        setCurrentPage(totalPages);
+      }
     } catch (err) {
       setError("Failed to delete product");
     }
@@ -698,21 +740,21 @@ export default function List() {
   );
 
   const renderMedia = (media, idx, sizeClass) => {
-    let src
-    let isVideo = false
+    let src;
+    let isVideo = false;
 
     if (media instanceof File) {
-      src = URL.createObjectURL(media)
-      isVideo = media.type.startsWith("video/")
+      src = URL.createObjectURL(media);
+      isVideo = media.type.startsWith("video/");
     } else if (typeof media === "string") {
-      src = media
-      isVideo = media.includes("/video/")
+      src = media;
+      isVideo = media.includes("/video/");
     } else {
       return (
         <span key={idx} className="text-gray-500 dark:text-gray-400 text-sm">
           Invalid media
         </span>
-      )
+      );
     }
 
     return isVideo ? (
@@ -722,7 +764,7 @@ export default function List() {
         controls
         className={`${sizeClass} object-cover rounded-md inline-block mx-1`}
         onLoad={() => {
-          if (media instanceof File) URL.revokeObjectURL(src)
+          if (media instanceof File) URL.revokeObjectURL(src);
         }}
       />
     ) : (
@@ -732,19 +774,19 @@ export default function List() {
         alt={`media-${idx}`}
         className={`${sizeClass} object-cover rounded-md inline-block mx-1`}
         onLoad={() => {
-          if (media instanceof File) URL.revokeObjectURL(src)
+          if (media instanceof File) URL.revokeObjectURL(src);
         }}
       />
-    )
-  }
+    );
+  };
 
   const handleDeleteExistingImage = (indexToDelete) => {
     setFormData((prev) => ({
       ...prev,
       existingImages: prev.existingImages.filter((_, index) => index !== indexToDelete),
       imagesToDelete: [...prev.imagesToDelete, indexToDelete],
-    }))
-  }
+    }));
+  };
 
   const renderModalForm = (isEdit) => (
     <div className="bg-white dark:bg-gray-900 rounded-lg p-6 mobile:p-3 max-w-2xl w-full">
@@ -838,19 +880,27 @@ export default function List() {
                 step="0.01"
               />
             </div>
-<div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Direct Customer Price</label>
-            <input
-              type="number"
-              name="dprice"
-              value={formData.dprice}
-              onChange={handleInputChange}
-              className="mt-1 text-md px-2 h-8 block w-full rounded-md bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-900 border-gray-300 dark:border-gray-600 shadow-sm"
-              style={styles.input}
-              required
-              step="0.01"
-            />
-          </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Direct Customer Price</label>
+              <input
+                type="number"
+                name="dprice"
+                value={formData.dprice}
+                onChange={handleInputChange}
+                className="mt-1 text-md px-2 h-8 mobile:mt-0.5 block w-full rounded-md bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-900 border-gray-300 dark:border-gray-600 shadow-sm focus:border-indigo-600 dark:focus:border-blue-500 focus:ring-indigo-600 dark:focus:ring-blue-500 sm:text-sm"
+                style={{
+                  background: styles.input.background,
+                  backgroundDark: styles.input.backgroundDark,
+                  border: styles.input.border,
+                  borderDark: styles.input.borderDark,
+                  backdropFilter: styles.input.backdropFilter,
+                }}
+                required
+                step="0.01"
+              />
+            </div>
+
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Discount (%)</label>
               <input
@@ -949,7 +999,7 @@ export default function List() {
                         ×
                       </button>
                     </div>
-                  ))}z
+                  ))}
                 </div>
               </div>
             )}
@@ -969,7 +1019,7 @@ export default function List() {
                           setFormData((prev) => ({
                             ...prev,
                             images: prev.images.filter((_, index) => index !== idx),
-                          }))
+                          }));
                         }}
                         className="absolute -top-2 -right-2 bg-red-500 hover:bg-red-600 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs font-bold shadow-lg"
                         title="Remove this new image"
@@ -1017,15 +1067,15 @@ export default function List() {
         </div>
       </form>
     </div>
-  )
+  );
 
   const { indexOfFirstProduct, indexOfLastProduct } = {
     indexOfFirstProduct: currentPage * productsPerPage - productsPerPage,
     indexOfLastProduct: currentPage * productsPerPage,
-  }
+  };
 
-  const currentProducts = filteredProducts.slice(indexOfFirstProduct, indexOfLastProduct)
-  const totalPages = Math.ceil(filteredProducts.length / productsPerPage)
+  const currentProducts = filteredProducts.slice(indexOfFirstProduct, indexOfLastProduct);
+  const totalPages = Math.ceil(filteredProducts.length / productsPerPage);
 
   return (
     <div className="flex min-h-screen overflow-hidden bg-gray-100 dark:bg-gray-900">
@@ -1113,7 +1163,7 @@ export default function List() {
                   backgroundDark: styles.button.backgroundDark,
                   border: styles.button.border,
                   borderDark: styles.button.borderDark,
-                  boxShadow: styles.button.boxShot,
+                  boxShadow: styles.button.boxShadow,
                   boxShadowDark: styles.button.boxShadowDark,
                 }}
               >
@@ -1129,7 +1179,7 @@ export default function List() {
           ) : (
             <div className="grid onefifty:grid-cols-3 hundred:translate-x-0 mobile:grid-cols-1 hundred:grid-cols-3 gap-6 mobile:gap-4 justify-center">
               {currentProducts.map((product) => {
-                const productKey = `${product.product_type}-${product.id}`
+                const productKey = `${product.product_type}-${product.id}`;
                 return (
                   <div
                     key={productKey}
@@ -1161,11 +1211,10 @@ export default function List() {
                           </span>
                         </div>
                         <div>
-  <span className="font-medium text-gray-700 dark:text-gray-300">
-    Direct Price: ₹{Number.parseFloat(product.dprice).toFixed(2)}
-  </span>
-</div>
-
+                          <span className="font-medium text-gray-700 dark:text-gray-300">
+                            Direct Price: ₹{Number.parseFloat(product.dprice).toFixed(2)}
+                          </span>
+                        </div>
                         <div>
                           <span className="font-medium text-gray-700 dark:text-gray-300">Per: {product.per}</span>
                         </div>
@@ -1189,10 +1238,14 @@ export default function List() {
                               onChange={() => handleToggle(product, "toggle-status", "")}
                             />
                             <div
-                              className={`relative w-8 h-4 rounded-full transition-colors duration-200 ease-in-out ${toggleStates[productKey] ? "bg-green-600 dark:bg-green-500" : "bg-red-600 dark:bg-red-500"}`}
+                              className={`relative w-8 h-4 rounded-full transition-colors duration-200 ease-in-out ${
+                                toggleStates[productKey] ? "bg-green-600 dark:bg-green-500" : "bg-red-600 dark:bg-red-500"
+                              }`}
                             >
                               <div
-                                className={`absolute top-0.25 w-3.5 h-3.5 bg-white dark:bg-gray-200 rounded-full transition-transform duration-200 ease-in-out ${toggleStates[productKey] ? "translate-x-4" : "translate-x-0.5"}`}
+                                className={`absolute top-0.25 w-3.5 h-3.5 bg-white dark:bg-gray-200 rounded-full transition-transform duration-200 ease-in-out ${
+                                  toggleStates[productKey] ? "translate-x-4" : "translate-x-0.5"
+                                }`}
                               ></div>
                             </div>
                           </label>
@@ -1207,10 +1260,16 @@ export default function List() {
                               onChange={() => handleToggle(product, "toggle-fast-running", "fast-")}
                             />
                             <div
-                              className={`relative w-8 h-4 rounded-full transition-colors duration-200 ease-in-out ${toggleStates[`fast-${productKey}`] ? "bg-blue-600 dark:bg-blue-500" : "bg-gray-400 dark:bg-gray-500"}`}
+                              className={`relative w-8 h-4 rounded-full transition-colors duration-200 ease-in-out ${
+                                toggleStates[`fast-${productKey}`]
+                                  ? "bg-blue-600 dark:bg-blue-500"
+                                  : "bg-gray-400 dark:bg-gray-500"
+                              }`}
                             >
                               <div
-                                className={`absolute top-0.25 w-3.5 h-3.5 bg-white dark:bg-gray-200 rounded-full transition-transform duration-200 ease-in-out ${toggleStates[`fast-${productKey}`] ? "translate-x-4" : "translate-x-0.5"}`}
+                                className={`absolute top-0.25 w-3.5 h-3.5 bg-white dark:bg-gray-200 rounded-full transition-transform duration-200 ease-in-out ${
+                                  toggleStates[`fast-${productKey}`] ? "translate-x-4" : "translate-x-0.5"
+                                }`}
                               ></div>
                             </div>
                           </label>
@@ -1220,8 +1279,8 @@ export default function List() {
                       <div className="flex justify-center gap-2">
                         <button
                           onClick={() => {
-                            setSelectedProduct(product)
-                            setModalIsOpen(true)
+                            setSelectedProduct(product);
+                            setModalIsOpen(true);
                           }}
                           className="flex items-center px-3 py-1 text-xs sm:text-sm text-white dark:text-gray-100 hover:bg-blue-700 dark:hover:bg-blue-600 rounded-md"
                           style={{
@@ -1237,12 +1296,12 @@ export default function List() {
                         </button>
                         <button
                           onClick={() => {
-                            setSelectedProduct(product)
+                            setSelectedProduct(product);
                             setFormData({
                               productname: product.productname,
                               serial_number: product.serial_number,
                               price: product.price,
-                              dprice: product.dprice,   // ✅ new
+                              dprice: product.dprice,
                               discount: product.discount,
                               per: product.per,
                               product_type: product.product_type,
@@ -1251,18 +1310,17 @@ export default function List() {
                               images: [],
                               existingImages: product.images || [],
                               imagesToDelete: [],
-                            })
-
-                            setEditModalIsOpen(true)
+                            });
+                            setEditModalIsOpen(true);
                           }}
                           className="flex items-center px-3 py-1 text-xs sm:text-sm text-white dark:text-gray-100 hover:bg-green-700 dark:hover:bg-green-600 rounded-md"
                           style={{
-                            background: styles.button.background,
-                            backgroundDark: styles.button.backgroundDark,
-                            border: styles.button.border,
-                            borderDark: styles.button.borderDark,
-                            boxShadow: styles.button.boxShadow,
-                            boxShadowDark: styles.button.boxShadowDark,
+                            background: styles.button.background.replace("2,132,199", "34,197,94").replace("14,165,233", "74,222,128"),
+                            backgroundDark: styles.button.backgroundDark.replace("59,130,246", "34,197,94").replace("37,99,235", "22,163,74"),
+                            border: styles.button.border.replace("125,211,252", "187,247,208"),
+                            borderDark: styles.button.borderDark.replace("147,197,253", "187,247,208"),
+                            boxShadow: styles.button.boxShadow.replace("2,132,199", "34,197,94"),
+                            boxShadowDark: styles.button.boxShadowDark.replace("59,130,246", "34,197,94"),
                           }}
                         >
                           <FaEdit className="mr-1 h-4 w-4" /> Edit
@@ -1271,12 +1329,16 @@ export default function List() {
                           onClick={() => openDeleteModal(product)}
                           className="flex items-center px-3 py-1 text-xs sm:text-sm text-white dark:text-gray-100 hover:bg-red-700 dark:hover:bg-red-600 rounded-md"
                           style={{
-                            background: styles.button.background,
-                            backgroundDark: styles.button.backgroundDark,
-                            border: styles.button.border,
-                            borderDark: styles.button.borderDark,
-                            boxShadow: styles.button.boxShadow,
-                            boxShadowDark: styles.button.boxShadowDark,
+                            background: styles.button.background
+                              .replace("2,132,199", "220,38,38")
+                              .replace("14,165,233", "239,68,68"),
+                            backgroundDark: styles.button.backgroundDark
+                              .replace("59,130,246", "220,38,38")
+                              .replace("37,99,235", "200,35,35"),
+                            border: styles.button.border.replace("125,211,252", "252,165,165"),
+                            borderDark: styles.button.borderDark.replace("147,197,253", "252,165,165"),
+                            boxShadow: styles.button.boxShadow.replace("2,132,199", "220,38,38"),
+                            boxShadowDark: styles.button.boxShadowDark.replace("59,130,246", "220,38,38"),
                           }}
                         >
                           <FaTrash className="mr-1 h-4 w-4" /> Delete
@@ -1284,7 +1346,7 @@ export default function List() {
                       </div>
                     </div>
                   </div>
-                )
+                );
               })}
             </div>
           )}
@@ -1293,11 +1355,15 @@ export default function List() {
             <div className="mt-6 mobile:mt-4 flex justify-center items-center space-x-4 mobile:space-x-2">
               <button
                 onClick={() => {
-                  setCurrentPage((p) => Math.max(1, p - 1))
-                  window.scrollTo(0, 0)
+                  setCurrentPage((p) => Math.max(1, p - 1));
+                  window.scrollTo(0, 0);
                 }}
                 disabled={currentPage === 1}
-                className={`p-2 rounded-md ${currentPage === 1 ? "bg-gray-200 dark:bg-gray-700 text-gray-400 dark:text-gray-500 cursor-not-allowed" : "text-white dark:text-gray-100 hover:bg-indigo-700 dark:hover:bg-blue-600"}`}
+                className={`p-2 rounded-md ${
+                  currentPage === 1
+                    ? "bg-gray-200 dark:bg-gray-700 text-gray-400 dark:text-gray-500 cursor-not-allowed"
+                    : "text-white dark:text-gray-100 hover:bg-indigo-700 dark:hover:bg-blue-600"
+                }`}
                 style={
                   currentPage !== 1
                     ? {
@@ -1318,11 +1384,15 @@ export default function List() {
               </span>
               <button
                 onClick={() => {
-                  setCurrentPage((p) => Math.min(totalPages, p + 1))
-                  window.scrollTo(0, 0)
+                  setCurrentPage((p) => Math.min(totalPages, p + 1));
+                  window.scrollTo(0, 0);
                 }}
                 disabled={currentPage === totalPages}
-                className={`p-2 rounded-md ${currentPage === totalPages ? "bg-gray-200 dark:bg-gray-700 text-gray-400 dark:text-gray-500 cursor-not-allowed" : "text-white dark:text-gray-100 hover:bg-indigo-700 dark:hover:bg-blue-600"}`}
+                className={`p-2 rounded-md ${
+                  currentPage === totalPages
+                    ? "bg-gray-200 dark:bg-gray-700 text-gray-400 dark:text-gray-500 cursor-not-allowed"
+                    : "text-white dark:text-gray-100 hover:bg-indigo-700 dark:hover:bg-blue-600"
+                }`}
                 style={
                   currentPage !== totalPages
                     ? {
@@ -1368,8 +1438,7 @@ export default function List() {
                       "serial_number",
                       "productname",
                       "price",
-                        "dprice",       // ✅ show direct price
-
+                      "dprice",
                       "per",
                       "discount",
                       "box_count",
@@ -1381,15 +1450,15 @@ export default function List() {
                           {capitalize(field.replace("_", " "))}:
                         </span>
                         <span className="ml-2 text-gray-900 dark:text-gray-100 text-xs sm:text-sm">
-{field === "price" || field === "dprice"
+                          {field === "price" || field === "dprice"
                             ? `₹${Number.parseFloat(selectedProduct[field]).toFixed(2)}`
                             : field === "discount"
-                              ? `${Number.parseFloat(selectedProduct[field]).toFixed(2)}%`
-                              : field === "description"
-                                ? selectedProduct[field] || "No"
-                                : field === "box_count"
-                                  ? selectedProduct[field]
-                                  : capitalize(selectedProduct[field])}
+                            ? `${Number.parseFloat(selectedProduct[field]).toFixed(2)}%`
+                            : field === "description"
+                            ? selectedProduct[field] || "No"
+                            : field === "box_count"
+                            ? selectedProduct[field]
+                            : capitalize(selectedProduct[field])}
                         </span>
                       </div>
                     ))}
@@ -1467,11 +1536,12 @@ export default function List() {
                 </button>
                 <button
                   onClick={closeModal}
-                  className="rounded-md px-3 mobile:px-2 py-2 mobile:py-1 text-xs sm:text-sm font-semibold text-white dark:text-gray-100 shadow-sm hover:bg-gray-dark dark:hover:bg-gray-600"
+                  className="rounded-md px-3 mobile:px-2 py-2 mobile:py-1 text-xs sm:text-sm font-semibold text-white dark:text-gray-100 shadow-sm hover:bg-gray-700 dark:hover:bg-gray-600"
                   style={{
                     background: styles.button.background,
                     backgroundDark: styles.button.backgroundDark,
-                    border: styles.button.borderDark,
+                    border: styles.button.border,
+                    borderDark: styles.button.borderDark,
                     boxShadow: styles.button.boxShadow,
                     boxShadowDark: styles.button.boxShadowDark,
                   }}
@@ -1498,8 +1568,8 @@ export default function List() {
               <div className="flex justify-center space-x-4 mobile:space-x-2">
                 <button
                   onClick={() => {
-                    setConfirmRateChangeModalIsOpen(false)
-                    setRateChangeModalIsOpen(true)
+                    setConfirmRateChangeModalIsOpen(false);
+                    setRateChangeModalIsOpen(true);
                   }}
                   className="rounded-md px-3 mobile:px-2 py-2 mobile:py-1 text-xs sm:text-sm font-semibold text-white dark:text-gray-100 shadow-sm hover:bg-indigo-700 dark:hover:bg-blue-600"
                   style={{
@@ -1515,14 +1585,15 @@ export default function List() {
                 </button>
                 <button
                   onClick={() => {
-                    setConfirmRateChangeModalIsOpen(false)
-                    generatePDF()
+                    setConfirmRateChangeModalIsOpen(false);
+                    generatePDF();
                   }}
                   className="rounded-md px-3 mobile:px-2 py-2 mobile:py-1 text-xs sm:text-sm font-semibold text-white dark:text-gray-100 shadow-sm hover:bg-gray-700 dark:hover:bg-gray-600"
                   style={{
                     background: styles.button.background,
                     backgroundDark: styles.button.backgroundDark,
-                    border: styles.button.borderDark,
+                    border: styles.button.border,
+                    borderDark: styles.button.borderDark,
                     boxShadow: styles.button.boxShadow,
                     boxShadowDark: styles.button.boxShadowDark,
                   }}
@@ -1544,14 +1615,14 @@ export default function List() {
         </div>
       </div>
       <style>{`
-        .line-height-2 { display: -webkit-box; -webkit-line-height: 2; -webkit-box-orientation: vertical; overflow: hidden; }
-        [style*="backgroundDark"] { background: var(--background-dark bg, ${styles.input.background}); }
-        [style*="backgroundDark"][data-dark] { --background-dark: var(--bg-dark, ${styles.input.backgroundDark}); } 
-        [style*="borderDark"] { border: var(--border-dark, ${styles.input.border}); }
-        [style*="borderDark"][data-dark] { --border-dark: var(--border-dark, ${styles.input.borderDark}); } 
-        [style*="box-shadowDark"] { box-shadow: var(--shadow-dark box-shadow, ${styles.button.boxShadow}); }
-        [style*="boxShadowDark"][data-dark] { --shadow-dark: var(--shadow-dark, ${styles.button.boxShadowDark}); } 
+        .line-height-2 { display: -webkit-box; -webkit-line-height: 2; -webkit-box-orient: vertical; overflow: hidden; }
+        [style*="backgroundDark"] { background: var(--bg, ${styles.input.background}); }
+        [style*="backgroundDark"][data-dark] { --bg: ${styles.input.backgroundDark}; }
+        [style*="borderDark"] { border: var(--border, ${styles.input.border}); }
+        [style*="borderDark"][data-dark] { --border: ${styles.input.borderDark}; }
+        [style*="boxShadowDark"] { box-shadow: var(--shadow, ${styles.button.boxShadow}); }
+        [style*="boxShadowDark"][data-dark] { --shadow: ${styles.button.boxShadowDark}; }
       `}</style>
     </div>
-  )
+  );
 }

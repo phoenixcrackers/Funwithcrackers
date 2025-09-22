@@ -195,7 +195,7 @@ export default function Dispatch() {
       <Logout />
       <div className="flex-1 flex items-start justify-center p-6 mobile:overflow-hidden onefifty:ml-[0%] hundred:ml-[15%] mobile:ml-[0%]">
         <div className="w-full max-w-5xl mobile:p-4">
-          <h1 className="text-4xl font-bold mb-8 text-center text-gray-800 dark:text-gray-100 mobile:text-2xl">Dispatch</h1>
+          <h1 className="text-4xl font-bold mb-8 text-center text-gray-800 dark:text-gray-100 mobile:text-2xl">Dispatch Customers</h1>
           {error && (
             <div className="bg-red-100 dark:bg-red-900 border border-red-400 dark:border-red-700 text-red-700 dark:text-red-200 px-6 py-3 rounded-lg mb-6 text-center shadow-md mobile:text-sm mobile:px-3 mobile:py-2">
               {error}
