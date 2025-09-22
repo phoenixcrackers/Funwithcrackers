@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import axios from 'axios';
 import Select from 'react-select';
 import Modal from 'react-modal';
+import * as XLSX from 'xlsx';
 import '../../App.css';
 import { API_BASE_URL } from '../../../Config';
 import Sidebar from '../Sidebar/Sidebar';
@@ -110,7 +111,7 @@ const QuotationTable = ({
   lastAddedProduct,
   setLastAddedProduct,
   userType,
-  productSelectRef // New prop for select ref
+  productSelectRef
 }) => {
   const quantityInputRefs = useRef({});
   const localSelectRef = useRef(null);
@@ -144,12 +145,10 @@ const QuotationTable = ({
     });
   };
 
-  // Handle quantity input blur to focus back on product select
   const handleQuantityBlur = () => {
     if (localSelectRef.current) {
       localSelectRef.current.focus();
     }
-    // Also clear the selected product to reset the select field
     setSelectedProduct(null);
   };
 
@@ -276,7 +275,7 @@ const QuotationTable = ({
                       onChange={(e) =>
                         updateQuantity(item.id, item.product_type, Number.parseInt(e.target.value) || 0, isModal)
                       }
-                      onBlur={handleQuantityBlur} // Add blur handler
+                      onBlur={handleQuantityBlur}
                       min="0"
                       ref={(el) => (quantityInputRefs.current[`${item.id}-${item.product_type}`] = el)}
                       className="w-16 text-center border border-gray-300 rounded p-1 focus:outline-none focus:ring-2 focus:ring-blue-600"
@@ -419,7 +418,7 @@ const FormFields = ({
         lastAddedProduct={modalLastAddedProduct}
         setLastAddedProduct={(val) => updateState({ modalLastAddedProduct: val })}
         userType={modalUserType}
-        productSelectRef={React.createRef()} // Pass ref for modal
+        productSelectRef={React.createRef()}
       />
     </QuotationTableErrorBoundary>
     <div className="flex justify-end space-x-3">
@@ -459,8 +458,7 @@ const NewProductModal = ({ isOpen, onClose, onSubmit, newProductData, setNewProd
     }
   };
 
-  const handleKeyDown = (e) => {
-  };
+  const handleKeyDown = (e) => {};
 
   const handleSubmit = async () => {
     setIsSubmitting(true);
@@ -563,11 +561,13 @@ export default function Direct() {
     lastAddedProduct: null,
     modalLastAddedProduct: null,
     userType: '',
-    modalUserType: ''
+    modalUserType: '',
+    currentPage: 1,
+    searchQuery: '',
   });
 
   const isMounted = useRef(true);
-  const productSelectRef = useRef(null); // Add ref for main product select
+  const productSelectRef = useRef(null);
 
   const updateState = (updates) => {
     if (!isMounted.current) return;
@@ -632,6 +632,72 @@ export default function Direct() {
     };
   }, []);
 
+  const itemsPerPage = 9;
+
+  const handleSearch = (e) => {
+    updateState({ searchQuery: e.target.value, currentPage: 1 });
+  };
+
+  const filteredQuotations = state.quotations.filter(q =>
+    q.quotation_id.toLowerCase().includes(state.searchQuery.toLowerCase()) ||
+    (q.customer_name || '').toLowerCase().includes(state.searchQuery.toLowerCase())
+  );
+
+  const totalPages = Math.ceil(filteredQuotations.length / itemsPerPage);
+
+  const getVisiblePages = () => {
+    const pages = [];
+    const maxVisiblePages = 5;
+    let startPage = Math.max(1, state.currentPage - Math.floor(maxVisiblePages / 2));
+    let endPage = Math.min(totalPages, startPage + maxVisiblePages - 1);
+
+    if (endPage - startPage + 1 < maxVisiblePages) {
+      startPage = Math.max(1, endPage - maxVisiblePages + 1);
+    }
+
+    for (let i = startPage; i <= endPage; i++) {
+      pages.push(i);
+    }
+    return pages;
+  };
+
+  const paginatedQuotations = filteredQuotations.slice(
+    (state.currentPage - 1) * itemsPerPage,
+    state.currentPage * itemsPerPage
+  );
+
+  const exportToExcel = () => {
+    const workbook = XLSX.utils.book_new();
+    
+    const customerGroups = {
+      Customer: state.customers.filter(c => c.customer_type === 'Customer'),
+      Agent: state.customers.filter(c => c.customer_type === 'Agent'),
+      'Customer of Agent': state.customers.filter(c => c.customer_type === 'Customer of Selected Agent')
+    };
+
+    Object.entries(customerGroups).forEach(([type, group]) => {
+      if (group.length === 0) return;
+
+      const data = group.map(customer => {
+        const baseData = {
+          Name: customer.name || 'N/A',
+          'Customer Type': customer.customer_type || 'N/A',
+          Address: customer.address || 'N/A',
+          State: customer.state || 'N/A',
+          District: customer.district || 'N/A',
+          'Mobile Number': customer.mobile_number || 'N/A',
+          Email: customer.email || 'N/A'
+        };
+        return baseData;
+      });
+
+      const worksheet = XLSX.utils.json_to_sheet(data);
+      XLSX.utils.book_append_sheet(workbook, worksheet, type);
+    });
+
+    XLSX.writeFile(workbook, 'customers_export.xlsx');
+  };
+
   const addToCart = (isModal = false, customProduct = null) => {
     console.log('Direct: Adding to cart:', { isModal, customProduct });
     const {
@@ -664,7 +730,7 @@ export default function Direct() {
         product_type: 'Custom',
         basePrice: Math.round(Number(customProduct.price)),
         customPrice: Math.round(Number(customProduct.price)),
-        dprice: Math.round(Number(customProduct.price)), // Add dprice for consistency
+        dprice: Math.round(Number(customProduct.price)),
         quantity: Number.parseInt(customProduct.quantity) || 1,
         discount: Number.parseFloat(customProduct.discount) || targetDiscount,
         per: customProduct.per || 'Unit',
@@ -709,7 +775,6 @@ export default function Direct() {
       error: "",
     });
 
-    // Focus on product select after adding to cart
     if (!isModal && productSelectRef.current) {
       productSelectRef.current.focus();
     }
@@ -805,7 +870,7 @@ export default function Direct() {
       quantity: Number.parseInt(productData.quantity) || 1,
     });
     closeNewProductModal();
-  }, [state.isModalNewProduct, state.modalChangeDiscount, state.changeDiscount, addToCart, closeNewProductModal]);
+  }, [state.isModalNewProduct, state.modalChangeDiscount, state.changeDiscount]);
 
   const createQuotation = async () => {
     const controller = new AbortController();
@@ -1190,7 +1255,6 @@ export default function Direct() {
   const {
     customers,
     products,
-    quotations,
     selectedCustomer,
     cart,
     selectedProduct,
@@ -1280,7 +1344,7 @@ export default function Direct() {
                 lastAddedProduct={lastAddedProduct}
                 setLastAddedProduct={(val) => updateState({ lastAddedProduct: val })}
                 userType={userType}
-                productSelectRef={productSelectRef} // Pass ref to main QuotationTable
+                productSelectRef={productSelectRef}
               />
             </QuotationTableErrorBoundary>
           </div>
@@ -1302,9 +1366,26 @@ export default function Direct() {
             <h2 className="text-2xl font-semibold mb-4 text-center text-gray-800 mobile:text-xl">
               All Quotations
             </h2>
-            {quotations.length ? (
+            <div className="flex justify-between items-center mb-4 mobile:flex-col mobile:gap-2">
+              <input
+                type="text"
+                placeholder="Search by Quotation ID or Customer Name..."
+                value={state.searchQuery}
+                onChange={handleSearch}
+                className="w-1/3 p-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 mobile:w-full"
+                style={styles.input}
+              />
+              <button
+                onClick={exportToExcel}
+                className="h-10 text-white px-4 rounded-lg font-bold shadow bg-green-600 hover:bg-green-700 mobile:w-full"
+                style={styles.button}
+              >
+                Export Customers to Excel
+              </button>
+            </div>
+            {paginatedQuotations.length ? (
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 mobile:gap-4">
-                {quotations.map(q => (
+                {paginatedQuotations.map(q => (
                   <div key={q.quotation_id} className="p-6 rounded-lg shadow-lg" style={styles.card}>
                     <h3 className="text-lg font-bold mb-2 mobile:text-base text-gray-900">
                       {q.quotation_id}
@@ -1387,6 +1468,55 @@ export default function Direct() {
             ) : (
               <div className="p-4 text-center text-gray-500 mobile:p-2 mobile:text-xs">
                 No quotations available
+              </div>
+            )}
+            {totalPages > 1 && (
+              <div className="mt-6 flex justify-center space-x-2 mobile:space-x-1">
+                <button
+                  onClick={() => updateState({ currentPage: 1 })}
+                  disabled={state.currentPage === 1}
+                  className="px-4 py-2 rounded-lg text-white disabled:bg-gray-400 dark:disabled:bg-gray-700 hover:bg-indigo-700 dark:hover:bg-blue-600 mobile:px-2 mobile:py-1 mobile:text-sm"
+                  style={styles.button}
+                >
+                  First
+                </button>
+                <button
+                  onClick={() => updateState({ currentPage: Math.max(state.currentPage - 1, 1) })}
+                  disabled={state.currentPage === 1}
+                  className="px-4 py-2 rounded-lg text-white disabled:bg-gray-400 dark:disabled:bg-gray-700 hover:bg-indigo-700 dark:hover:bg-blue-600 mobile:px-2 mobile:py-1 mobile:text-sm"
+                  style={styles.button}
+                >
+                  Previous
+                </button>
+                {getVisiblePages().map((page) => (
+                  <button
+                    key={page}
+                    onClick={() => updateState({ currentPage: page })}
+                    className={`px-4 py-2 rounded-lg ${
+                      state.currentPage === page
+                        ? 'bg-indigo-600 dark:bg-blue-600 text-white'
+                        : 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-100 hover:bg-gray-300 dark:hover:bg-gray-600'
+                    } mobile:px-2 mobile:py-1 mobile:text-sm`}
+                  >
+                    {page}
+                  </button>
+                ))}
+                <button
+                  onClick={() => updateState({ currentPage: Math.min(state.currentPage + 1, totalPages) })}
+                  disabled={state.currentPage === totalPages}
+                  className="px-4 py-2 rounded-lg text-white disabled:bg-gray-400 dark:disabled:bg-gray-700 hover:bg-indigo-700 dark:hover:bg-blue-600 mobile:px-2 mobile:py-1 mobile:text-sm"
+                  style={styles.button}
+                >
+                  Next
+                </button>
+                <button
+                  onClick={() => updateState({ currentPage: totalPages })}
+                  disabled={state.currentPage === totalPages}
+                  className="px-4 py-2 rounded-lg text-white disabled:bg-gray-400 dark:disabled:bg-gray-700 hover:bg-indigo-700 dark:hover:bg-blue-600 mobile:px-2 mobile:py-1 mobile:text-sm"
+                  style={styles.button}
+                >
+                  Last
+                </button>
               </div>
             )}
           </div>
