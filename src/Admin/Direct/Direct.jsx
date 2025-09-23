@@ -1,41 +1,50 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
-import axios from 'axios';
-import Select from 'react-select';
-import Modal from 'react-modal';
-import * as XLSX from 'xlsx';
-import '../../App.css';
-import { API_BASE_URL } from '../../../Config';
-import Sidebar from '../Sidebar/Sidebar';
-import Logout from '../Logout';
+"use client"
+
+import React, { useState, useEffect, useRef, useCallback } from "react"
+import axios from "axios"
+import Select from "react-select"
+import Modal from "react-modal"
+import * as XLSX from "xlsx"
+import "../../App.css"
+import { API_BASE_URL } from "../../../Config"
+import Sidebar from "../Sidebar/Sidebar"
+import Logout from "../Logout"
 
 // Accessibility setup
-Modal.setAppElement("#root");
+Modal.setAppElement("#root")
 
 // Helper to calculate effective price
 const getEffectivePrice = (item, customerId, customers = [], userType) => {
   if (!item) {
-    console.warn('getEffectivePrice: Invalid input - item missing', { item });
-    return 0;
+    console.warn("getEffectivePrice: Invalid input - item missing", { item })
+    return 0
   }
   // Use dprice by default, switch to price only if userType is explicitly 'User'
-  const price = userType === 'User' 
-    ? Math.round(Number(item.price) || 0)
-    : Math.round(Number(item.dprice) || Number(item.price) || 0);
+  const price =
+    userType === "User"
+      ? Math.round(Number(item.price) || 0)
+      : Math.round(Number(item.dprice) || Number(item.price) || 0)
   if (price === 0) {
-    console.warn('getEffectivePrice: Price is 0 for item', item);
+    console.warn("getEffectivePrice: Price is 0 for item", item)
   }
-  return price;
-};
+  return price
+}
 
 // Error Boundary
 class QuotationTableErrorBoundary extends React.Component {
-  state = { hasError: false };
-  static getDerivedStateFromError = () => ({ hasError: true });
-  componentDidCatch(error, errorInfo) { console.error("Error:", error, errorInfo); }
+  state = { hasError: false }
+  static getDerivedStateFromError = () => ({ hasError: true })
+  componentDidCatch(error, errorInfo) {
+    console.error("Error:", error, errorInfo)
+  }
   render() {
-    return this.state.hasError
-      ? <div className="bg-red-100 border border-red-400 text-red-700 px-6 py-3 rounded-lg text-center shadow-md">Error rendering table. Please try again.</div>
-      : this.props.children;
+    return this.state.hasError ? (
+      <div className="bg-red-100 border border-red-400 text-red-700 px-6 py-3 rounded-lg text-center shadow-md">
+        Error rendering table. Please try again.
+      </div>
+    ) : (
+      this.props.children
+    )
   }
 }
 
@@ -54,35 +63,46 @@ const selectStyles = {
     "@media (max-width: 640px)": {
       padding: "0.25rem",
       fontSize: "0.875rem",
-      color: "#1f2937"
-    }
+      color: "#1f2937",
+    },
   }),
   menu: (base) => ({
     ...base,
     zIndex: 20,
-    background: "#fff"
+    background: "#fff",
   }),
   singleValue: (base) => ({
     ...base,
-    color: "#1f2937"
+    color: "#1f2937",
   }),
   option: (base, { isFocused, isSelected }) => ({
     ...base,
     background: isSelected ? "#3b82f6" : isFocused ? "#e5e7eb" : "#fff",
-    color: isSelected ? "#fff" : "#1f2937"
+    color: isSelected ? "#fff" : "#1f2937",
   }),
   placeholder: (base) => ({
     ...base,
-    color: "#9ca3af"
-  })
-};
+    color: "#9ca3af",
+  }),
+}
 
 // Shared component styles
 const styles = {
-  input: { background: "linear-gradient(135deg, rgba(255,255,255,0.8), rgba(240,249,255,0.6))", border: "1px solid rgba(2,132,199,0.3)" },
-  button: { background: "linear-gradient(135deg, rgba(2,132,199,0.9), rgba(14,165,233,0.95))", border: "1px solid rgba(125,211,252,0.4)", boxShadow: "0 15px 35px rgba(2,132,199,0.3)" },
-  card: { background: "linear-gradient(135deg, rgba(255,255,255,0.9), rgba(240,249,255,0.7))", border: "1px solid rgba(2,132,199,0.3)", boxShadow: "0 10px 20px rgba(0,0,0,0.1)" }
-};
+  input: {
+    background: "linear-gradient(135deg, rgba(255,255,255,0.8), rgba(240,249,255,0.6))",
+    border: "1px solid rgba(2,132,199,0.3)",
+  },
+  button: {
+    background: "linear-gradient(135deg, rgba(2,132,199,0.9), rgba(14,165,233,0.95))",
+    border: "1px solid rgba(125,211,252,0.4)",
+    boxShadow: "0 15px 35px rgba(2,132,199,0.3)",
+  },
+  card: {
+    background: "linear-gradient(135deg, rgba(255,255,255,0.9), rgba(240,249,255,0.7))",
+    border: "1px solid rgba(2,132,199,0.3)",
+    boxShadow: "0 10px 20px rgba(0,0,0,0.1)",
+  },
+}
 
 // Quotation Table Component
 const QuotationTable = ({
@@ -111,46 +131,48 @@ const QuotationTable = ({
   lastAddedProduct,
   setLastAddedProduct,
   userType,
-  productSelectRef
+  productSelectRef,
 }) => {
-  const quantityInputRefs = useRef({});
-  const localSelectRef = useRef(null);
+  const quantityInputRefs = useRef({})
+  const localSelectRef = useRef(null)
 
   useEffect(() => {
     if (lastAddedProduct) {
-      const key = `${lastAddedProduct.id}-${lastAddedProduct.product_type}`;
-      const input = quantityInputRefs.current[key];
+      const key = `${lastAddedProduct.id}-${lastAddedProduct.product_type}`
+      const input = quantityInputRefs.current[key]
       if (input) {
-        input.focus();
-        input.select();
-        setLastAddedProduct(null);
+        input.focus()
+        input.select()
+        setLastAddedProduct(null)
       }
     }
-  }, [lastAddedProduct, setLastAddedProduct]);
+  }, [lastAddedProduct, setLastAddedProduct])
 
   const handleChangeDiscount = (value) => {
-    const newDiscount = Math.max(0, Math.min(100, parseFloat(value) || 0));
-    setChangeDiscount(newDiscount);
-    const cartKey = isModal ? 'modalCart' : 'cart';
+    const newDiscount = Math.max(0, Math.min(100, Number.parseFloat(value) || 0))
+    setChangeDiscount(newDiscount)
+    const cartKey = isModal ? "modalCart" : "cart"
     updateState({
-      [cartKey]: cart.map(item => {
-        const originalProduct = products.find(p => p.id.toString() === item.id && p.product_type === item.product_type);
-        const shouldUpdateDiscount = item.product_type !== 'net_rate_products' && 
-                                   (!originalProduct || Number(originalProduct.discount) !== 0);
+      [cartKey]: cart.map((item) => {
+        const originalProduct = products.find(
+          (p) => p.id.toString() === item.id && p.product_type === item.product_type,
+        )
+        const shouldUpdateDiscount =
+          item.product_type !== "net_rate_products" && (!originalProduct || Number(originalProduct.discount) !== 0)
         return {
           ...item,
-          discount: shouldUpdateDiscount ? newDiscount : item.discount
-        };
+          discount: shouldUpdateDiscount ? newDiscount : item.discount,
+        }
       }),
-    });
-  };
+    })
+  }
 
   const handleQuantityBlur = () => {
     if (localSelectRef.current) {
-      localSelectRef.current.focus();
+      localSelectRef.current.focus()
     }
-    setSelectedProduct(null);
-  };
+    setSelectedProduct(null)
+  }
 
   return (
     <div className="space-y-4">
@@ -160,7 +182,7 @@ const QuotationTable = ({
           ref={localSelectRef}
           value={selectedProduct}
           onChange={setSelectedProduct}
-          options={products.map(p => ({
+          options={products.map((p) => ({
             value: `${p.id}-${p.product_type}`,
             label: `${p.serial_number} - ${p.productname} (${p.product_type})`,
           }))}
@@ -174,7 +196,7 @@ const QuotationTable = ({
           onClick={() => addToCart(isModal)}
           disabled={!selectedProduct}
           className={`mt-4 onefifty:w-50 h-10 text-white px-6 rounded-lg font-bold shadow ${
-            !selectedProduct ? 'bg-gray-400 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700'
+            !selectedProduct ? "bg-gray-400 cursor-not-allowed" : "bg-blue-600 hover:bg-blue-700"
           }`}
           style={styles.button}
         >
@@ -188,8 +210,8 @@ const QuotationTable = ({
         <div className="flex items-center gap-4 mobile:w-full onefifty:w-96">
           <input
             type="number"
-            value={additionalDiscount || ''}
-            onChange={(e) => setAdditionalDiscount(Math.max(0, Math.min(100, parseFloat(e.target.value) || 0)))}
+            value={additionalDiscount || ""}
+            onChange={(e) => setAdditionalDiscount(Math.max(0, Math.min(100, Number.parseFloat(e.target.value) || 0)))}
             placeholder="Enter additional discount (%)"
             className="flex-1 p-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
             min="0"
@@ -206,7 +228,7 @@ const QuotationTable = ({
         <div className="flex items-center gap-4 mobile:w-full onefifty:w-96">
           <input
             type="number"
-            value={changeDiscount || ''}
+            value={changeDiscount || ""}
             onChange={(e) => handleChangeDiscount(e.target.value)}
             placeholder="Enter change discount (%)"
             className="flex-1 p-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -224,11 +246,11 @@ const QuotationTable = ({
           </button>
         </div>
       </div>
-      <div className={`overflow-x-auto ${isModal ? 'overflow-y-auto max-h-[60vh] pr-2' : ''}`}>
+      <div className={`overflow-x-auto ${isModal ? "overflow-y-auto max-h-[60vh] pr-2" : ""}`}>
         <table className="w-full border-collapse shadow rounded-lg mobile:text-xs">
           <thead className="border border-white">
             <tr className="hundred:text-lg mobile:text-sm">
-              {['Product', 'Price', 'Dis', 'Qty', 'Total', 'Actions'].map((header) => (
+              {["Product", "Price", "Dis", "Qty", "Total", "Actions"].map((header) => (
                 <th key={header} className="text-center border-r border-white text-black dark:text-white">
                   {header}
                 </th>
@@ -246,9 +268,19 @@ const QuotationTable = ({
                   <td className="text-center border-r mobile:p-1">
                     <input
                       type="number"
-                      value={getEffectivePrice(item, isModal ? modalSelectedCustomer : selectedCustomer, customers, userType)}
+                      value={getEffectivePrice(
+                        item,
+                        isModal ? modalSelectedCustomer : selectedCustomer,
+                        customers,
+                        userType,
+                      )}
                       onChange={(e) =>
-                        updatePrice(item.id, item.product_type, Math.round(Number.parseFloat(e.target.value) || 0), isModal)
+                        updatePrice(
+                          item.id,
+                          item.product_type,
+                          Math.round(Number.parseFloat(e.target.value) || 0),
+                          isModal,
+                        )
                       }
                       min="0"
                       step="1"
@@ -282,10 +314,11 @@ const QuotationTable = ({
                     />
                   </td>
                   <td className="text-center border-r mobile:p-1">
-                    ₹{Math.round(
+                    ₹
+                    {Math.round(
                       getEffectivePrice(item, isModal ? modalSelectedCustomer : selectedCustomer, customers, userType) *
                         (1 - item.discount / 100) *
-                        item.quantity
+                        item.quantity,
                     )}
                   </td>
                   <td className="text-center border-r mobile:p-1">
@@ -309,13 +342,22 @@ const QuotationTable = ({
           {cart.length > 0 && (
             <tfoot>
               {[
-                { label: 'Net Rate', value: `₹${Math.round(calculateNetRate(cart, isModal ? modalSelectedCustomer : selectedCustomer))}` },
-                { label: 'You Save', value: `₹${Math.round(calculateYouSave(cart, isModal ? modalSelectedCustomer : selectedCustomer))}` },
+                {
+                  label: "Net Rate",
+                  value: `₹${Math.round(calculateNetRate(cart, isModal ? modalSelectedCustomer : selectedCustomer))}`,
+                },
+                {
+                  label: "You Save",
+                  value: `₹${Math.round(calculateYouSave(cart, isModal ? modalSelectedCustomer : selectedCustomer))}`,
+                },
                 additionalDiscount > 0 && {
-                  label: 'Additional Discount',
+                  label: "Additional Discount",
                   value: `${additionalDiscount.toFixed(2)}%`,
                 },
-                { label: 'Total', value: `₹${Math.round(calculateTotal(cart, isModal ? modalSelectedCustomer : selectedCustomer, isModal))}` },
+                {
+                  label: "Total",
+                  value: `₹${Math.round(calculateTotal(cart, isModal ? modalSelectedCustomer : selectedCustomer, isModal))}`,
+                },
               ]
                 .filter(Boolean)
                 .map(({ label, value }) => (
@@ -333,8 +375,8 @@ const QuotationTable = ({
         </table>
       </div>
     </div>
-  );
-};
+  )
+}
 
 // Form Fields for Modal
 const FormFields = ({
@@ -363,15 +405,17 @@ const FormFields = ({
   openNewProductModal,
   updateState,
   modalLastAddedProduct,
-  modalUserType
+  modalUserType,
 }) => (
   <div className="space-y-6">
     <div className="flex flex-col items-center mobile:w-full">
-      <label className="text-lg font-semibold text-gray-700 dark:text-gray-100 mb-2 mobile:text-base">Select Customer</label>
+      <label className="text-lg font-semibold text-gray-700 dark:text-gray-100 mb-2 mobile:text-base">
+        Select Customer
+      </label>
       <Select
         value={customers.find((c) => c.id === modalSelectedCustomer) || null}
-        onChange={(option) => setModalSelectedCustomer(option ? option.value : '')}
-        options={customers.map(c => ({ value: c.id, label: c.name }))}
+        onChange={(option) => setModalSelectedCustomer(option ? option.value : "")}
+        options={customers.map((c) => ({ value: c.id, label: c.name }))}
         placeholder="Search for a customer..."
         isClearable
         className="mobile:w-full onefifty:w-96"
@@ -382,9 +426,12 @@ const FormFields = ({
     <div className="flex flex-col items-center mobile:w-full">
       <label className="text-lg font-semibold text-gray-700 dark:text-gray-100 mb-2 mobile:text-base">User Type</label>
       <Select
-        value={{ value: modalUserType, label: modalUserType || 'Select user type...' }}
-        onChange={(option) => updateState({ modalUserType: option ? option.value : '' })}
-        options={[{ value: 'User', label: 'User' }, { value: 'Customer', label: 'Customer' }]}
+        value={{ value: modalUserType, label: modalUserType || "Select user type..." }}
+        onChange={(option) => updateState({ modalUserType: option ? option.value : "" })}
+        options={[
+          { value: "User", label: "User" },
+          { value: "Customer", label: "Customer" },
+        ]}
         placeholder="Select user type..."
         isClearable
         className="mobile:w-full onefifty:w-96"
@@ -422,7 +469,9 @@ const FormFields = ({
       />
     </QuotationTableErrorBoundary>
     <div className="flex justify-end space-x-3">
-      <button onClick={closeModal} className="rounded-md bg-gray-600 px-4 py-2 text-sm text-white hover:bg-gray-700">Cancel</button>
+      <button onClick={closeModal} className="rounded-md bg-gray-600 px-4 py-2 text-sm text-white hover:bg-gray-700">
+        Cancel
+      </button>
       <button
         onClick={handleSubmit}
         disabled={!modalSelectedCustomer || !modalCart.length}
@@ -432,50 +481,52 @@ const FormFields = ({
       </button>
     </div>
   </div>
-);
+)
 
 // New Product Modal
 const NewProductModal = ({ isOpen, onClose, onSubmit, newProductData, setNewProductData }) => {
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [localProductData, setLocalProductData] = useState(newProductData);
-  const isMounted = useRef(true);
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [localProductData, setLocalProductData] = useState(newProductData)
+  const isMounted = useRef(true)
 
   useEffect(() => {
-    setLocalProductData(newProductData);
-  }, [newProductData]);
+    setLocalProductData(newProductData)
+  }, [newProductData])
 
   const handleInputChange = (e) => {
-    const { name, value } = e.target;
+    const { name, value } = e.target
     const updatedData = {
       ...localProductData,
-      [name]: ['price', 'discount', 'quantity'].includes(name)
-        ? value === '' ? '' : Number.parseFloat(value) || 0
+      [name]: ["price", "discount", "quantity"].includes(name)
+        ? value === ""
+          ? ""
+          : Number.parseFloat(value) || 0
         : value,
-    };
-    setLocalProductData(updatedData);
-    if (isMounted.current) {
-      setNewProductData(updatedData);
     }
-  };
+    setLocalProductData(updatedData)
+    if (isMounted.current) {
+      setNewProductData(updatedData)
+    }
+  }
 
-  const handleKeyDown = (e) => {};
+  const handleKeyDown = (e) => {}
 
   const handleSubmit = async () => {
-    setIsSubmitting(true);
+    setIsSubmitting(true)
     try {
-      await onSubmit(localProductData);
-      console.log('NewProductModal: Submission successful');
+      await onSubmit(localProductData)
+      console.log("NewProductModal: Submission successful")
       if (isMounted.current) {
-        onClose();
+        onClose()
       }
     } catch (err) {
-      console.error('NewProductModal: Submission error:', err);
+      console.error("NewProductModal: Submission error:", err)
     } finally {
       if (isMounted.current) {
-        setIsSubmitting(false);
+        setIsSubmitting(false)
       }
     }
-  };
+  }
 
   return (
     <Modal
@@ -488,18 +539,48 @@ const NewProductModal = ({ isOpen, onClose, onSubmit, newProductData, setNewProd
         <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100 mb-6 text-center">Add New Product</h2>
         <div className="space-y-4">
           {[
-            { name: "productname", label: "Product Name *", type: "text", placeholder: "Enter product name", required: true },
-            { name: "price", label: "Price (₹) *", type: "number", placeholder: "Enter price", min: 0, step: 1, required: true },
-            { name: "discount", label: "Discount (%)", type: "number", placeholder: "Enter discount", min: 0, max: 100, step: 0.01 },
-            { name: "quantity", label: "Quantity *", type: "number", placeholder: "Enter quantity", min: 1, step: 1, required: true },
-            { name: "per", label: "Unit (e.g., Box, Unit)", type: "text", placeholder: "Enter unit" }
+            {
+              name: "productname",
+              label: "Product Name *",
+              type: "text",
+              placeholder: "Enter product name",
+              required: true,
+            },
+            {
+              name: "price",
+              label: "Price (₹) *",
+              type: "number",
+              placeholder: "Enter price",
+              min: 0,
+              step: 1,
+              required: true,
+            },
+            {
+              name: "discount",
+              label: "Discount (%)",
+              type: "number",
+              placeholder: "Enter discount",
+              min: 0,
+              max: 100,
+              step: 0.01,
+            },
+            {
+              name: "quantity",
+              label: "Quantity *",
+              type: "number",
+              placeholder: "Enter quantity",
+              min: 1,
+              step: 1,
+              required: true,
+            },
+            { name: "per", label: "Unit (e.g., Box, Unit)", type: "text", placeholder: "Enter unit" },
           ].map(({ name, label, type, placeholder, min, max, step, required }) => (
             <div key={name} className="flex flex-col">
               <label className="text-sm font-semibold text-gray-700 dark:text-gray-100 mb-1">{label}</label>
               <input
                 name={name}
                 type={type}
-                value={localProductData[name] || ''}
+                value={localProductData[name] || ""}
                 onChange={handleInputChange}
                 onKeyDown={handleKeyDown}
                 placeholder={placeholder}
@@ -520,16 +601,21 @@ const NewProductModal = ({ isOpen, onClose, onSubmit, newProductData, setNewProd
           </button>
           <button
             onClick={handleSubmit}
-            disabled={isSubmitting || !localProductData.productname || localProductData.price === '' || localProductData.quantity === ''}
-            className={`rounded-md px-4 py-2 text-sm text-white ${isSubmitting || !localProductData.productname || localProductData.price === '' || localProductData.quantity === '' ? "bg-gray-400 cursor-not-allowed" : "bg-green-600 hover:bg-green-700"}`}
+            disabled={
+              isSubmitting ||
+              !localProductData.productname ||
+              localProductData.price === "" ||
+              localProductData.quantity === ""
+            }
+            className={`rounded-md px-4 py-2 text-sm text-white ${isSubmitting || !localProductData.productname || localProductData.price === "" || localProductData.quantity === "" ? "bg-gray-400 cursor-not-allowed" : "bg-green-600 hover:bg-green-700"}`}
           >
             Add Product
           </button>
         </div>
       </div>
     </Modal>
-  );
-};
+  )
+}
 
 export default function Direct() {
   const [state, setState] = useState({
@@ -556,150 +642,151 @@ export default function Direct() {
     changeDiscount: 0,
     modalChangeDiscount: 0,
     newProductModalIsOpen: false,
-    newProductData: { productname: '', price: '', discount: 0, quantity: 1, per: '' },
+    newProductData: { productname: "", price: "", discount: 0, quantity: 1, per: "" },
     isModalNewProduct: false,
     lastAddedProduct: null,
     modalLastAddedProduct: null,
-    userType: '',
-    modalUserType: '',
+    userType: "",
+    modalUserType: "",
     currentPage: 1,
-    searchQuery: '',
-  });
+    searchQuery: "",
+  })
 
-  const isMounted = useRef(true);
-  const productSelectRef = useRef(null);
+  const isMounted = useRef(true)
+  const productSelectRef = useRef(null)
 
   const updateState = (updates) => {
-    if (!isMounted.current) return;
-    setState(prev => ({ ...prev, ...updates }));
-  };
+    if (!isMounted.current) return
+    setState((prev) => ({ ...prev, ...updates }))
+  }
 
   useEffect(() => {
-    isMounted.current = true;
+    isMounted.current = true
 
     const messageListener = (event) => {
-      console.log('Window message received:', event.data, event.origin);
-    };
-    window.addEventListener('message', messageListener);
+      console.log("Window message received:", event.data, event.origin)
+    }
+    window.addEventListener("message", messageListener)
 
     const fetchData = async () => {
-      const controller = new AbortController();
-      updateState({ loading: true });
+      const controller = new AbortController()
+      updateState({ loading: true })
       try {
         const [customers, products, quotations] = await Promise.all([
           axios.get(`${API_BASE_URL}/api/direct/customers`, { signal: controller.signal }),
           axios.get(`${API_BASE_URL}/api/direct/aproducts`, { signal: controller.signal }),
-          axios.get(`${API_BASE_URL}/api/direct/quotations`, { signal: controller.signal })
-        ]);
+          axios.get(`${API_BASE_URL}/api/direct/quotations`, { signal: controller.signal }),
+        ])
         if (isMounted.current) {
           updateState({
             customers: Array.isArray(customers.data) ? customers.data : [],
             products: Array.isArray(products.data) ? products.data : [],
             quotations: Array.isArray(quotations.data) ? quotations.data : [],
-            loading: false
-          });
+            loading: false,
+          })
         }
       } catch (err) {
-        if (err.name === 'AbortError') return;
-        console.error('Fetch error:', err);
+        if (err.name === "AbortError") return
+        console.error("Fetch error:", err)
         if (isMounted.current) {
-          updateState({ error: `Failed to fetch data: ${err.message}`, loading: false });
+          updateState({ error: `Failed to fetch data: ${err.message}`, loading: false })
         }
       }
-    };
-    fetchData();
+    }
+    fetchData()
 
     const intervalId = setInterval(async () => {
-      const controller = new AbortController();
+      const controller = new AbortController()
       try {
-        const { data } = await axios.get(`${API_BASE_URL}/api/direct/quotations`, { signal: controller.signal });
+        const { data } = await axios.get(`${API_BASE_URL}/api/direct/quotations`, { signal: controller.signal })
         if (isMounted.current) {
-          updateState({ quotations: Array.isArray(data) ? data : [] });
+          updateState({ quotations: Array.isArray(data) ? data : [] })
         }
       } catch (err) {
-        if (err.name === 'AbortError') return;
-        console.error('Interval fetch error:', err);
+        if (err.name === "AbortError") return
+        console.error("Interval fetch error:", err)
         if (isMounted.current) {
-          updateState({ error: `Failed to fetch quotations: ${err.message}` });
+          updateState({ error: `Failed to fetch quotations: ${err.message}` })
         }
       }
-    }, 30000);
+    }, 30000)
 
     return () => {
-      isMounted.current = false;
-      clearInterval(intervalId);
-      window.removeEventListener('message', messageListener);
-    };
-  }, []);
+      isMounted.current = false
+      clearInterval(intervalId)
+      window.removeEventListener("message", messageListener)
+    }
+  }, [])
 
-  const itemsPerPage = 9;
+  const itemsPerPage = 9
 
   const handleSearch = (e) => {
-    updateState({ searchQuery: e.target.value, currentPage: 1 });
-  };
+    updateState({ searchQuery: e.target.value, currentPage: 1 })
+  }
 
-  const filteredQuotations = state.quotations.filter(q =>
-    q.quotation_id.toLowerCase().includes(state.searchQuery.toLowerCase()) ||
-    (q.customer_name || '').toLowerCase().includes(state.searchQuery.toLowerCase())
-  );
+  const filteredQuotations = state.quotations.filter(
+    (q) =>
+      q.quotation_id.toLowerCase().includes(state.searchQuery.toLowerCase()) ||
+      (q.customer_name || "").toLowerCase().includes(state.searchQuery.toLowerCase()),
+  )
 
-  const totalPages = Math.ceil(filteredQuotations.length / itemsPerPage);
+  const totalPages = Math.ceil(filteredQuotations.length / itemsPerPage)
 
   const getVisiblePages = () => {
-    const pages = [];
-    const maxVisiblePages = 5;
-    let startPage = Math.max(1, state.currentPage - Math.floor(maxVisiblePages / 2));
-    let endPage = Math.min(totalPages, startPage + maxVisiblePages - 1);
+    const pages = []
+    const maxVisiblePages = 5
+    let startPage = Math.max(1, state.currentPage - Math.floor(maxVisiblePages / 2))
+    const endPage = Math.min(totalPages, startPage + maxVisiblePages - 1)
 
     if (endPage - startPage + 1 < maxVisiblePages) {
-      startPage = Math.max(1, endPage - maxVisiblePages + 1);
+      startPage = Math.max(1, endPage - maxVisiblePages + 1)
     }
 
     for (let i = startPage; i <= endPage; i++) {
-      pages.push(i);
+      pages.push(i)
     }
-    return pages;
-  };
+    return pages
+  }
 
   const paginatedQuotations = filteredQuotations.slice(
     (state.currentPage - 1) * itemsPerPage,
-    state.currentPage * itemsPerPage
-  );
+    state.currentPage * itemsPerPage,
+  )
 
   const exportToExcel = () => {
-    const workbook = XLSX.utils.book_new();
-    
+    const workbook = XLSX.utils.book_new()
+
     const customerGroups = {
-      Customer: state.customers.filter(c => c.customer_type === 'Customer'),
-      Agent: state.customers.filter(c => c.customer_type === 'Agent'),
-      'Customer of Agent': state.customers.filter(c => c.customer_type === 'Customer of Selected Agent')
-    };
+      Customer: state.customers.filter((c) => c.customer_type === "Customer"),
+      Agent: state.customers.filter((c) => c.customer_type === "Agent"),
+      "Customer of Agent": state.customers.filter((c) => c.customer_type === "Customer of Selected Agent"),
+    }
 
     Object.entries(customerGroups).forEach(([type, group]) => {
-      if (group.length === 0) return;
+      if (group.length === 0) return
 
-      const data = group.map(customer => {
+      const data = group.map((customer) => {
         const baseData = {
-          Name: customer.name || 'N/A',
-          'Customer Type': customer.customer_type || 'N/A',
-          Address: customer.address || 'N/A',
-          State: customer.state || 'N/A',
-          District: customer.district || 'N/A',
-          'Mobile Number': customer.mobile_number || 'N/A',
-          Email: customer.email || 'N/A'
-        };
-        return baseData;
-      });
+          Name: customer.name || "N/A",
+          "Customer Type": customer.customer_type || "N/A",
+          Address: customer.address || "N/A",
+          State: customer.state || "N/A",
+          District: customer.district || "N/A",
+          "Mobile Number": customer.mobile_number || "N/A",
+          Email: customer.email || "N/A",
+        }
+        return baseData
+      })
 
-      const worksheet = XLSX.utils.json_to_sheet(data);
-      XLSX.utils.book_append_sheet(workbook, worksheet, type);
-    });
+      const worksheet = XLSX.utils.json_to_sheet(data)
+      XLSX.utils.book_append_sheet(workbook, worksheet, type)
+    })
 
-    XLSX.writeFile(workbook, 'customers_export.xlsx');
-  };
+    XLSX.writeFile(workbook, "customers_export.xlsx")
+  }
 
   const addToCart = (isModal = false, customProduct = null) => {
-    console.log('Direct: Adding to cart:', { isModal, customProduct });
+    console.log("Direct: Adding to cart:", { isModal, customProduct })
     const {
       cart,
       modalCart,
@@ -712,39 +799,39 @@ export default function Direct() {
       changeDiscount,
       modalChangeDiscount,
       userType,
-      modalUserType
-    } = state;
-    const targetCart = isModal ? modalCart : cart;
-    const targetSelectedProduct = isModal ? modalSelectedProduct : selectedProduct;
-    const targetDiscount = isModal ? modalChangeDiscount : changeDiscount;
-    const targetUserType = isModal ? modalUserType : userType;
+      modalUserType,
+    } = state
+    const targetCart = isModal ? modalCart : cart
+    const targetSelectedProduct = isModal ? modalSelectedProduct : selectedProduct
+    const targetDiscount = isModal ? modalChangeDiscount : changeDiscount
+    const targetUserType = isModal ? modalUserType : userType
 
-    if (!customProduct && !targetSelectedProduct)
-      return updateState({ error: "Please select a product" });
+    if (!customProduct && !targetSelectedProduct) return updateState({ error: "Please select a product" })
 
-    let product;
+    let product
     if (customProduct) {
       product = {
         ...customProduct,
         id: `custom-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-        product_type: 'Custom',
+        product_type: "Custom",
         basePrice: Math.round(Number(customProduct.price)),
         customPrice: Math.round(Number(customProduct.price)),
         dprice: Math.round(Number(customProduct.price)),
         quantity: Number.parseInt(customProduct.quantity) || 1,
         discount: Number.parseFloat(customProduct.discount) || targetDiscount,
-        per: customProduct.per || 'Unit',
-      };
+        per: customProduct.per || "Unit",
+      }
     } else {
-      const [id, type] = targetSelectedProduct.value.split("-");
-      product = products.find(
-        (p) => p.id.toString() === id && p.product_type === type
-      );
-      if (!product) return updateState({ error: "Product not found" });
-      const customer = customers.find(
-        (c) => c.id.toString() === (isModal ? modalSelectedCustomer : selectedCustomer)
-      );
-      const effectivePrice = getEffectivePrice(product, isModal ? modalSelectedCustomer : selectedCustomer, customers, targetUserType);
+      const [id, type] = targetSelectedProduct.value.split("-")
+      product = products.find((p) => p.id.toString() === id && p.product_type === type)
+      if (!product) return updateState({ error: "Product not found" })
+      const customer = customers.find((c) => c.id.toString() === (isModal ? modalSelectedCustomer : selectedCustomer))
+      const effectivePrice = getEffectivePrice(
+        product,
+        isModal ? modalSelectedCustomer : selectedCustomer,
+        customers,
+        targetUserType,
+      )
       product = {
         ...product,
         basePrice: Math.round(Number(product.price)),
@@ -752,149 +839,161 @@ export default function Direct() {
         customPrice: effectivePrice,
         quantity: 1,
         discount: Number.parseFloat(product.discount) || 0,
-        per: product.per || 'Unit',
+        per: product.per || "Unit",
         product_type: type,
-      };
+      }
+    }
+
+    // For regular products, check if exists and update quantity
+    const existingProductIndex = customProduct
+      ? -1
+      : targetCart.findIndex((item) => item.id === product.id && item.product_type === product.product_type)
+
+    let updatedCart
+    if (existingProductIndex !== -1) {
+      // Update quantity if regular product exists
+      updatedCart = targetCart.map((item, index) =>
+        index === existingProductIndex
+          ? { ...item, quantity: item.quantity + (Number.parseInt(product.quantity) || 1) }
+          : item,
+      )
+    } else {
+      updatedCart = [...targetCart, product]
     }
 
     updateState({
-      [isModal ? 'modalCart' : 'cart']: targetCart.find(
-        (item) => item.id === product.id && item.product_type === product.product_type
-      )
-        ? targetCart.map((item) =>
-            item.id === product.id && item.product_type === product.product_type
-              ? { ...item, quantity: item.quantity + 1 }
-              : item
-          )
-        : [...targetCart, product],
-      [isModal ? 'modalSelectedProduct' : 'selectedProduct']: null,
-      [isModal ? 'modalLastAddedProduct' : 'lastAddedProduct']: {
+      [isModal ? "modalCart" : "cart"]: updatedCart,
+      // Only reset selectedProduct if not adding a custom product
+      ...(customProduct
+        ? {}
+        : {
+            [isModal ? "modalSelectedProduct" : "selectedProduct"]: null,
+          }),
+      [isModal ? "modalLastAddedProduct" : "lastAddedProduct"]: {
         id: product.id,
         product_type: product.product_type,
       },
       error: "",
-    });
+    })
 
-    if (!isModal && productSelectRef.current) {
-      productSelectRef.current.focus();
+    if (!isModal && productSelectRef.current && !customProduct) {
+      productSelectRef.current.focus()
     }
-  };
+  }
 
   const updateCartItem = (id, type, key, value, isModal = false) => {
-    const cartKey = isModal ? 'modalCart' : 'cart';
+    const cartKey = isModal ? "modalCart" : "cart"
     updateState({
-      [cartKey]: state[cartKey].map(item =>
+      [cartKey]: state[cartKey].map((item) =>
         item.id === id && item.product_type === type
           ? {
               ...item,
               [key]:
-                key === 'customPrice'
+                key === "customPrice"
                   ? Math.round(value < 0 ? 0 : value)
-                  : key === 'discount'
-                  ? Math.max(0, Math.min(100, value))
-                  : value < 0
-                  ? 0
-                  : value,
+                  : key === "discount"
+                    ? Math.max(0, Math.min(100, value))
+                    : value < 0
+                      ? 0
+                      : value,
             }
-          : item
+          : item,
       ),
-    });
-  };
+    })
+  }
 
   const removeFromCart = (id, type, isModal = false) => {
-    const cartKey = isModal ? 'modalCart' : 'cart';
+    const cartKey = isModal ? "modalCart" : "cart"
     updateState({
-      [cartKey]: state[cartKey].filter(
-        (item) => !(item.id === id && item.product_type === type)
-      ),
-    });
-  };
+      [cartKey]: state[cartKey].filter((item) => !(item.id === id && item.product_type === type)),
+    })
+  }
 
   const calculateNetRate = (targetCart = [], customerId) =>
     targetCart.reduce(
-      (total, item) =>
-        total + getEffectivePrice(item, customerId, state.customers, state.userType) * item.quantity,
-      0
-    );
+      (total, item) => total + getEffectivePrice(item, customerId, state.customers, state.userType) * item.quantity,
+      0,
+    )
 
   const calculateYouSave = (targetCart = [], customerId) =>
     targetCart.reduce(
       (total, item) =>
         total +
-        getEffectivePrice(item, customerId, state.customers, state.userType) *
-          (item.discount / 100) *
-          item.quantity,
-      0
-    );
+        getEffectivePrice(item, customerId, state.customers, state.userType) * (item.discount / 100) * item.quantity,
+      0,
+    )
 
   const calculateTotal = (targetCart = [], customerId, isModal) => {
-    const subtotal = calculateNetRate(targetCart, customerId) - calculateYouSave(targetCart, customerId);
-    return Math.max(0, subtotal * (1 - (isModal ? state.modalAdditionalDiscount : state.additionalDiscount) / 100));
-  };
+    const subtotal = calculateNetRate(targetCart, customerId) - calculateYouSave(targetCart, customerId)
+    return Math.max(0, subtotal * (1 - (isModal ? state.modalAdditionalDiscount : state.additionalDiscount) / 100))
+  }
 
   const openNewProductModal = (isModal = false) => {
     updateState({
       newProductModalIsOpen: true,
       isModalNewProduct: isModal,
-      newProductData: { productname: '', price: '', discount: 0, quantity: 1, per: '' },
-    });
-  };
+      newProductData: { productname: "", price: "", discount: 0, quantity: 1, per: "" },
+    })
+  }
 
   const closeNewProductModal = () => {
     updateState({
       newProductModalIsOpen: false,
       isModalNewProduct: false,
-      newProductData: { productname: '', price: '', discount: 0, quantity: 1, per: '' },
+      newProductData: { productname: "", price: "", discount: 0, quantity: 1, per: "" },
       error: "",
-    });
-  };
+    })
+  }
 
-  const handleAddNewProduct = useCallback((productData) => {
-    const { isModalNewProduct, modalChangeDiscount, changeDiscount } = state;
-    if (!productData.productname) {
-      return updateState({ error: "Product name is required" });
-    }
-    if (productData.price === '' || productData.price < 0) {
-      return updateState({ error: "Price must be a non-negative number" });
-    }
-    if (productData.quantity === '' || productData.quantity < 1) {
-      return updateState({ error: "Quantity must be at least 1" });
-    }
-    if (productData.discount < 0 || productData.discount > 100) {
-      return updateState({ error: "Discount must be between 0 and 100" });
-    }
-    addToCart(isModalNewProduct, {
-      ...productData,
-      price: Number.parseFloat(productData.price) || 0,
-      discount: Number.parseFloat(productData.discount) || (isModalNewProduct ? modalChangeDiscount : changeDiscount),
-      quantity: Number.parseInt(productData.quantity) || 1,
-    });
-    closeNewProductModal();
-  }, [state.isModalNewProduct, state.modalChangeDiscount, state.changeDiscount]);
+  const handleAddNewProduct = useCallback(
+    (productData) => {
+      const { isModalNewProduct, modalChangeDiscount, changeDiscount } = state
+      if (!productData.productname) {
+        return updateState({ error: "Product name is required" })
+      }
+      if (productData.price === "" || productData.price < 0) {
+        return updateState({ error: "Price must be a non-negative number" })
+      }
+      if (productData.quantity === "" || productData.quantity < 1) {
+        return updateState({ error: "Quantity must be at least 1" })
+      }
+      if (productData.discount < 0 || productData.discount > 100) {
+        return updateState({ error: "Discount must be between 0 and 100" })
+      }
+
+      addToCart(isModalNewProduct, {
+        ...productData,
+        price: Number.parseFloat(productData.price) || 0,
+        discount: Number.parseFloat(productData.discount) || (isModalNewProduct ? modalChangeDiscount : changeDiscount),
+        quantity: Number.parseInt(productData.quantity) || 1,
+      })
+      closeNewProductModal()
+    },
+    [state],
+  )
 
   const createQuotation = async () => {
-    const controller = new AbortController();
-    const { selectedCustomer, cart, customers, additionalDiscount, userType } = state;
-    if (!selectedCustomer || !cart.length)
-      return updateState({ error: "Customer and products are required" });
-    if (cart.some(item => item.quantity === 0))
-      return updateState({ error: "Please remove products with zero quantity" });
-    const customer = customers.find(c => c.id.toString() === selectedCustomer);
-    if (!customer) return updateState({ error: "Invalid customer" });
+    const controller = new AbortController()
+    const { selectedCustomer, cart, customers, additionalDiscount, userType } = state
+    if (!selectedCustomer || !cart.length) return updateState({ error: "Customer and products are required" })
+    if (cart.some((item) => item.quantity === 0))
+      return updateState({ error: "Please remove products with zero quantity" })
+    const customer = customers.find((c) => c.id.toString() === selectedCustomer)
+    if (!customer) return updateState({ error: "Invalid customer" })
 
-    const quotation_id = `QUO-${Date.now()}`;
+    const quotation_id = `QUO-${Date.now()}`
     try {
       const payload = {
         customer_id: Number(selectedCustomer),
         quotation_id,
-        products: cart.map(item => ({
+        products: cart.map((item) => ({
           id: item.id,
           product_type: item.product_type,
           productname: item.productname,
           price: getEffectivePrice(item, selectedCustomer, customers, userType),
           discount: Number.parseFloat(item.discount) || 0,
           quantity: Number.parseInt(item.quantity) || 0,
-          per: item.per || 'Unit',
+          per: item.per || "Unit",
         })),
         net_rate: Math.round(calculateNetRate(cart)),
         you_save: Math.round(calculateYouSave(cart)),
@@ -909,13 +1008,11 @@ export default function Direct() {
         district: customer.district,
         state: customer.state,
         status: "pending",
-      };
+      }
 
-      const { data: { quotation_id: newQuotationId } } = await axios.post(
-        `${API_BASE_URL}/api/direct/quotations`,
-        payload,
-        { signal: controller.signal }
-      );
+      const {
+        data: { quotation_id: newQuotationId },
+      } = await axios.post(`${API_BASE_URL}/api/direct/quotations`, payload, { signal: controller.signal })
       updateState({
         quotationId: newQuotationId,
         isQuotationCreated: true,
@@ -927,7 +1024,7 @@ export default function Direct() {
         additionalDiscount: 0,
         changeDiscount: 0,
         lastAddedProduct: null,
-        userType: '',
+        userType: "",
         quotations: [
           {
             ...payload,
@@ -937,83 +1034,80 @@ export default function Direct() {
           },
           ...state.quotations,
         ],
-      });
-      setTimeout(() => updateState({ showSuccess: false }), 3000);
+      })
+      setTimeout(() => updateState({ showSuccess: false }), 3000)
 
-      const pdfResponse = await axios.get(
-        `${API_BASE_URL}/api/direct/quotation/${newQuotationId}`,
-        { responseType: "blob", signal: controller.signal }
-      );
-      const url = window.URL.createObjectURL(new Blob([pdfResponse.data]));
-      const link = document.createElement("a");
-      link.href = url;
+      const pdfResponse = await axios.get(`${API_BASE_URL}/api/direct/quotation/${newQuotationId}`, {
+        responseType: "blob",
+        signal: controller.signal,
+      })
+      const url = window.URL.createObjectURL(new Blob([pdfResponse.data]))
+      const link = document.createElement("a")
+      link.href = url
       link.setAttribute(
         "download",
         `${(customer.name || "unknown")
           .toLowerCase()
           .replace(/[^a-z0-9]+/g, "_")
-          .replace(/^_+|_+$/g, "")}-${newQuotationId}-quotation.pdf`
-      );
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      window.URL.revokeObjectURL(url);
+          .replace(/^_+|_+$/g, "")}-${newQuotationId}-quotation.pdf`,
+      )
+      document.body.appendChild(link)
+      link.click()
+      document.body.removeChild(link)
+      window.URL.revokeObjectURL(url)
     } catch (err) {
-      if (err.name === 'AbortError') return;
-      console.error('Create quotation error:', err);
+      if (err.name === "AbortError") return
+      console.error("Create quotation error:", err)
       updateState({
         error: `Failed to create quotation: ${err.response?.data?.message || err.message}`,
-      });
+      })
     }
-    return () => controller.abort();
-  };
+    return () => controller.abort()
+  }
 
   const editQuotation = async (quotation = null) => {
     if (quotation) {
-      const products =
-        typeof quotation.products === "string"
-          ? JSON.parse(quotation.products)
-          : quotation.products;
+      const products = typeof quotation.products === "string" ? JSON.parse(quotation.products) : quotation.products
       updateState({
         modalMode: "edit",
         modalSelectedCustomer: quotation.customer_id?.toString() || "",
         quotationId: quotation.quotation_id,
         modalAdditionalDiscount: Number.parseFloat(quotation.additional_discount) || 0,
         modalChangeDiscount: 0,
-        modalCart: products?.map(p => ({
-          ...p,
-          price: Math.round(Number(p.price) || 0),
-          customPrice: Math.round(Number(p.price) || 0),
-          quantity: Number(p.quantity) || 0,
-          discount: Number(p.discount) || 0,
-          per: p.per || 'Unit',
-          product_type: p.product_type,
-        })) || [],
+        modalCart:
+          products?.map((p) => ({
+            ...p,
+            price: Math.round(Number(p.price) || 0),
+            customPrice: Math.round(Number(p.price) || 0),
+            quantity: Number(p.quantity) || 0,
+            discount: Number(p.discount) || 0,
+            per: p.per || "Unit",
+            product_type: p.product_type,
+          })) || [],
         modalIsOpen: true,
-        modalUserType: quotation.customer_type || '',
-      });
-      return;
+        modalUserType: quotation.customer_type || "",
+      })
+      return
     }
 
-    const controller = new AbortController();
-    const { modalSelectedCustomer, modalCart, modalAdditionalDiscount, customers, quotationId, modalUserType } = state;
-    if (!modalSelectedCustomer || !modalCart.length)
-      return updateState({ error: "Customer and products are required" });
-    if (modalCart.some(item => item.quantity === 0))
-      return updateState({ error: "Please remove products with zero quantity" });
+    const controller = new AbortController()
+    const { modalSelectedCustomer, modalCart, modalAdditionalDiscount, customers, quotationId, modalUserType } = state
+    if (!modalSelectedCustomer || !modalCart.length) return updateState({ error: "Customer and products are required" })
+    if (modalCart.some((item) => item.quantity === 0))
+      return updateState({ error: "Please remove products with zero quantity" })
 
     try {
-      const customer = customers.find(c => c.id.toString() === modalSelectedCustomer);
+      const customer = customers.find((c) => c.id.toString() === modalSelectedCustomer)
       const payload = {
         customer_id: Number(modalSelectedCustomer),
-        products: modalCart.map(item => ({
+        products: modalCart.map((item) => ({
           id: item.id,
           product_type: item.product_type,
           productname: item.productname,
           price: getEffectivePrice(item, modalSelectedCustomer, customers, modalUserType),
           discount: Number.parseFloat(item.discount) || 0,
           quantity: Number.parseInt(item.quantity) || 0,
-          per: item.per || 'Unit',
+          per: item.per || "Unit",
         })),
         net_rate: Math.round(calculateNetRate(modalCart)),
         you_save: Math.round(calculateYouSave(modalCart)),
@@ -1021,33 +1115,32 @@ export default function Direct() {
         promo_discount: 0,
         additional_discount: Number.parseFloat(modalAdditionalDiscount.toFixed(2)),
         status: "pending",
-      };
+      }
 
-      const response = await axios.put(
-        `${API_BASE_URL}/api/direct/quotations/${quotationId}`,
-        payload,
-        { responseType: "blob", signal: controller.signal }
-      );
-      const url = window.URL.createObjectURL(new Blob([response.data]));
-      const link = document.createElement("a");
-      link.href = url;
+      const response = await axios.put(`${API_BASE_URL}/api/direct/quotations/${quotationId}`, payload, {
+        responseType: "blob",
+        signal: controller.signal,
+      })
+      const url = window.URL.createObjectURL(new Blob([response.data]))
+      const link = document.createElement("a")
+      link.href = url
       link.setAttribute(
         "download",
         `${(customer?.name || "unknown")
           .toLowerCase()
           .replace(/[^a-z0-9]+/g, "_")
-          .replace(/^_+|_+$/g, "")}-${quotationId}-quotation.pdf`
-      );
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      window.URL.revokeObjectURL(url);
+          .replace(/^_+|_+$/g, "")}-${quotationId}-quotation.pdf`,
+      )
+      document.body.appendChild(link)
+      link.click()
+      document.body.removeChild(link)
+      window.URL.revokeObjectURL(url)
 
       updateState({
-        quotations: state.quotations.map(q =>
+        quotations: state.quotations.map((q) =>
           q.quotation_id === quotationId
             ? { ...q, ...payload, customer_name: customer?.name || "N/A", total: payload.total }
-            : q
+            : q,
         ),
         successMessage: "Quotation updated successfully! Check downloads for PDF.",
         showSuccess: true,
@@ -1060,32 +1153,45 @@ export default function Direct() {
         modalAdditionalDiscount: 0,
         modalChangeDiscount: 0,
         modalLastAddedProduct: null,
-        modalUserType: '',
+        modalUserType: "",
         error: "",
-      });
-      setTimeout(() => updateState({ showSuccess: false }), 3000);
+      })
+      setTimeout(() => updateState({ showSuccess: false }), 3000)
     } catch (err) {
-      if (err.name === 'AbortError') return;
-      console.error('Edit quotation error:', err);
-      let errorMessage = "Failed to update quotation";
+      if (err.name === "AbortError") return
+      console.error("Edit quotation error:", err)
+      let errorMessage = "Failed to update quotation"
       if (err.response?.status === 400) {
         try {
-          const text = await err.response.data.text();
-          errorMessage = JSON.parse(text).message || errorMessage;
+          const text = await err.response.data.text()
+          errorMessage = JSON.parse(text).message || errorMessage
         } catch (e) {}
       }
-      updateState({ error: `Failed to update quotation: ${errorMessage}` });
+      updateState({ error: `Failed to update quotation: ${errorMessage}` })
     }
-    return () => controller.abort();
-  };
+    return () => controller.abort()
+  }
 
   const cancelQuotation = async (quotationIdToCancel = null) => {
-    const controller = new AbortController();
-    const { quotationId, customers, selectedCustomer, cart, selectedProduct, additionalDiscount, changeDiscount, userType } = state;
-    const targetQuotationId = quotationIdToCancel || quotationId;
-    if (!targetQuotationId) return updateState({ error: "No quotation to cancel" });
+    const controller = new AbortController()
+    const {
+      quotationId,
+      customers,
+      selectedCustomer,
+      cart,
+      selectedProduct,
+      additionalDiscount,
+      changeDiscount,
+      userType,
+    } = state
+    const targetQuotationId = quotationIdToCancel || quotationId
+    if (!targetQuotationId) return updateState({ error: "No quotation to cancel" })
     try {
-      await axios.put(`${API_BASE_URL}/api/direct/quotations/cancel/${targetQuotationId}`, {}, { signal: controller.signal });
+      await axios.put(
+        `${API_BASE_URL}/api/direct/quotations/cancel/${targetQuotationId}`,
+        {},
+        { signal: controller.signal },
+      )
       updateState({
         ...(quotationIdToCancel
           ? {}
@@ -1098,31 +1204,28 @@ export default function Direct() {
               additionalDiscount: 0,
               changeDiscount: 0,
               lastAddedProduct: null,
-              userType: '',
+              userType: "",
             }),
         successMessage: "Quotation canceled successfully!",
         showSuccess: true,
-        quotations: state.quotations.map(q =>
-          q.quotation_id === targetQuotationId ? { ...q, status: "cancelled" } : q
+        quotations: state.quotations.map((q) =>
+          q.quotation_id === targetQuotationId ? { ...q, status: "cancelled" } : q,
         ),
-      });
-      setTimeout(() => updateState({ showSuccess: false }), 3000);
+      })
+      setTimeout(() => updateState({ showSuccess: false }), 3000)
     } catch (err) {
-      if (err.name === 'AbortError') return;
-      console.error('Cancel quotation error:', err);
+      if (err.name === "AbortError") return
+      console.error("Cancel quotation error:", err)
       updateState({
         error: `Failed to cancel quotation: ${err.response?.data?.message || err.message}`,
-      });
+      })
     }
-    return () => controller.abort();
-  };
+    return () => controller.abort()
+  }
 
   const convertToBooking = async (quotation = null) => {
     if (quotation) {
-      const products =
-        typeof quotation.products === "string"
-          ? JSON.parse(quotation.products)
-          : quotation.products;
+      const products = typeof quotation.products === "string" ? JSON.parse(quotation.products) : quotation.products
       updateState({
         modalMode: "book",
         modalSelectedCustomer: quotation.customer_id?.toString() || "",
@@ -1130,44 +1233,60 @@ export default function Direct() {
         orderId: `ORD-${Date.now()}`,
         modalAdditionalDiscount: Number.parseFloat(quotation.additional_discount) || 0,
         modalChangeDiscount: 0,
-        modalCart: products?.map(p => ({
-          ...p,
-          price: Math.round(Number(p.price) || 0),
-          customPrice: Math.round(Number(p.price) || 0),
-          quantity: Number(p.quantity) || 0,
-          discount: Number(p.discount) || 0,
-          per: p.per || 'Unit',
-          product_type: p.product_type,
-        })) || [],
+        modalCart:
+          products?.map((p) => ({
+            ...p,
+            price: Math.round(Number(p.price) || 0),
+            customPrice: Math.round(Number(p.price) || 0),
+            quantity: Number(p.quantity) || 0,
+            discount: Number(p.discount) || 0,
+            per: p.per || "Unit",
+            product_type: p.product_type,
+          })) || [],
         modalIsOpen: true,
-        modalUserType: quotation.customer_type || '',
-      });
-      return;
+        modalUserType: quotation.customer_type || "",
+      })
+      return
     }
 
-    const controller = new AbortController();
-    const { modalSelectedCustomer, modalCart, orderId, quotationId, customers, modalAdditionalDiscount, modalUserType } = state;
+    const controller = new AbortController()
+    const {
+      modalSelectedCustomer,
+      modalCart,
+      orderId,
+      quotationId,
+      customers,
+      modalAdditionalDiscount,
+      modalUserType,
+    } = state
     if (!modalSelectedCustomer || !modalCart.length || !orderId || !quotationId)
-      return updateState({ error: "Customer, products, order ID, and quotation ID are required" });
-    if (modalCart.some(item => item.quantity <= 0))
-      return updateState({ error: "Please remove products with zero quantity" });
-    const customer = customers.find(c => c.id.toString() === modalSelectedCustomer);
-    if (!customer || !customer.name || !customer.address || !customer.mobile_number || !customer.district || !customer.state)
-      return updateState({ error: "Customer data is incomplete" });
+      return updateState({ error: "Customer, products, order ID, and quotation ID are required" })
+    if (modalCart.some((item) => item.quantity <= 0))
+      return updateState({ error: "Please remove products with zero quantity" })
+    const customer = customers.find((c) => c.id.toString() === modalSelectedCustomer)
+    if (
+      !customer ||
+      !customer.name ||
+      !customer.address ||
+      !customer.mobile_number ||
+      !customer.district ||
+      !customer.state
+    )
+      return updateState({ error: "Customer data is incomplete" })
 
     try {
       const payload = {
         customer_id: Number(modalSelectedCustomer),
         order_id: orderId,
         quotation_id: quotationId,
-        products: modalCart.map(item => ({
+        products: modalCart.map((item) => ({
           id: item.id,
           product_type: item.product_type,
           productname: item.productname,
           price: getEffectivePrice(item, modalSelectedCustomer, customers, modalUserType),
           discount: Number.parseFloat(item.discount) || 0,
           quantity: Number.parseInt(item.quantity) || 0,
-          per: item.per || 'Unit',
+          per: item.per || "Unit",
         })),
         net_rate: Math.round(calculateNetRate(modalCart)),
         you_save: Math.round(calculateYouSave(modalCart)),
@@ -1181,36 +1300,32 @@ export default function Direct() {
         email: customer.email,
         district: customer.district,
         state: customer.state,
-      };
+      }
 
-      const { data: { order_id: newOrderId } } = await axios.post(
-        `${API_BASE_URL}/api/direct/bookings`,
-        payload,
-        { signal: controller.signal }
-      );
-      const pdfResponse = await axios.get(
-        `${API_BASE_URL}/api/direct/invoice/${newOrderId}`,
-        { responseType: "blob", signal: controller.signal }
-      );
-      const url = window.URL.createObjectURL(new Blob([pdfResponse.data]));
-      const link = document.createElement("a");
-      link.href = url;
+      const {
+        data: { order_id: newOrderId },
+      } = await axios.post(`${API_BASE_URL}/api/direct/bookings`, payload, { signal: controller.signal })
+      const pdfResponse = await axios.get(`${API_BASE_URL}/api/direct/invoice/${newOrderId}`, {
+        responseType: "blob",
+        signal: controller.signal,
+      })
+      const url = window.URL.createObjectURL(new Blob([pdfResponse.data]))
+      const link = document.createElement("a")
+      link.href = url
       link.setAttribute(
         "download",
         `${(customer.name || "unknown")
           .toLowerCase()
           .replace(/[^a-z0-9]+/g, "_")
-          .replace(/^_+|_+$/g, "")}-${newOrderId}-invoice.pdf`
-      );
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      window.URL.revokeObjectURL(url);
+          .replace(/^_+|_+$/g, "")}-${newOrderId}-invoice.pdf`,
+      )
+      document.body.appendChild(link)
+      link.click()
+      document.body.removeChild(link)
+      window.URL.revokeObjectURL(url)
 
       updateState({
-        quotations: state.quotations.map(q =>
-          q.quotation_id === quotationId ? { ...q, status: "booked" } : q
-        ),
+        quotations: state.quotations.map((q) => (q.quotation_id === quotationId ? { ...q, status: "booked" } : q)),
         successMessage: "Booking created successfully! Check downloads for PDF.",
         showSuccess: true,
         modalIsOpen: false,
@@ -1222,25 +1337,25 @@ export default function Direct() {
         modalAdditionalDiscount: 0,
         modalChangeDiscount: 0,
         modalLastAddedProduct: null,
-        modalUserType: '',
+        modalUserType: "",
         error: "",
-      });
-      setTimeout(() => updateState({ showSuccess: false }), 3000);
+      })
+      setTimeout(() => updateState({ showSuccess: false }), 3000)
     } catch (err) {
-      if (err.name === 'AbortError') return;
-      console.error('Convert to booking error:', err);
+      if (err.name === "AbortError") return
+      console.error("Convert to booking error:", err)
       updateState({
         error: `Failed to create booking: ${err.response?.data?.message || err.message}`,
-      });
+      })
     }
-    return () => controller.abort();
-  };
+    return () => controller.abort()
+  }
 
   const renderSelect = (value, onChange, options, label, id) => (
     <div className="flex flex-col items-center mobile:w-full">
       <label className="text-lg font-semibold text-gray-700 dark:text-gray-100 mb-2 mobile:text-base">{label}</label>
       <Select
-        value={options.find(c => c.value === value) || null}
+        value={options.find((c) => c.value === value) || null}
         onChange={onChange}
         options={options}
         placeholder={`Search for a ${label.toLowerCase()}...`}
@@ -1250,7 +1365,7 @@ export default function Direct() {
         styles={selectStyles}
       />
     </div>
-  );
+  )
 
   const {
     customers,
@@ -1277,7 +1392,7 @@ export default function Direct() {
     lastAddedProduct,
     modalLastAddedProduct,
     userType,
-  } = state;
+  } = state
 
   return (
     <div className="flex min-h-screen dark:bg-gray-800 bg-gray-50 mobile:flex-col">
@@ -1285,7 +1400,9 @@ export default function Direct() {
       <Logout />
       <div className="flex-1 hundred:ml-64 p-6 pt-16 mobile:p-2">
         <div className="w-full max-w-5xl mx-auto">
-          <h1 className="text-4xl font-bold mb-8 text-center text-gray-800 mobile:text-2xl dark:text-gray-100">Direct Booking</h1>
+          <h1 className="text-4xl font-bold mb-8 text-center text-gray-800 mobile:text-2xl dark:text-gray-100">
+            Direct Booking
+          </h1>
           {loading && <div className="text-center text-gray-500">Loading...</div>}
           {error && (
             <div className="bg-red-100 border border-red-400 text-red-700 px-6 py-3 rounded-lg mb-6 text-center shadow-md mobile:text-sm">
@@ -1300,17 +1417,20 @@ export default function Direct() {
           <div className="flex flex-wrap gap-6 justify-center mb-8 mobile:flex-col mobile:gap-3">
             {renderSelect(
               selectedCustomer,
-              (option) => updateState({ selectedCustomer: option ? option.value : '' }),
-              customers.map(c => ({ value: c.id.toString(), label: c.name })),
+              (option) => updateState({ selectedCustomer: option ? option.value : "" }),
+              customers.map((c) => ({ value: c.id.toString(), label: c.name })),
               "Customer",
-              "main-customer-select"
+              "main-customer-select",
             )}
             {renderSelect(
               userType,
-              (option) => updateState({ userType: option ? option.value : '' }),
-              [{ value: 'User', label: 'User' }, { value: 'Customer', label: 'Customer' }],
+              (option) => updateState({ userType: option ? option.value : "" }),
+              [
+                { value: "User", label: "User" },
+                { value: "Customer", label: "Customer" },
+              ],
               "User Type",
-              "main-user-type-select"
+              "main-user-type-select",
             )}
             <QuotationTableErrorBoundary>
               <QuotationTable
@@ -1319,15 +1439,9 @@ export default function Direct() {
                 selectedProduct={selectedProduct}
                 setSelectedProduct={(val) => updateState({ selectedProduct: val })}
                 addToCart={addToCart}
-                updateQuantity={(id, type, val, isModal) =>
-                  updateCartItem(id, type, 'quantity', val, isModal)
-                }
-                updateDiscount={(id, type, val, isModal) =>
-                  updateCartItem(id, type, 'discount', val, isModal)
-                }
-                updatePrice={(id, type, val, isModal) =>
-                  updateCartItem(id, type, 'customPrice', val, isModal)
-                }
+                updateQuantity={(id, type, val, isModal) => updateCartItem(id, type, "quantity", val, isModal)}
+                updateDiscount={(id, type, val, isModal) => updateCartItem(id, type, "discount", val, isModal)}
+                updatePrice={(id, type, val, isModal) => updateCartItem(id, type, "customPrice", val, isModal)}
                 removeFromCart={removeFromCart}
                 calculateNetRate={calculateNetRate}
                 calculateYouSave={calculateYouSave}
@@ -1353,9 +1467,7 @@ export default function Direct() {
               onClick={createQuotation}
               disabled={!selectedCustomer || !cart.length}
               className={`onefifty:w-50 h-10 text-white px-8 rounded-lg font-bold shadow ${
-                !selectedCustomer || !cart.length
-                  ? "bg-gray-400 cursor-not-allowed"
-                  : "bg-blue-600 hover:bg-blue-700"
+                !selectedCustomer || !cart.length ? "bg-gray-400 cursor-not-allowed" : "bg-blue-600 hover:bg-blue-700"
               }`}
               style={styles.button}
             >
@@ -1363,9 +1475,7 @@ export default function Direct() {
             </button>
           </div>
           <div className="mt-12">
-            <h2 className="text-2xl font-semibold mb-4 text-center text-gray-800 mobile:text-xl">
-              All Quotations
-            </h2>
+            <h2 className="text-2xl font-semibold mb-4 text-center text-gray-800 mobile:text-xl">All Quotations</h2>
             <div className="flex justify-between items-center mb-4 mobile:flex-col mobile:gap-2">
               <input
                 type="text"
@@ -1385,11 +1495,9 @@ export default function Direct() {
             </div>
             {paginatedQuotations.length ? (
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 mobile:gap-4">
-                {paginatedQuotations.map(q => (
+                {paginatedQuotations.map((q) => (
                   <div key={q.quotation_id} className="p-6 rounded-lg shadow-lg" style={styles.card}>
-                    <h3 className="text-lg font-bold mb-2 mobile:text-base text-gray-900">
-                      {q.quotation_id}
-                    </h3>
+                    <h3 className="text-lg font-bold mb-2 mobile:text-base text-gray-900">{q.quotation_id}</h3>
                     {[
                       { label: "Customer", value: q.customer_name || "N/A" },
                       { label: "District", value: q.district || "N/A" },
@@ -1406,8 +1514,8 @@ export default function Direct() {
                               q.status === "pending"
                                 ? "text-yellow-600"
                                 : q.status === "booked"
-                                ? "text-green-600"
-                                : "text-red-600"
+                                  ? "text-green-600"
+                                  : "text-red-600"
                             }`}
                           >
                             {q.status}
@@ -1466,9 +1574,7 @@ export default function Direct() {
                 ))}
               </div>
             ) : (
-              <div className="p-4 text-center text-gray-500 mobile:p-2 mobile:text-xs">
-                No quotations available
-              </div>
+              <div className="p-4 text-center text-gray-500 mobile:p-2 mobile:text-xs">No quotations available</div>
             )}
             {totalPages > 1 && (
               <div className="mt-6 flex justify-center space-x-2 mobile:space-x-1">
@@ -1494,8 +1600,8 @@ export default function Direct() {
                     onClick={() => updateState({ currentPage: page })}
                     className={`px-4 py-2 rounded-lg ${
                       state.currentPage === page
-                        ? 'bg-indigo-600 dark:bg-blue-600 text-white'
-                        : 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-100 hover:bg-gray-300 dark:hover:bg-gray-600'
+                        ? "bg-indigo-600 dark:bg-blue-600 text-white"
+                        : "bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-100 hover:bg-gray-300 dark:hover:bg-gray-600"
                     } mobile:px-2 mobile:py-1 mobile:text-sm`}
                   >
                     {page}
@@ -1533,7 +1639,7 @@ export default function Direct() {
                 modalAdditionalDiscount: 0,
                 modalChangeDiscount: 0,
                 modalLastAddedProduct: null,
-                modalUserType: '',
+                modalUserType: "",
                 error: "",
               })
             }
@@ -1574,15 +1680,9 @@ export default function Direct() {
                 modalSelectedProduct={modalSelectedProduct}
                 setModalSelectedProduct={(val) => updateState({ modalSelectedProduct: val })}
                 addToCart={addToCart}
-                updateQuantity={(id, type, val, isModal) =>
-                  updateCartItem(id, type, 'quantity', val, isModal)
-                }
-                updateDiscount={(id, type, val, isModal) =>
-                  updateCartItem(id, type, 'discount', val, isModal)
-                }
-                updatePrice={(id, type, val, isModal) =>
-                  updateCartItem(id, type, 'customPrice', val, isModal)
-                }
+                updateQuantity={(id, type, val, isModal) => updateCartItem(id, type, "quantity", val, isModal)}
+                updateDiscount={(id, type, val, isModal) => updateCartItem(id, type, "discount", val, isModal)}
+                updatePrice={(id, type, val, isModal) => updateCartItem(id, type, "customPrice", val, isModal)}
                 removeFromCart={removeFromCart}
                 calculateNetRate={calculateNetRate}
                 calculateYouSave={calculateYouSave}
@@ -1599,7 +1699,7 @@ export default function Direct() {
                     modalAdditionalDiscount: 0,
                     modalChangeDiscount: 0,
                     modalLastAddedProduct: null,
-                    modalUserType: '',
+                    modalUserType: "",
                     error: "",
                   })
                 }
@@ -1624,5 +1724,5 @@ export default function Direct() {
         </div>
       </div>
     </div>
-  );
+  )
 }
