@@ -1,5 +1,3 @@
-"use client"
-
 import React, { useState, useEffect, useRef, useCallback } from "react"
 import axios from "axios"
 import Select from "react-select"
@@ -250,7 +248,7 @@ const QuotationTable = ({
         <table className="w-full border-collapse shadow rounded-lg mobile:text-xs">
           <thead className="border border-white">
             <tr className="hundred:text-lg mobile:text-sm">
-              {["Product", "Price", "Dis", "Qty", "Total", "Actions"].map((header) => (
+              {["Sr No", "Product", "Price", "Dis", "Qty", "Total", "Actions"].map((header) => (
                 <th key={header} className="text-center border-r border-white text-black dark:text-white">
                   {header}
                 </th>
@@ -259,11 +257,12 @@ const QuotationTable = ({
           </thead>
           <tbody>
             {cart.length ? (
-              cart.map((item) => (
+              cart.map((item, index) => (
                 <tr
                   key={`${item.id}-${item.product_type}`}
                   className="border text-gray-900 dark:text-gray-100 mobile:text-sm"
                 >
+                  <td className="text-center border-r mobile:p-1">{index + 1}</td>
                   <td className="text-center border-r mobile:p-1">{item.productname}</td>
                   <td className="text-center border-r mobile:p-1">
                     <input
@@ -333,7 +332,7 @@ const QuotationTable = ({
               ))
             ) : (
               <tr>
-                <td colSpan="6" className="p-4 text-center text-gray-500 mobile:p-2 mobile:text-xs">
+                <td colSpan="7" className="p-4 text-center text-gray-500 mobile:p-2 mobile:text-xs">
                   Cart is empty
                 </td>
               </tr>
@@ -362,10 +361,10 @@ const QuotationTable = ({
                 .filter(Boolean)
                 .map(({ label, value }) => (
                   <tr key={label} className="dark:text-white">
-                    <td colSpan="4" className="text-center font-bold mobile:p-1 text-xl">
+                    <td colSpan="6" className="text-center font-bold mobile:p-1 text-xl">
                       {label}
                     </td>
-                    <td colSpan="0" className="text-center font-bold mobile:p-1 text-xl">
+                    <td colSpan="1" className="text-center font-bold mobile:p-1 text-xl">
                       {value}
                     </td>
                   </tr>
@@ -415,7 +414,7 @@ const FormFields = ({
       <Select
         value={customers.find((c) => c.id === modalSelectedCustomer) || null}
         onChange={(option) => setModalSelectedCustomer(option ? option.value : "")}
-        options={customers.map((c) => ({ value: c.id, label: c.name }))}
+        options={customers.map((c) => ({ value: c.id, label: `${c.name} - ${c.district || 'N/A'}` }))}
         placeholder="Search for a customer..."
         isClearable
         className="mobile:w-full onefifty:w-96"
@@ -786,7 +785,6 @@ export default function Direct() {
   }
 
   const addToCart = (isModal = false, customProduct = null) => {
-    console.log("Direct: Adding to cart:", { isModal, customProduct })
     const {
       cart,
       modalCart,
@@ -1418,7 +1416,7 @@ export default function Direct() {
             {renderSelect(
               selectedCustomer,
               (option) => updateState({ selectedCustomer: option ? option.value : "" }),
-              customers.map((c) => ({ value: c.id.toString(), label: c.name })),
+              customers.map((c) => ({ value: c.id.toString(), label: `${c.name} - ${c.district || 'N/A'}` })),
               "Customer",
               "main-customer-select",
             )}
