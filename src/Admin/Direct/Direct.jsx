@@ -145,10 +145,10 @@ const QuotationTable = ({
     }
   }, [lastAddedProduct, setLastAddedProduct]);
 
-  // Handle Enter key press in quantity input
+  // Handle Tab key press in quantity input
   const handleQuantityKeyDown = (e) => {
-    if (e.key === "Enter") {
-      e.preventDefault(); // Prevent form submission
+    if (e.key === "Tab") {
+      e.preventDefault(); // Prevent default tab behavior
       if (productSelectRef.current) {
         productSelectRef.current.focus(); // Focus the product select input
         setSelectedProduct(null); // Clear the selected product
@@ -180,7 +180,7 @@ const QuotationTable = ({
       <div className="flex flex-col items-center mobile:w-full">
         <label className="text-lg font-semibold text-gray-700 dark:text-gray-100 mb-2 mobile:text-base">Product</label>
         <Select
-          ref={productSelectRef} // Use the passed ref
+          ref={productSelectRef}
           value={selectedProduct}
           onChange={setSelectedProduct}
           options={products.map((p) => ({
@@ -309,7 +309,7 @@ const QuotationTable = ({
                       onChange={(e) =>
                         updateQuantity(item.id, item.product_type, Number.parseInt(e.target.value) || 0, isModal)
                       }
-                      onKeyDown={handleQuantityKeyDown} // Add Enter key handler
+                      onKeyDown={handleQuantityKeyDown}
                       min="0"
                       ref={(el) => (quantityInputRefs.current[`${item.id}-${item.product_type}`] = el)}
                       className="w-16 text-center border border-gray-300 rounded p-1 focus:outline-none focus:ring-2 focus:ring-blue-600"
@@ -379,6 +379,7 @@ const QuotationTable = ({
     </div>
   );
 };
+
 // Form Fields for Modal
 const FormFields = ({
   isEdit,
@@ -416,7 +417,9 @@ const FormFields = ({
       <Select
         value={customers.find((c) => c.id === modalSelectedCustomer) || null}
         onChange={(option) => setModalSelectedCustomer(option ? option.value : "")}
-        options={customers.map((c) => ({ value: c.id, label: `${c.name} - ${c.district || 'N/A'}` }))}
+        options={customers
+          .sort((a, b) => b.name.localeCompare(a.name)) // Sort customers in descending order
+          .map((c) => ({ value: c.id, label: `${c.name} - ${c.district || 'N/A'}` }))}
         placeholder="Search for a customer..."
         isClearable
         className="mobile:w-full onefifty:w-96"
@@ -1418,7 +1421,9 @@ export default function Direct() {
             {renderSelect(
               selectedCustomer,
               (option) => updateState({ selectedCustomer: option ? option.value : "" }),
-              customers.map((c) => ({ value: c.id.toString(), label: `${c.name} - ${c.district || 'N/A'}` })),
+              customers
+                .sort((a, b) => b.name.localeCompare(a.name)) // Sort customers in descending order
+                .map((c) => ({ value: c.id.toString(), label: `${c.name} - ${c.district || 'N/A'}` })),
               "Customer",
               "main-customer-select",
             )}
