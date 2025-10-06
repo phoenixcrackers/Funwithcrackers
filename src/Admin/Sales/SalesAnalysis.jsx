@@ -330,13 +330,6 @@ export default function SalesAnalysis() {
                   {totalPages > 1 && (
                     <div className="flex justify-center mt-4 space-x-2">
                       <button
-                        onClick={() => paginate(1)}
-                        disabled={currentPage === 1}
-                        className="px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-100 rounded disabled:opacity-50"
-                      >
-                        First
-                      </button>
-                      <button
                         onClick={() => paginate(currentPage - 1)}
                         disabled={currentPage === 1}
                         className="px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-100 rounded disabled:opacity-50"
@@ -362,13 +355,6 @@ export default function SalesAnalysis() {
                         className="px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-100 rounded disabled:opacity-50"
                       >
                         Next
-                      </button>
-                      <button
-                        onClick={() => paginate(totalPages)}
-                        disabled={currentPage === totalPages}
-                        className="px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-100 rounded disabled:opacity-50"
-                      >
-                        Last
                       </button>
                     </div>
                   )}
@@ -502,7 +488,6 @@ export default function SalesAnalysis() {
                   <table className="w-full border-collapse">
                     <thead>
                       <tr className="bg-gray-200 dark:bg-gray-700">
-                        <th className="border p-2 text-left dark:text-gray-100">Type</th>
                         <th className="border p-2 text-left dark:text-gray-100">ID</th>
                         <th className="border p-2 text-right dark:text-gray-100">Total (Rs)</th>
                         <th className="border p-2 text-left dark:text-gray-100">Date</th>
@@ -512,7 +497,6 @@ export default function SalesAnalysis() {
                       {salesData.cancellations.length > 0 ? (
                         salesData.cancellations.map((c, index) => (
                           <tr key={index}>
-                            <td className="border p-2 dark:text-gray-100">{c.type}</td>
                             <td className="border p-2 dark:text-gray-100">{c.order_id}</td>
                             <td className="border p-2 text-right dark:text-gray-100">₹{formatValue(c.total)}</td>
                             <td className="border p-2 dark:text-gray-100">{new Date(c.created_at).toLocaleDateString('en-GB')}</td>
