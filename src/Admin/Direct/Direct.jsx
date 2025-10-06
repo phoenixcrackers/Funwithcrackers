@@ -418,7 +418,7 @@ const FormFields = ({
         value={customers.find((c) => c.id === modalSelectedCustomer) || null}
         onChange={(option) => setModalSelectedCustomer(option ? option.value : "")}
         options={customers
-          .sort((a, b) => b.name.localeCompare(a.name)) // Sort customers in descending order
+          .sort((a, b) => Number(b.id) - Number(a.id)) // Sort by id in descending order
           .map((c) => ({ value: c.id, label: `${c.name} - ${c.district || 'N/A'}` }))}
         placeholder="Search for a customer..."
         isClearable
@@ -762,9 +762,9 @@ export default function Direct() {
       const workbook = XLSX.utils.book_new();
       
       const customerGroups = {
-        Customer: customers.filter(c => c.customer_type === 'Customer'),
-        Agent: customers.filter(c => c.customer_type === 'Agent'),
-        'Customer of Agent': customers.filter(c => c.customer_type === 'Customer of Selected Agent'),
+        Customer: state.customers.filter(c => c.customer_type === 'Customer'),
+        Agent: state.customers.filter(c => c.customer_type === 'Agent'),
+        'Customer of Agent': state.customers.filter(c => c.customer_type === 'Customer of Selected Agent'),
       };
 
       for (const [type, group] of Object.entries(customerGroups)) {
@@ -789,7 +789,7 @@ export default function Direct() {
       XLSX.writeFile(workbook, 'customers_export.xlsx');
     } catch (err) {
       console.error('Failed to download customers Excel:', err);
-      setError(`Failed to download customers Excel: ${err.message}`);
+      updateState({ error: `Failed to download customers Excel: ${err.message}` });
     }
   };
 
@@ -1360,7 +1360,12 @@ export default function Direct() {
       <Select
         value={options.find((c) => c.value === value) || null}
         onChange={onChange}
-        options={options}
+        options={label === "Customer" 
+          ? customers
+              .sort((a, b) => Number(b.id) - Number(a.id)) // Sort by id in descending order for Customer
+              .map((c) => ({ value: c.id.toString(), label: `${c.name} - ${c.district || 'N/A'}` }))
+          : options
+        }
         placeholder={`Search for a ${label.toLowerCase()}...`}
         isClearable
         className="mobile:w-full onefifty:w-96"
@@ -1422,7 +1427,7 @@ export default function Direct() {
               selectedCustomer,
               (option) => updateState({ selectedCustomer: option ? option.value : "" }),
               customers
-                .sort((a, b) => b.name.localeCompare(a.name)) // Sort customers in descending order
+                .sort((a, b) => Number(b.id) - Number(a.id)) // Sort by id in descending order
                 .map((c) => ({ value: c.id.toString(), label: `${c.name} - ${c.district || 'N/A'}` })),
               "Customer",
               "main-customer-select",
