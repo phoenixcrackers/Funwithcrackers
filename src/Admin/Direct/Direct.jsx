@@ -131,53 +131,56 @@ const QuotationTable = ({
   userType,
   productSelectRef,
 }) => {
-  const quantityInputRefs = useRef({})
-  const localSelectRef = useRef(null)
+  const quantityInputRefs = useRef({});
 
   useEffect(() => {
     if (lastAddedProduct) {
-      const key = `${lastAddedProduct.id}-${lastAddedProduct.product_type}`
-      const input = quantityInputRefs.current[key]
+      const key = `${lastAddedProduct.id}-${lastAddedProduct.product_type}`;
+      const input = quantityInputRefs.current[key];
       if (input) {
-        input.focus()
-        input.select()
-        setLastAddedProduct(null)
+        input.focus();
+        input.select();
+        setLastAddedProduct(null);
       }
     }
-  }, [lastAddedProduct, setLastAddedProduct])
+  }, [lastAddedProduct, setLastAddedProduct]);
+
+  // Handle Enter key press in quantity input
+  const handleQuantityKeyDown = (e) => {
+    if (e.key === "Enter") {
+      e.preventDefault(); // Prevent form submission
+      if (productSelectRef.current) {
+        productSelectRef.current.focus(); // Focus the product select input
+        setSelectedProduct(null); // Clear the selected product
+      }
+    }
+  };
 
   const handleChangeDiscount = (value) => {
-    const newDiscount = Math.max(0, Math.min(100, Number.parseFloat(value) || 0))
-    setChangeDiscount(newDiscount)
-    const cartKey = isModal ? "modalCart" : "cart"
+    const newDiscount = Math.max(0, Math.min(100, Number.parseFloat(value) || 0));
+    setChangeDiscount(newDiscount);
+    const cartKey = isModal ? "modalCart" : "cart";
     updateState({
       [cartKey]: cart.map((item) => {
         const originalProduct = products.find(
           (p) => p.id.toString() === item.id && p.product_type === item.product_type,
-        )
+        );
         const shouldUpdateDiscount =
-          item.product_type !== "net_rate_products" && (!originalProduct || Number(originalProduct.discount) !== 0)
+          item.product_type !== "net_rate_products" && (!originalProduct || Number(originalProduct.discount) !== 0);
         return {
           ...item,
           discount: shouldUpdateDiscount ? newDiscount : item.discount,
-        }
+        };
       }),
-    })
-  }
-
-  const handleQuantityBlur = () => {
-    if (localSelectRef.current) {
-      localSelectRef.current.focus()
-    }
-    setSelectedProduct(null)
-  }
+    });
+  };
 
   return (
     <div className="space-y-4">
       <div className="flex flex-col items-center mobile:w-full">
         <label className="text-lg font-semibold text-gray-700 dark:text-gray-100 mb-2 mobile:text-base">Product</label>
         <Select
-          ref={localSelectRef}
+          ref={productSelectRef} // Use the passed ref
           value={selectedProduct}
           onChange={setSelectedProduct}
           options={products.map((p) => ({
@@ -306,7 +309,7 @@ const QuotationTable = ({
                       onChange={(e) =>
                         updateQuantity(item.id, item.product_type, Number.parseInt(e.target.value) || 0, isModal)
                       }
-                      onBlur={handleQuantityBlur}
+                      onKeyDown={handleQuantityKeyDown} // Add Enter key handler
                       min="0"
                       ref={(el) => (quantityInputRefs.current[`${item.id}-${item.product_type}`] = el)}
                       className="w-16 text-center border border-gray-300 rounded p-1 focus:outline-none focus:ring-2 focus:ring-blue-600"
@@ -374,9 +377,8 @@ const QuotationTable = ({
         </table>
       </div>
     </div>
-  )
-}
-
+  );
+};
 // Form Fields for Modal
 const FormFields = ({
   isEdit,
@@ -753,36 +755,40 @@ export default function Direct() {
   )
 
   const exportToExcel = () => {
-    const workbook = XLSX.utils.book_new()
+    try {
+      const workbook = XLSX.utils.book_new();
+      
+      const customerGroups = {
+        Customer: customers.filter(c => c.customer_type === 'Customer'),
+        Agent: customers.filter(c => c.customer_type === 'Agent'),
+        'Customer of Agent': customers.filter(c => c.customer_type === 'Customer of Selected Agent'),
+      };
 
-    const customerGroups = {
-      Customer: state.customers.filter((c) => c.customer_type === "Customer"),
-      Agent: state.customers.filter((c) => c.customer_type === "Agent"),
-      "Customer of Agent": state.customers.filter((c) => c.customer_type === "Customer of Selected Agent"),
+      for (const [type, group] of Object.entries(customerGroups)) {
+        if (group.length === 0) continue;
+
+        const data = group.map(customer => ({
+          ID: customer.id || 'N/A',
+          Name: customer.name || 'N/A',
+          'Customer Type': customer.customer_type || 'User',
+          ...(type === 'Customer of Agent' ? { 'Agent Name': customer.agent_name || 'N/A' } : {}),
+          'Mobile Number': customer.mobile_number || 'N/A',
+          Email: customer.email || 'N/A',
+          Address: customer.address || 'N/A',
+          District: customer.district || 'N/A',
+          State: customer.state || 'N/A',
+        }));
+
+        const worksheet = XLSX.utils.json_to_sheet(data);
+        XLSX.utils.book_append_sheet(workbook, worksheet, type);
+      }
+
+      XLSX.writeFile(workbook, 'customers_export.xlsx');
+    } catch (err) {
+      console.error('Failed to download customers Excel:', err);
+      setError(`Failed to download customers Excel: ${err.message}`);
     }
-
-    Object.entries(customerGroups).forEach(([type, group]) => {
-      if (group.length === 0) return
-
-      const data = group.map((customer) => {
-        const baseData = {
-          Name: customer.name || "N/A",
-          "Customer Type": customer.customer_type || "N/A",
-          Address: customer.address || "N/A",
-          State: customer.state || "N/A",
-          District: customer.district || "N/A",
-          "Mobile Number": customer.mobile_number || "N/A",
-          Email: customer.email || "N/A",
-        }
-        return baseData
-      })
-
-      const worksheet = XLSX.utils.json_to_sheet(data)
-      XLSX.utils.book_append_sheet(workbook, worksheet, type)
-    })
-
-    XLSX.writeFile(workbook, "customers_export.xlsx")
-  }
+  };
 
   const addToCart = (isModal = false, customProduct = null) => {
     const {
@@ -798,15 +804,15 @@ export default function Direct() {
       modalChangeDiscount,
       userType,
       modalUserType,
-    } = state
-    const targetCart = isModal ? modalCart : cart
-    const targetSelectedProduct = isModal ? modalSelectedProduct : selectedProduct
-    const targetDiscount = isModal ? modalChangeDiscount : changeDiscount
-    const targetUserType = isModal ? modalUserType : userType
+    } = state;
+    const targetCart = isModal ? modalCart : cart;
+    const targetSelectedProduct = isModal ? modalSelectedProduct : selectedProduct;
+    const targetDiscount = isModal ? modalChangeDiscount : changeDiscount;
+    const targetUserType = isModal ? modalUserType : userType;
 
-    if (!customProduct && !targetSelectedProduct) return updateState({ error: "Please select a product" })
+    if (!customProduct && !targetSelectedProduct) return updateState({ error: "Please select a product" });
 
-    let product
+    let product;
     if (customProduct) {
       product = {
         ...customProduct,
@@ -818,18 +824,18 @@ export default function Direct() {
         quantity: Number.parseInt(customProduct.quantity) || 1,
         discount: Number.parseFloat(customProduct.discount) || targetDiscount,
         per: customProduct.per || "Unit",
-      }
+      };
     } else {
-      const [id, type] = targetSelectedProduct.value.split("-")
-      product = products.find((p) => p.id.toString() === id && p.product_type === type)
-      if (!product) return updateState({ error: "Product not found" })
-      const customer = customers.find((c) => c.id.toString() === (isModal ? modalSelectedCustomer : selectedCustomer))
+      const [id, type] = targetSelectedProduct.value.split("-");
+      product = products.find((p) => p.id.toString() === id && p.product_type === type);
+      if (!product) return updateState({ error: "Product not found" });
+      const customer = customers.find((c) => c.id.toString() === (isModal ? modalSelectedCustomer : selectedCustomer));
       const effectivePrice = getEffectivePrice(
         product,
         isModal ? modalSelectedCustomer : selectedCustomer,
         customers,
         targetUserType,
-      )
+      );
       product = {
         ...product,
         basePrice: Math.round(Number(product.price)),
@@ -839,45 +845,41 @@ export default function Direct() {
         discount: Number.parseFloat(product.discount) || 0,
         per: product.per || "Unit",
         product_type: type,
-      }
+      };
     }
 
-    // For regular products, check if exists and update quantity
-    const existingProductIndex = customProduct
-      ? -1
-      : targetCart.findIndex((item) => item.id === product.id && item.product_type === product.product_type)
+    // Check if the product already exists in the cart
+    const existingProductIndex = targetCart.findIndex(
+      (item) => item.id === product.id && item.product_type === product.product_type
+    );
 
-    let updatedCart
+    let updatedCart;
     if (existingProductIndex !== -1) {
-      // Update quantity if regular product exists
+      // Update quantity if product exists
       updatedCart = targetCart.map((item, index) =>
         index === existingProductIndex
           ? { ...item, quantity: item.quantity + (Number.parseInt(product.quantity) || 1) }
-          : item,
-      )
+          : item
+      );
     } else {
-      updatedCart = [...targetCart, product]
+      // Prepend all new products (custom or regular) to the cart
+      updatedCart = [product, ...targetCart];
     }
 
     updateState({
       [isModal ? "modalCart" : "cart"]: updatedCart,
-      // Only reset selectedProduct if not adding a custom product
-      ...(customProduct
-        ? {}
-        : {
-            [isModal ? "modalSelectedProduct" : "selectedProduct"]: null,
-          }),
+      [isModal ? "modalSelectedProduct" : "selectedProduct"]: null,
       [isModal ? "modalLastAddedProduct" : "lastAddedProduct"]: {
         id: product.id,
         product_type: product.product_type,
       },
       error: "",
-    })
+    });
 
-    if (!isModal && productSelectRef.current && !customProduct) {
-      productSelectRef.current.focus()
+    if (!isModal && productSelectRef.current) {
+      productSelectRef.current.focus();
     }
-  }
+  };
 
   const updateCartItem = (id, type, key, value, isModal = false) => {
     const cartKey = isModal ? "modalCart" : "cart"
