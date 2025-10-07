@@ -1,39 +1,38 @@
-import React, { useState, useEffect, useRef, useCallback } from "react"
-import axios from "axios"
-import Select from "react-select"
-import Modal from "react-modal"
-import * as XLSX from "xlsx"
-import "../../App.css"
-import { API_BASE_URL } from "../../../Config"
-import Sidebar from "../Sidebar/Sidebar"
-import Logout from "../Logout"
+import React, { useState, useEffect, useRef, useCallback } from "react";
+import axios from "axios";
+import Select from "react-select";
+import Modal from "react-modal";
+import * as XLSX from "xlsx";
+import "../../App.css";
+import { API_BASE_URL } from "../../../Config";
+import Sidebar from "../Sidebar/Sidebar";
+import Logout from "../Logout";
 
 // Accessibility setup
-Modal.setAppElement("#root")
+Modal.setAppElement("#root");
 
 // Helper to calculate effective price
 const getEffectivePrice = (item, customerId, customers = [], userType) => {
   if (!item) {
-    console.warn("getEffectivePrice: Invalid input - item missing", { item })
-    return 0
+    console.warn("getEffectivePrice: Invalid input - item missing", { item });
+    return 0;
   }
-  // Use dprice by default, switch to price only if userType is explicitly 'User'
   const price =
     userType === "User"
       ? Math.round(Number(item.price) || 0)
-      : Math.round(Number(item.dprice) || Number(item.price) || 0)
+      : Math.round(Number(item.dprice) || Number(item.price) || 0);
   if (price === 0) {
-    console.warn("getEffectivePrice: Price is 0 for item", item)
+    console.warn("getEffectivePrice: Price is 0 for item", item);
   }
-  return price
-}
+  return price;
+};
 
 // Error Boundary
 class QuotationTableErrorBoundary extends React.Component {
-  state = { hasError: false }
-  static getDerivedStateFromError = () => ({ hasError: true })
+  state = { hasError: false };
+  static getDerivedStateFromError = () => ({ hasError: true });
   componentDidCatch(error, errorInfo) {
-    console.error("Error:", error, errorInfo)
+    console.error("Error:", error, errorInfo);
   }
   render() {
     return this.state.hasError ? (
@@ -42,7 +41,7 @@ class QuotationTableErrorBoundary extends React.Component {
       </div>
     ) : (
       this.props.children
-    )
+    );
   }
 }
 
@@ -82,7 +81,7 @@ const selectStyles = {
     ...base,
     color: "#9ca3af",
   }),
-}
+};
 
 // Shared component styles
 const styles = {
@@ -100,7 +99,7 @@ const styles = {
     border: "1px solid rgba(2,132,199,0.3)",
     boxShadow: "0 10px 20px rgba(0,0,0,0.1)",
   },
-}
+};
 
 // Quotation Table Component
 const QuotationTable = ({
@@ -145,13 +144,12 @@ const QuotationTable = ({
     }
   }, [lastAddedProduct, setLastAddedProduct]);
 
-  // Handle Tab key press in quantity input
   const handleQuantityKeyDown = (e) => {
     if (e.key === "Tab") {
-      e.preventDefault(); // Prevent default tab behavior
+      e.preventDefault();
       if (productSelectRef.current) {
-        productSelectRef.current.focus(); // Focus the product select input
-        setSelectedProduct(null); // Clear the selected product
+        productSelectRef.current.focus();
+        setSelectedProduct(null);
       }
     }
   };
@@ -163,15 +161,18 @@ const QuotationTable = ({
     updateState({
       [cartKey]: cart.map((item) => {
         const originalProduct = products.find(
-          (p) => p.id.toString() === item.id && p.product_type === item.product_type,
+          (p) => p.id.toString() === item.id && p.product_type === item.product_type
         );
         const shouldUpdateDiscount =
-          item.product_type !== "net_rate_products" && (!originalProduct || Number(originalProduct.discount) !== 0);
+          item.product_type !== "net_rate_products" &&
+          (!originalProduct || Number(originalProduct.discount) !== 0);
         return {
           ...item,
           discount: shouldUpdateDiscount ? newDiscount : item.discount,
         };
       }),
+      changeDiscount: isModal ? changeDiscount : newDiscount,
+      modalChangeDiscount: isModal ? newDiscount : changeDiscount,
     });
   };
 
@@ -418,7 +419,7 @@ const FormFields = ({
         value={customers.find((c) => c.id === modalSelectedCustomer) || null}
         onChange={(option) => setModalSelectedCustomer(option ? option.value : "")}
         options={customers
-          .sort((a, b) => Number(b.id) - Number(a.id)) // Sort by id in descending order
+          .sort((a, b) => Number(b.id) - Number(a.id))
           .map((c) => ({ value: c.id, label: `${c.name} - ${c.district || 'N/A'}` }))}
         placeholder="Search for a customer..."
         isClearable
@@ -479,26 +480,28 @@ const FormFields = ({
       <button
         onClick={handleSubmit}
         disabled={!modalSelectedCustomer || !modalCart.length}
-        className={`rounded-md px-4 py-2 text-sm text-white ${!modalSelectedCustomer || !modalCart.length ? "bg-gray-400 cursor-not-allowed" : isEdit ? "bg-yellow-600 hover:bg-yellow-700" : "bg-green-600 hover:bg-green-700"}`}
+        className={`rounded-md px-4 py-2 text-sm text-white ${
+          !modalSelectedCustomer || !modalCart.length ? "bg-gray-400 cursor-not-allowed" : isEdit ? "bg-yellow-600 hover:bg-yellow-700" : "bg-green-600 hover:bg-green-700"
+        }`}
       >
         {isEdit ? "Update Quotation" : "Confirm Booking"}
       </button>
     </div>
   </div>
-)
+);
 
 // New Product Modal
 const NewProductModal = ({ isOpen, onClose, onSubmit, newProductData, setNewProductData }) => {
-  const [isSubmitting, setIsSubmitting] = useState(false)
-  const [localProductData, setLocalProductData] = useState(newProductData)
-  const isMounted = useRef(true)
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [localProductData, setLocalProductData] = useState(newProductData);
+  const isMounted = useRef(true);
 
   useEffect(() => {
-    setLocalProductData(newProductData)
-  }, [newProductData])
+    setLocalProductData(newProductData);
+  }, [newProductData]);
 
   const handleInputChange = (e) => {
-    const { name, value } = e.target
+    const { name, value } = e.target;
     const updatedData = {
       ...localProductData,
       [name]: ["price", "discount", "quantity"].includes(name)
@@ -506,31 +509,31 @@ const NewProductModal = ({ isOpen, onClose, onSubmit, newProductData, setNewProd
           ? ""
           : Number.parseFloat(value) || 0
         : value,
-    }
-    setLocalProductData(updatedData)
+    };
+    setLocalProductData(updatedData);
     if (isMounted.current) {
-      setNewProductData(updatedData)
+      setNewProductData(updatedData);
     }
-  }
+  };
 
-  const handleKeyDown = (e) => {}
+  const handleKeyDown = (e) => {};
 
   const handleSubmit = async () => {
-    setIsSubmitting(true)
+    setIsSubmitting(true);
     try {
-      await onSubmit(localProductData)
-      console.log("NewProductModal: Submission successful")
+      await onSubmit(localProductData);
+      console.log("NewProductModal: Submission successful");
       if (isMounted.current) {
-        onClose()
+        onClose();
       }
     } catch (err) {
-      console.error("NewProductModal: Submission error:", err)
+      console.error("NewProductModal: Submission error:", err);
     } finally {
       if (isMounted.current) {
-        setIsSubmitting(false)
+        setIsSubmitting(false);
       }
     }
-  }
+  };
 
   return (
     <Modal
@@ -599,7 +602,9 @@ const NewProductModal = ({ isOpen, onClose, onSubmit, newProductData, setNewProd
           <button
             onClick={onClose}
             disabled={isSubmitting}
-            className={`rounded-md px-4 py-2 text-sm text-white ${isSubmitting ? "bg-gray-400 cursor-not-allowed" : "bg-gray-600 hover:bg-gray-700"}`}
+            className={`rounded-md px-4 py-2 text-sm text-white ${
+              isSubmitting ? "bg-gray-400 cursor-not-allowed" : "bg-gray-600 hover:bg-gray-700"
+            }`}
           >
             Cancel
           </button>
@@ -611,15 +616,19 @@ const NewProductModal = ({ isOpen, onClose, onSubmit, newProductData, setNewProd
               localProductData.price === "" ||
               localProductData.quantity === ""
             }
-            className={`rounded-md px-4 py-2 text-sm text-white ${isSubmitting || !localProductData.productname || localProductData.price === "" || localProductData.quantity === "" ? "bg-gray-400 cursor-not-allowed" : "bg-green-600 hover:bg-green-700"}`}
+            className={`rounded-md px-4 py-2 text-sm text-white ${
+              isSubmitting || !localProductData.productname || localProductData.price === "" || localProductData.quantity === ""
+                ? "bg-gray-400 cursor-not-allowed"
+                : "bg-green-600 hover:bg-green-700"
+            }`}
           >
             Add Product
           </button>
         </div>
       </div>
     </Modal>
-  )
-}
+  );
+};
 
 export default function Direct() {
   const [state, setState] = useState({
@@ -654,141 +663,140 @@ export default function Direct() {
     modalUserType: "",
     currentPage: 1,
     searchQuery: "",
-  })
+  });
 
-  const isMounted = useRef(true)
-  const productSelectRef = useRef(null)
+  const isMounted = useRef(true);
+  const productSelectRef = useRef(null);
 
   const updateState = (updates) => {
-    if (!isMounted.current) return
-    setState((prev) => ({ ...prev, ...updates }))
-  }
+    if (!isMounted.current) return;
+    setState((prev) => ({ ...prev, ...updates }));
+  };
 
   useEffect(() => {
-    isMounted.current = true
+    isMounted.current = true;
 
     const messageListener = (event) => {
-      console.log("Window message received:", event.data, event.origin)
-    }
-    window.addEventListener("message", messageListener)
+      console.log("Window message received:", event.data, event.origin);
+    };
+    window.addEventListener("message", messageListener);
 
     const fetchData = async () => {
-      const controller = new AbortController()
-      updateState({ loading: true })
+      const controller = new AbortController();
+      updateState({ loading: true });
       try {
         const [customers, products, quotations] = await Promise.all([
           axios.get(`${API_BASE_URL}/api/direct/customers`, { signal: controller.signal }),
           axios.get(`${API_BASE_URL}/api/direct/aproducts`, { signal: controller.signal }),
           axios.get(`${API_BASE_URL}/api/direct/quotations`, { signal: controller.signal }),
-        ])
+        ]);
         if (isMounted.current) {
           updateState({
             customers: Array.isArray(customers.data) ? customers.data : [],
             products: Array.isArray(products.data) ? products.data : [],
             quotations: Array.isArray(quotations.data) ? quotations.data : [],
             loading: false,
-          })
+          });
         }
       } catch (err) {
-        if (err.name === "AbortError") return
-        console.error("Fetch error:", err)
+        if (err.name === "AbortError") return;
+        console.error("Fetch error:", err);
         if (isMounted.current) {
-          updateState({ error: `Failed to fetch data: ${err.message}`, loading: false })
+          updateState({ error: `Failed to fetch data: ${err.message}`, loading: false });
         }
       }
-    }
-    fetchData()
+    };
+    fetchData();
 
     const intervalId = setInterval(async () => {
-      const controller = new AbortController()
+      const controller = new AbortController();
       try {
-        const { data } = await axios.get(`${API_BASE_URL}/api/direct/quotations`, { signal: controller.signal })
+        const { data } = await axios.get(`${API_BASE_URL}/api/direct/quotations`, { signal: controller.signal });
         if (isMounted.current) {
-          updateState({ quotations: Array.isArray(data) ? data : [] })
+          updateState({ quotations: Array.isArray(data) ? data : [] });
         }
       } catch (err) {
-        if (err.name === "AbortError") return
-        console.error("Interval fetch error:", err)
+        if (err.name === "AbortError") return;
+        console.error("Interval fetch error:", err);
         if (isMounted.current) {
-          updateState({ error: `Failed to fetch quotations: ${err.message}` })
+          updateState({ error: `Failed to fetch quotations: ${err.message}` });
         }
       }
-    }, 30000)
+    }, 30000);
 
     return () => {
-      isMounted.current = false
-      clearInterval(intervalId)
-      window.removeEventListener("message", messageListener)
-    }
-  }, [])
+      isMounted.current = false;
+      clearInterval(intervalId);
+      window.removeEventListener("message", messageListener);
+    };
+  }, []);
 
-  const itemsPerPage = 9
+  const itemsPerPage = 9;
 
   const handleSearch = (e) => {
-    updateState({ searchQuery: e.target.value, currentPage: 1 })
-  }
+    updateState({ searchQuery: e.target.value, currentPage: 1 });
+  };
 
   const filteredQuotations = state.quotations.filter(
     (q) =>
       q.quotation_id.toLowerCase().includes(state.searchQuery.toLowerCase()) ||
       (q.customer_name || "").toLowerCase().includes(state.searchQuery.toLowerCase()),
-  )
+  );
 
-  const totalPages = Math.ceil(filteredQuotations.length / itemsPerPage)
+  const totalPages = Math.ceil(filteredQuotations.length / itemsPerPage);
 
   const getVisiblePages = () => {
-    const pages = []
-    const maxVisiblePages = 5
-    let startPage = Math.max(1, state.currentPage - Math.floor(maxVisiblePages / 2))
-    const endPage = Math.min(totalPages, startPage + maxVisiblePages - 1)
+    const pages = [];
+    const maxVisiblePages = 5;
+    let startPage = Math.max(1, state.currentPage - Math.floor(maxVisiblePages / 2));
+    const endPage = Math.min(totalPages, startPage + maxVisiblePages - 1);
 
     if (endPage - startPage + 1 < maxVisiblePages) {
-      startPage = Math.max(1, endPage - maxVisiblePages + 1)
+      startPage = Math.max(1, endPage - maxVisiblePages + 1);
     }
 
     for (let i = startPage; i <= endPage; i++) {
-      pages.push(i)
+      pages.push(i);
     }
-    return pages
-  }
+    return pages;
+  };
 
   const paginatedQuotations = filteredQuotations.slice(
     (state.currentPage - 1) * itemsPerPage,
     state.currentPage * itemsPerPage,
-  )
+  );
 
   const exportToExcel = () => {
     try {
       const workbook = XLSX.utils.book_new();
-      
       const customerGroups = {
-        Customer: state.customers.filter(c => c.customer_type === 'Customer'),
-        Agent: state.customers.filter(c => c.customer_type === 'Agent'),
-        'Customer of Agent': state.customers.filter(c => c.customer_type === 'Customer of Selected Agent'),
+        Customer: state.customers.filter((c) => c.customer_type === "Customer"),
+        Agent: state.customers.filter((c) => c.customer_type === "Agent"),
+        "Customer of Agent": state.customers.filter((c) => c.customer_type === "Customer of Selected Agent"),
       };
 
       for (const [type, group] of Object.entries(customerGroups)) {
         if (group.length === 0) continue;
 
-        const data = group.map(customer => ({
-          ID: customer.id || 'N/A',
-          Name: customer.name || 'N/A',
-          'Customer Type': customer.customer_type || 'User',
-          ...(type === 'Customer of Agent' ? { 'Agent Name': customer.agent_name || 'N/A' } : {}),
-          'Mobile Number': customer.mobile_number || 'N/A',
-          Email: customer.email || 'N/A',
-          Address: customer.address || 'N/A',
-          District: customer.district || 'N/A',
-          State: customer.state || 'N/A',
+        const data = group.map((customer) => ({
+          ID: customer.id || "N/A",
+          Name: customer.name || "N/A",
+          "Customer Type": customer.customer_type || "User",
+          ...(type === "Customer of Agent" ? { "Agent Name": customer.agent_name || "N/A" } : {}),
+          "Mobile Number": customer.mobile_number || "N/A",
+          Email: customer.email || "N/A",
+          Address: customer.address || "N/A",
+          District: customer.district || "N/A",
+          State: customer.state || "N/A",
         }));
 
         const worksheet = XLSX.utils.json_to_sheet(data);
         XLSX.utils.book_append_sheet(workbook, worksheet, type);
       }
 
-      XLSX.writeFile(workbook, 'customers_export.xlsx');
+      XLSX.writeFile(workbook, "customers_export.xlsx");
     } catch (err) {
-      console.error('Failed to download customers Excel:', err);
+      console.error("Failed to download customers Excel:", err);
       updateState({ error: `Failed to download customers Excel: ${err.message}` });
     }
   };
@@ -813,7 +821,8 @@ export default function Direct() {
     const targetDiscount = isModal ? modalChangeDiscount : changeDiscount;
     const targetUserType = isModal ? modalUserType : userType;
 
-    if (!customProduct && !targetSelectedProduct) return updateState({ error: "Please select a product" });
+    if (!customProduct && !targetSelectedProduct)
+      return updateState({ error: "Please select a product" });
 
     let product;
     if (customProduct) {
@@ -832,12 +841,14 @@ export default function Direct() {
       const [id, type] = targetSelectedProduct.value.split("-");
       product = products.find((p) => p.id.toString() === id && p.product_type === type);
       if (!product) return updateState({ error: "Product not found" });
-      const customer = customers.find((c) => c.id.toString() === (isModal ? modalSelectedCustomer : selectedCustomer));
+      const customer = customers.find(
+        (c) => c.id.toString() === (isModal ? modalSelectedCustomer : selectedCustomer)
+      );
       const effectivePrice = getEffectivePrice(
         product,
         isModal ? modalSelectedCustomer : selectedCustomer,
         customers,
-        targetUserType,
+        targetUserType
       );
       product = {
         ...product,
@@ -845,27 +856,27 @@ export default function Direct() {
         dprice: Math.round(Number(product.dprice)),
         customPrice: effectivePrice,
         quantity: 1,
-        discount: Number.parseFloat(product.discount) || 0,
+        discount:
+          type !== "net_rate_products" && Number(product.discount) !== 0
+            ? Number.parseFloat(targetDiscount) || 0
+            : Number.parseFloat(product.discount) || 0,
         per: product.per || "Unit",
         product_type: type,
       };
     }
 
-    // Check if the product already exists in the cart
     const existingProductIndex = targetCart.findIndex(
       (item) => item.id === product.id && item.product_type === product.product_type
     );
 
     let updatedCart;
     if (existingProductIndex !== -1) {
-      // Update quantity if product exists
       updatedCart = targetCart.map((item, index) =>
         index === existingProductIndex
           ? { ...item, quantity: item.quantity + (Number.parseInt(product.quantity) || 1) }
           : item
       );
     } else {
-      // Prepend all new products (custom or regular) to the cart
       updatedCart = [product, ...targetCart];
     }
 
@@ -885,7 +896,7 @@ export default function Direct() {
   };
 
   const updateCartItem = (id, type, key, value, isModal = false) => {
-    const cartKey = isModal ? "modalCart" : "cart"
+    const cartKey = isModal ? "modalCart" : "cart";
     updateState({
       [cartKey]: state[cartKey].map((item) =>
         item.id === id && item.product_type === type
@@ -902,21 +913,21 @@ export default function Direct() {
             }
           : item,
       ),
-    })
-  }
+    });
+  };
 
   const removeFromCart = (id, type, isModal = false) => {
-    const cartKey = isModal ? "modalCart" : "cart"
+    const cartKey = isModal ? "modalCart" : "cart";
     updateState({
       [cartKey]: state[cartKey].filter((item) => !(item.id === id && item.product_type === type)),
-    })
-  }
+    });
+  };
 
   const calculateNetRate = (targetCart = [], customerId) =>
     targetCart.reduce(
       (total, item) => total + getEffectivePrice(item, customerId, state.customers, state.userType) * item.quantity,
       0,
-    )
+    );
 
   const calculateYouSave = (targetCart = [], customerId) =>
     targetCart.reduce(
@@ -924,20 +935,20 @@ export default function Direct() {
         total +
         getEffectivePrice(item, customerId, state.customers, state.userType) * (item.discount / 100) * item.quantity,
       0,
-    )
+    );
 
   const calculateTotal = (targetCart = [], customerId, isModal) => {
-    const subtotal = calculateNetRate(targetCart, customerId) - calculateYouSave(targetCart, customerId)
-    return Math.max(0, subtotal * (1 - (isModal ? state.modalAdditionalDiscount : state.additionalDiscount) / 100))
-  }
+    const subtotal = calculateNetRate(targetCart, customerId) - calculateYouSave(targetCart, customerId);
+    return Math.max(0, subtotal * (1 - (isModal ? state.modalAdditionalDiscount : state.additionalDiscount) / 100));
+  };
 
   const openNewProductModal = (isModal = false) => {
     updateState({
       newProductModalIsOpen: true,
       isModalNewProduct: isModal,
       newProductData: { productname: "", price: "", discount: 0, quantity: 1, per: "" },
-    })
-  }
+    });
+  };
 
   const closeNewProductModal = () => {
     updateState({
@@ -945,23 +956,23 @@ export default function Direct() {
       isModalNewProduct: false,
       newProductData: { productname: "", price: "", discount: 0, quantity: 1, per: "" },
       error: "",
-    })
-  }
+    });
+  };
 
   const handleAddNewProduct = useCallback(
     (productData) => {
-      const { isModalNewProduct, modalChangeDiscount, changeDiscount } = state
+      const { isModalNewProduct, modalChangeDiscount, changeDiscount } = state;
       if (!productData.productname) {
-        return updateState({ error: "Product name is required" })
+        return updateState({ error: "Product name is required" });
       }
       if (productData.price === "" || productData.price < 0) {
-        return updateState({ error: "Price must be a non-negative number" })
+        return updateState({ error: "Price must be a non-negative number" });
       }
       if (productData.quantity === "" || productData.quantity < 1) {
-        return updateState({ error: "Quantity must be at least 1" })
+        return updateState({ error: "Quantity must be at least 1" });
       }
       if (productData.discount < 0 || productData.discount > 100) {
-        return updateState({ error: "Discount must be between 0 and 100" })
+        return updateState({ error: "Discount must be between 0 and 100" });
       }
 
       addToCart(isModalNewProduct, {
@@ -969,22 +980,22 @@ export default function Direct() {
         price: Number.parseFloat(productData.price) || 0,
         discount: Number.parseFloat(productData.discount) || (isModalNewProduct ? modalChangeDiscount : changeDiscount),
         quantity: Number.parseInt(productData.quantity) || 1,
-      })
-      closeNewProductModal()
+      });
+      closeNewProductModal();
     },
     [state],
-  )
+  );
 
   const createQuotation = async () => {
-    const controller = new AbortController()
-    const { selectedCustomer, cart, customers, additionalDiscount, userType } = state
-    if (!selectedCustomer || !cart.length) return updateState({ error: "Customer and products are required" })
+    const controller = new AbortController();
+    const { selectedCustomer, cart, customers, additionalDiscount, userType } = state;
+    if (!selectedCustomer || !cart.length) return updateState({ error: "Customer and products are required" });
     if (cart.some((item) => item.quantity === 0))
-      return updateState({ error: "Please remove products with zero quantity" })
-    const customer = customers.find((c) => c.id.toString() === selectedCustomer)
-    if (!customer) return updateState({ error: "Invalid customer" })
+      return updateState({ error: "Please remove products with zero quantity" });
+    const customer = customers.find((c) => c.id.toString() === selectedCustomer);
+    if (!customer) return updateState({ error: "Invalid customer" });
 
-    const quotation_id = `QUO-${Date.now()}`
+    const quotation_id = `QUO-${Date.now()}`;
     try {
       const payload = {
         customer_id: Number(selectedCustomer),
@@ -1011,11 +1022,11 @@ export default function Direct() {
         district: customer.district,
         state: customer.state,
         status: "pending",
-      }
+      };
 
       const {
         data: { quotation_id: newQuotationId },
-      } = await axios.post(`${API_BASE_URL}/api/direct/quotations`, payload, { signal: controller.signal })
+      } = await axios.post(`${API_BASE_URL}/api/direct/quotations`, payload, { signal: controller.signal });
       updateState({
         quotationId: newQuotationId,
         isQuotationCreated: true,
@@ -1037,40 +1048,40 @@ export default function Direct() {
           },
           ...state.quotations,
         ],
-      })
-      setTimeout(() => updateState({ showSuccess: false }), 3000)
+      });
+      setTimeout(() => updateState({ showSuccess: false }), 3000);
 
       const pdfResponse = await axios.get(`${API_BASE_URL}/api/direct/quotation/${newQuotationId}`, {
         responseType: "blob",
         signal: controller.signal,
-      })
-      const url = window.URL.createObjectURL(new Blob([pdfResponse.data]))
-      const link = document.createElement("a")
-      link.href = url
+      });
+      const url = window.URL.createObjectURL(new Blob([pdfResponse.data]));
+      const link = document.createElement("a");
+      link.href = url;
       link.setAttribute(
         "download",
         `${(customer.name || "unknown")
           .toLowerCase()
           .replace(/[^a-z0-9]+/g, "_")
           .replace(/^_+|_+$/g, "")}-${newQuotationId}-quotation.pdf`,
-      )
-      document.body.appendChild(link)
-      link.click()
-      document.body.removeChild(link)
-      window.URL.revokeObjectURL(url)
+      );
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
     } catch (err) {
-      if (err.name === "AbortError") return
-      console.error("Create quotation error:", err)
+      if (err.name === "AbortError") return;
+      console.error("Create quotation error:", err);
       updateState({
         error: `Failed to create quotation: ${err.response?.data?.message || err.message}`,
-      })
+      });
     }
-    return () => controller.abort()
-  }
+    return () => controller.abort();
+  };
 
   const editQuotation = async (quotation = null) => {
     if (quotation) {
-      const products = typeof quotation.products === "string" ? JSON.parse(quotation.products) : quotation.products
+      const products = typeof quotation.products === "string" ? JSON.parse(quotation.products) : quotation.products;
       updateState({
         modalMode: "edit",
         modalSelectedCustomer: quotation.customer_id?.toString() || "",
@@ -1089,18 +1100,18 @@ export default function Direct() {
           })) || [],
         modalIsOpen: true,
         modalUserType: quotation.customer_type || "",
-      })
-      return
+      });
+      return;
     }
 
-    const controller = new AbortController()
-    const { modalSelectedCustomer, modalCart, modalAdditionalDiscount, customers, quotationId, modalUserType } = state
-    if (!modalSelectedCustomer || !modalCart.length) return updateState({ error: "Customer and products are required" })
+    const controller = new AbortController();
+    const { modalSelectedCustomer, modalCart, modalAdditionalDiscount, customers, quotationId, modalUserType } = state;
+    if (!modalSelectedCustomer || !modalCart.length) return updateState({ error: "Customer and products are required" });
     if (modalCart.some((item) => item.quantity === 0))
-      return updateState({ error: "Please remove products with zero quantity" })
+      return updateState({ error: "Please remove products with zero quantity" });
 
     try {
-      const customer = customers.find((c) => c.id.toString() === modalSelectedCustomer)
+      const customer = customers.find((c) => c.id.toString() === modalSelectedCustomer);
       const payload = {
         customer_id: Number(modalSelectedCustomer),
         products: modalCart.map((item) => ({
@@ -1118,26 +1129,26 @@ export default function Direct() {
         promo_discount: 0,
         additional_discount: Number.parseFloat(modalAdditionalDiscount.toFixed(2)),
         status: "pending",
-      }
+      };
 
       const response = await axios.put(`${API_BASE_URL}/api/direct/quotations/${quotationId}`, payload, {
         responseType: "blob",
         signal: controller.signal,
-      })
-      const url = window.URL.createObjectURL(new Blob([response.data]))
-      const link = document.createElement("a")
-      link.href = url
+      });
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement("a");
+      link.href = url;
       link.setAttribute(
         "download",
         `${(customer?.name || "unknown")
           .toLowerCase()
           .replace(/[^a-z0-9]+/g, "_")
           .replace(/^_+|_+$/g, "")}-${quotationId}-quotation.pdf`,
-      )
-      document.body.appendChild(link)
-      link.click()
-      document.body.removeChild(link)
-      window.URL.revokeObjectURL(url)
+      );
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
 
       updateState({
         quotations: state.quotations.map((q) =>
@@ -1158,25 +1169,25 @@ export default function Direct() {
         modalLastAddedProduct: null,
         modalUserType: "",
         error: "",
-      })
-      setTimeout(() => updateState({ showSuccess: false }), 3000)
+      });
+      setTimeout(() => updateState({ showSuccess: false }), 3000);
     } catch (err) {
-      if (err.name === "AbortError") return
-      console.error("Edit quotation error:", err)
-      let errorMessage = "Failed to update quotation"
+      if (err.name === "AbortError") return;
+      console.error("Edit quotation error:", err);
+      let errorMessage = "Failed to update quotation";
       if (err.response?.status === 400) {
         try {
-          const text = await err.response.data.text()
-          errorMessage = JSON.parse(text).message || errorMessage
+          const text = await err.response.data.text();
+          errorMessage = JSON.parse(text).message || errorMessage;
         } catch (e) {}
       }
-      updateState({ error: `Failed to update quotation: ${errorMessage}` })
+      updateState({ error: `Failed to update quotation: ${errorMessage}` });
     }
-    return () => controller.abort()
-  }
+    return () => controller.abort();
+  };
 
   const cancelQuotation = async (quotationIdToCancel = null) => {
-    const controller = new AbortController()
+    const controller = new AbortController();
     const {
       quotationId,
       customers,
@@ -1186,15 +1197,15 @@ export default function Direct() {
       additionalDiscount,
       changeDiscount,
       userType,
-    } = state
-    const targetQuotationId = quotationIdToCancel || quotationId
-    if (!targetQuotationId) return updateState({ error: "No quotation to cancel" })
+    } = state;
+    const targetQuotationId = quotationIdToCancel || quotationId;
+    if (!targetQuotationId) return updateState({ error: "No quotation to cancel" });
     try {
       await axios.put(
         `${API_BASE_URL}/api/direct/quotations/cancel/${targetQuotationId}`,
         {},
         { signal: controller.signal },
-      )
+      );
       updateState({
         ...(quotationIdToCancel
           ? {}
@@ -1214,21 +1225,21 @@ export default function Direct() {
         quotations: state.quotations.map((q) =>
           q.quotation_id === targetQuotationId ? { ...q, status: "cancelled" } : q,
         ),
-      })
-      setTimeout(() => updateState({ showSuccess: false }), 3000)
+      });
+      setTimeout(() => updateState({ showSuccess: false }), 3000);
     } catch (err) {
-      if (err.name === "AbortError") return
-      console.error("Cancel quotation error:", err)
+      if (err.name === "AbortError") return;
+      console.error("Cancel quotation error:", err);
       updateState({
         error: `Failed to cancel quotation: ${err.response?.data?.message || err.message}`,
-      })
+      });
     }
-    return () => controller.abort()
-  }
+    return () => controller.abort();
+  };
 
   const convertToBooking = async (quotation = null) => {
     if (quotation) {
-      const products = typeof quotation.products === "string" ? JSON.parse(quotation.products) : quotation.products
+      const products = typeof quotation.products === "string" ? JSON.parse(quotation.products) : quotation.products;
       updateState({
         modalMode: "book",
         modalSelectedCustomer: quotation.customer_id?.toString() || "",
@@ -1248,11 +1259,11 @@ export default function Direct() {
           })) || [],
         modalIsOpen: true,
         modalUserType: quotation.customer_type || "",
-      })
-      return
+      });
+      return;
     }
 
-    const controller = new AbortController()
+    const controller = new AbortController();
     const {
       modalSelectedCustomer,
       modalCart,
@@ -1261,12 +1272,12 @@ export default function Direct() {
       customers,
       modalAdditionalDiscount,
       modalUserType,
-    } = state
+    } = state;
     if (!modalSelectedCustomer || !modalCart.length || !orderId || !quotationId)
-      return updateState({ error: "Customer, products, order ID, and quotation ID are required" })
+      return updateState({ error: "Customer, products, order ID, and quotation ID are required" });
     if (modalCart.some((item) => item.quantity <= 0))
-      return updateState({ error: "Please remove products with zero quantity" })
-    const customer = customers.find((c) => c.id.toString() === modalSelectedCustomer)
+      return updateState({ error: "Please remove products with zero quantity" });
+    const customer = customers.find((c) => c.id.toString() === modalSelectedCustomer);
     if (
       !customer ||
       !customer.name ||
@@ -1275,7 +1286,7 @@ export default function Direct() {
       !customer.district ||
       !customer.state
     )
-      return updateState({ error: "Customer data is incomplete" })
+      return updateState({ error: "Customer data is incomplete" });
 
     try {
       const payload = {
@@ -1303,29 +1314,30 @@ export default function Direct() {
         email: customer.email,
         district: customer.district,
         state: customer.state,
-      }
+      };
 
       const {
         data: { order_id: newOrderId },
-      } = await axios.post(`${API_BASE_URL}/api/direct/bookings`, payload, { signal: controller.signal })
+      } = await axios.post(`${API_BASE_URL}/api/direct/bookings`, payload, { signal: controller.signal });
       const pdfResponse = await axios.get(`${API_BASE_URL}/api/direct/invoice/${newOrderId}`, {
         responseType: "blob",
         signal: controller.signal,
-      })
-      const url = window.URL.createObjectURL(new Blob([pdfResponse.data]))
-      const link = document.createElement("a")
-      link.href = url
+      });
+      const url = window.URL.createObjectURL(new Blob([pdfResponse.data]));
+      const link = document.createElement("a");
+      link.href = url;
+      link.setdoves;
       link.setAttribute(
         "download",
         `${(customer.name || "unknown")
           .toLowerCase()
           .replace(/[^a-z0-9]+/g, "_")
           .replace(/^_+|_+$/g, "")}-${newOrderId}-invoice.pdf`,
-      )
-      document.body.appendChild(link)
-      link.click()
-      document.body.removeChild(link)
-      window.URL.revokeObjectURL(url)
+      );
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
 
       updateState({
         quotations: state.quotations.map((q) => (q.quotation_id === quotationId ? { ...q, status: "booked" } : q)),
@@ -1342,17 +1354,17 @@ export default function Direct() {
         modalLastAddedProduct: null,
         modalUserType: "",
         error: "",
-      })
-      setTimeout(() => updateState({ showSuccess: false }), 3000)
+      });
+      setTimeout(() => updateState({ showSuccess: false }), 3000);
     } catch (err) {
-      if (err.name === "AbortError") return
-      console.error("Convert to booking error:", err)
+      if (err.name === "AbortError") return;
+      console.error("Convert to booking error:", err);
       updateState({
         error: `Failed to create booking: ${err.response?.data?.message || err.message}`,
-      })
+      });
     }
-    return () => controller.abort()
-  }
+    return () => controller.abort();
+  };
 
   const renderSelect = (value, onChange, options, label, id) => (
     <div className="flex flex-col items-center mobile:w-full">
@@ -1360,11 +1372,12 @@ export default function Direct() {
       <Select
         value={options.find((c) => c.value === value) || null}
         onChange={onChange}
-        options={label === "Customer" 
-          ? customers
-              .sort((a, b) => Number(b.id) - Number(a.id)) // Sort by id in descending order for Customer
-              .map((c) => ({ value: c.id.toString(), label: `${c.name} - ${c.district || 'N/A'}` }))
-          : options
+        options={
+          label === "Customer"
+            ? customers
+                .sort((a, b) => Number(b.id) - Number(a.id))
+                .map((c) => ({ value: c.id.toString(), label: `${c.name} - ${c.district || "N/A"}` }))
+            : options
         }
         placeholder={`Search for a ${label.toLowerCase()}...`}
         isClearable
@@ -1373,7 +1386,7 @@ export default function Direct() {
         styles={selectStyles}
       />
     </div>
-  )
+  );
 
   const {
     customers,
@@ -1400,7 +1413,7 @@ export default function Direct() {
     lastAddedProduct,
     modalLastAddedProduct,
     userType,
-  } = state
+  } = state;
 
   return (
     <div className="flex min-h-screen dark:bg-gray-800 bg-gray-50 mobile:flex-col">
@@ -1427,8 +1440,8 @@ export default function Direct() {
               selectedCustomer,
               (option) => updateState({ selectedCustomer: option ? option.value : "" }),
               customers
-                .sort((a, b) => Number(b.id) - Number(a.id)) // Sort by id in descending order
-                .map((c) => ({ value: c.id.toString(), label: `${c.name} - ${c.district || 'N/A'}` })),
+                .sort((a, b) => Number(b.id) - Number(a.id))
+                .map((c) => ({ value: c.id.toString(), label: `${c.name} - ${c.district || "N/A"}` })),
               "Customer",
               "main-customer-select",
             )}
@@ -1734,5 +1747,5 @@ export default function Direct() {
         </div>
       </div>
     </div>
-  )
+  );
 }
