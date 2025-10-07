@@ -693,7 +693,9 @@ export default function Direct() {
         if (isMounted.current) {
           updateState({
             customers: Array.isArray(customers.data) ? customers.data : [],
-            products: Array.isArray(products.data) ? products.data : [],
+            products: Array.isArray(products.data)
+            ? products.data.filter((product) => product.product_type !== "gift_box_dealers")
+            : [],
             quotations: Array.isArray(quotations.data) ? quotations.data : [],
             loading: false,
           });
