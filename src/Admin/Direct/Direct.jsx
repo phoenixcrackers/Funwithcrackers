@@ -17,8 +17,10 @@ const getEffectivePrice = (item, customerId, customers = [], userType) => {
     console.warn("getEffectivePrice: Invalid input - item missing", { item });
     return 0;
   }
-  const price =
-    userType === "User"
+  // Prioritize customPrice if available, otherwise use price or dprice based on userType
+  const price = item.customPrice !== undefined 
+    ? Math.round(Number(item.customPrice) || 0)
+    : userType === "User"
       ? Math.round(Number(item.price) || 0)
       : Math.round(Number(item.dprice) || Number(item.price) || 0);
   if (price === 0) {
@@ -165,7 +167,8 @@ const QuotationTable = ({
         );
         const shouldUpdateDiscount =
           item.product_type !== "net_rate_products" &&
-          (!originalProduct || Number(originalProduct.discount) !== 0);
+          item.product_type !== "Custom" && // Exclude custom products
+          (!originalProduct || Number(originalProduct.discount) !== 0); // Exclude products with explicit 0 discount
         return {
           ...item,
           discount: shouldUpdateDiscount ? newDiscount : item.discount,
@@ -271,7 +274,7 @@ const QuotationTable = ({
                   <td className="text-center border-r mobile:p-1">
                     <input
                       type="number"
-                      value={getEffectivePrice(
+                      value={item.customPrice !== undefined ? item.customPrice : getEffectivePrice(
                         item,
                         isModal ? modalSelectedCustomer : selectedCustomer,
                         customers,
@@ -281,7 +284,7 @@ const QuotationTable = ({
                         updatePrice(
                           item.id,
                           item.product_type,
-                          Math.round(Number.parseFloat(e.target.value) || 0),
+                          Number.parseFloat(e.target.value) || 0,
                           isModal,
                         )
                       }
@@ -420,7 +423,7 @@ const FormFields = ({
         onChange={(option) => setModalSelectedCustomer(option ? option.value : "")}
         options={customers
           .sort((a, b) => Number(b.id) - Number(a.id))
-          .map((c) => ({ value: c.id, label: `${c.name} - ${c.district || 'N/A'}` }))}
+          .map((c) => ({ value: c.id, label: `${c.name} - ${c.district || "N/A"}` }))}
         placeholder="Search for a customer..."
         isClearable
         className="mobile:w-full onefifty:w-96"
@@ -694,8 +697,8 @@ export default function Direct() {
           updateState({
             customers: Array.isArray(customers.data) ? customers.data : [],
             products: Array.isArray(products.data)
-            ? products.data.filter((product) => product.product_type !== "gift_box_dealers")
-            : [],
+              ? products.data.filter((product) => product.product_type !== "gift_box_dealers")
+              : [],
             quotations: Array.isArray(quotations.data) ? quotations.data : [],
             loading: false,
           });
@@ -836,7 +839,7 @@ export default function Direct() {
         customPrice: Math.round(Number(customProduct.price)),
         dprice: Math.round(Number(customProduct.price)),
         quantity: Number.parseInt(customProduct.quantity) || 1,
-        discount: Number.parseFloat(customProduct.discount) || targetDiscount,
+        discount: Number.parseFloat(customProduct.discount) || 0, // Use modal discount as is
         per: customProduct.per || "Unit",
       };
     } else {
@@ -856,12 +859,12 @@ export default function Direct() {
         ...product,
         basePrice: Math.round(Number(product.price)),
         dprice: Math.round(Number(product.dprice)),
-        customPrice: effectivePrice,
+        customPrice: effectivePrice, // Initialize customPrice
         quantity: 1,
         discount:
-          type !== "net_rate_products" && Number(product.discount) !== 0
-            ? Number.parseFloat(targetDiscount) || 0
-            : Number.parseFloat(product.discount) || 0,
+          type !== "net_rate_products"
+            ? Number.parseFloat(targetDiscount) || Number.parseFloat(product.discount) || 0 // Use changeDiscount if provided, else product.discount, else 0
+            : Number.parseFloat(product.discount) || 0, // For net_rate_products, always use product.discount
         per: product.per || "Unit",
         product_type: type,
       };
@@ -980,7 +983,7 @@ export default function Direct() {
       addToCart(isModalNewProduct, {
         ...productData,
         price: Number.parseFloat(productData.price) || 0,
-        discount: Number.parseFloat(productData.discount) || (isModalNewProduct ? modalChangeDiscount : changeDiscount),
+        discount: Number.parseFloat(productData.discount) || 0,
         quantity: Number.parseInt(productData.quantity) || 1,
       });
       closeNewProductModal();
@@ -1006,7 +1009,7 @@ export default function Direct() {
           id: item.id,
           product_type: item.product_type,
           productname: item.productname,
-          price: getEffectivePrice(item, selectedCustomer, customers, userType),
+          price: getEffectivePrice(item, selectedCustomer, customers, userType), // Use customPrice if available
           discount: Number.parseFloat(item.discount) || 0,
           quantity: Number.parseInt(item.quantity) || 0,
           per: item.per || "Unit",
@@ -1094,7 +1097,7 @@ export default function Direct() {
           products?.map((p) => ({
             ...p,
             price: Math.round(Number(p.price) || 0),
-            customPrice: Math.round(Number(p.price) || 0),
+            customPrice: Math.round(Number(p.price) || 0), // Initialize customPrice
             quantity: Number(p.quantity) || 0,
             discount: Number(p.discount) || 0,
             per: p.per || "Unit",
@@ -1120,7 +1123,7 @@ export default function Direct() {
           id: item.id,
           product_type: item.product_type,
           productname: item.productname,
-          price: getEffectivePrice(item, modalSelectedCustomer, customers, modalUserType),
+          price: getEffectivePrice(item, modalSelectedCustomer, customers, modalUserType), // Use customPrice if available
           discount: Number.parseFloat(item.discount) || 0,
           quantity: Number.parseInt(item.quantity) || 0,
           per: item.per || "Unit",
@@ -1253,7 +1256,7 @@ export default function Direct() {
           products?.map((p) => ({
             ...p,
             price: Math.round(Number(p.price) || 0),
-            customPrice: Math.round(Number(p.price) || 0),
+            customPrice: Math.round(Number(p.price) || 0), // Initialize customPrice
             quantity: Number(p.quantity) || 0,
             discount: Number(p.discount) || 0,
             per: p.per || "Unit",
@@ -1299,7 +1302,7 @@ export default function Direct() {
           id: item.id,
           product_type: item.product_type,
           productname: item.productname,
-          price: getEffectivePrice(item, modalSelectedCustomer, customers, modalUserType),
+          price: getEffectivePrice(item, modalSelectedCustomer, customers, modalUserType), // Use customPrice if available
           discount: Number.parseFloat(item.discount) || 0,
           quantity: Number.parseInt(item.quantity) || 0,
           per: item.per || "Unit",
@@ -1328,7 +1331,6 @@ export default function Direct() {
       const url = window.URL.createObjectURL(new Blob([pdfResponse.data]));
       const link = document.createElement("a");
       link.href = url;
-      link.setdoves;
       link.setAttribute(
         "download",
         `${(customer.name || "unknown")
