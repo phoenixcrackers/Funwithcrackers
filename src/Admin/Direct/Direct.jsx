@@ -184,7 +184,7 @@ const QuotationTable = ({
   };
 
   const normalizeTranscript = (trans) => {
-    let normalized = trans.toLowerCase();
+    let normalized = trans.toLowerCase().trim();
     // Convert spoken numbers to digits
     const numberWords = {
       'zero': '0', 'one': '1', 'two': '2', 'three': '3', 'four': '4',
@@ -195,12 +195,12 @@ const QuotationTable = ({
       const regex = new RegExp(`\\b${word}\\b`, 'g');
       normalized = normalized.replace(regex, numberWords[word]);
     });
-    // Handle inch formats
+    // Handle inch formats (e.g., "3.5 inch" -> "3.5''")
     normalized = normalized.replace(/(\d*\.?\d*)\s*inch(es)?/g, '$1\'\'');
     // Handle cm formats
     normalized = normalized.replace(/(\d+)\s*cm/g, '$1cm');
-    // Ensure 'shot' is interpreted as 'short'
-    normalized = normalized.replace(/\bshot\b/g, 'short');
+    // Handle "shots" or "shot" to singular "shot"
+    normalized = normalized.replace(/\b(\d+)\s*shots?\b/g, '$1 shot');
     return normalized;
   };
 
@@ -224,13 +224,75 @@ const QuotationTable = ({
     recognitionRef.current.onresult = (event) => {
       const transcript = event.results[0][0].transcript.trim().toLowerCase();
       console.log(`Speech recognized for product: ${transcript}`);
-
       const normalizedTranscript = normalizeTranscript(transcript);
 
-      // Search for product by name
-      const product = products.find((p) =>
-        normalizeTranscript(p.productname).includes(normalizedTranscript)
-      );
+      let product;
+
+      // 1. Handle exact shot counts (e.g., "30 shot" or "60 shot")
+      const shotMatch = normalizedTranscript.match(/^(\d+)\s*shot$/);
+      if (shotMatch) {
+        const shotCount = shotMatch[1];
+        product = products.find(
+          (p) => p.productname.toLowerCase() === `${shotCount} shot` &&
+                p.productname.toLowerCase().split(' ').length === 2 // Ensure exact match (e.g., "30 Shot" but not "30 Shot Crack Jack")
+        );
+        if (product) {
+          console.log(`Found exact shot product: ${product.productname}`);
+        }
+      }
+
+      // 2. Handle inch sizes with specific names (e.g., "3.5 inch laxmi" or "4'' laxmi")
+      if (!product) {
+        const inchMatch = normalizedTranscript.match(/(\d*\.?\d*)\'\'\s*(laxmi|lakshmi)?\s*(\w*)/);
+        if (inchMatch) {
+          const size = inchMatch[1]; // e.g., "3.5" or "4"
+          const name = inchMatch[2] || ''; // e.g., "laxmi" or empty
+          const variant = inchMatch[3] || ''; // e.g., "deluxe", "super", "golden", or empty
+
+          // First, try exact match with size and name (e.g., "4'' Laxmi" or "4'' Super Deluxe Laxmi")
+          product = products.find(
+            (p) => {
+              const productNameLower = p.productname.toLowerCase();
+              const includesSize = productNameLower.includes(`${size}''`);
+              const includesName = name ? productNameLower.includes('laxmi') : true;
+              const includesVariant = variant ? productNameLower.includes(variant) : true;
+              return includesSize && includesName && includesVariant;
+            }
+          );
+
+          // If no exact variant match, try matching size and "Laxmi" without variant
+          if (!product && name) {
+            product = products.find(
+              (p) => {
+                const productNameLower = p.productname.toLowerCase();
+                return productNameLower.includes(`${size}''`) && productNameLower.includes('laxmi');
+              }
+            );
+          }
+
+          // If still no match, try size only
+          if (!product) {
+            product = products.find(
+              (p) => p.productname.toLowerCase().includes(`${size}''`)
+            );
+          }
+
+          if (product) {
+            console.log(`Found product: ${product.productname}`);
+          }
+        }
+      }
+
+      // 3. Fallback: Search by product name
+      if (!product) {
+        product = products.find((p) =>
+          normalizeTranscript(p.productname).includes(normalizedTranscript)
+        );
+        if (product) {
+          console.log(`Found product by name: ${product.productname}`);
+        }
+      }
+
       if (product) {
         setSelectedProduct({
           value: `${product.id}-${product.product_type}`,
