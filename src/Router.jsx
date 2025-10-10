@@ -11,24 +11,25 @@ import Location from './Admin/Location/Location';
 import Direct from './Admin/Direct/Direct';
 import Dispatch from './Admin/Dispatch/Dispatch';
 import Banner from './Admin/Banner/Banner';
-import Safety from './Home/Safety';
-import About from './Home/About';
-import Contact from './Home/Contact';
-import Pricelist from './Home/Pricelist';
+import Homey from './Home/Homey';
+// import Safety from './Home/Safety';
+// import About from './Home/About';
+// import Contact from './Home/Contact';
+// import Pricelist from './Home/Pricelist';
 import Promocode from './Admin/Promo/Promocode'
 import SalesAnalysis from './Admin/Sales/SalesAnalysis';
-import Status from './Home/Status';
+// import Status from './Home/Status';
 
 const AllRoutes = () => {
   return (
     <Routes>
-      <Route path="/" element={<Home />} />
+      <Route path="/" element={<Homey />} />
       <Route path="/admin" element={<Login />} />
-      <Route path="/safety-tips" element={<Safety />} />
+      {/* <Route path="/safety-tips" element={<Safety />} />
       <Route path="/about-us" element={<About />} />
       <Route path="/contact-us" element={<Contact />} />
       <Route path="/price-list" element={<Pricelist />} />
-      <Route path="/status" element={<Status />} />
+      <Route path="/status" element={<Status />} /> */}
       
       <Route element={<ProtectedRoute />}>
         <Route path="/inventory" element={<Inventory />} />
