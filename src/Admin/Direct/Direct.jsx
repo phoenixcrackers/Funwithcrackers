@@ -17,6 +17,7 @@ const getEffectivePrice = (item, customerId, customers = [], userType) => {
     console.warn("getEffectivePrice: Invalid input - item missing", { item });
     return 0;
   }
+  // Prioritize customPrice if available, otherwise use price or dprice based on userType
   const price = item.customPrice !== undefined 
     ? Math.round(Number(item.customPrice) || 0)
     : userType === "User"
@@ -132,9 +133,6 @@ const QuotationTable = ({
   productSelectRef,
 }) => {
   const quantityInputRefs = useRef({});
-  const [isListening, setIsListening] = useState(false);
-  const [speechError, setSpeechError] = useState("");
-  const recognitionRef = useRef(null);
 
   useEffect(() => {
     if (lastAddedProduct) {
@@ -143,8 +141,6 @@ const QuotationTable = ({
       if (input) {
         input.focus();
         input.select();
-        // Start speech recognition for quantity
-        startSpeechRecognitionForQuantity(lastAddedProduct);
         setLastAddedProduct(null);
       }
     }
@@ -171,8 +167,8 @@ const QuotationTable = ({
         );
         const shouldUpdateDiscount =
           item.product_type !== "net_rate_products" &&
-          item.product_type !== "Custom" &&
-          (!originalProduct || Number(originalProduct.discount) !== 0);
+          item.product_type !== "Custom" && // Exclude custom products
+          (!originalProduct || Number(originalProduct.discount) !== 0); // Exclude products with explicit 0 discount
         return {
           ...item,
           discount: shouldUpdateDiscount ? newDiscount : item.discount,
@@ -183,252 +179,24 @@ const QuotationTable = ({
     });
   };
 
-  const normalizeTranscript = (trans) => {
-    let normalized = trans.toLowerCase().trim();
-    // Convert spoken numbers to digits
-    const numberWords = {
-      'zero': '0', 'one': '1', 'two': '2', 'three': '3', 'four': '4',
-      'five': '5', 'six': '6', 'seven': '7', 'eight': '8', 'nine': '9',
-      'point': '.',
-    };
-    Object.keys(numberWords).forEach(word => {
-      const regex = new RegExp(`\\b${word}\\b`, 'g');
-      normalized = normalized.replace(regex, numberWords[word]);
-    });
-    // Handle inch formats (e.g., "3.5 inch" -> "3.5''")
-    normalized = normalized.replace(/(\d*\.?\d*)\s*inch(es)?/g, '$1\'\'');
-    // Handle cm formats
-    normalized = normalized.replace(/(\d+)\s*cm/g, '$1cm');
-    // Handle "shots" or "shot" to singular "shot"
-    normalized = normalized.replace(/\b(\d+)\s*shots?\b/g, '$1 shot');
-    return normalized;
-  };
-
-  const startSpeechRecognition = () => {
-    if (!window.SpeechRecognition && !window.webkitSpeechRecognition) {
-      setSpeechError("Speech recognition is not supported in this browser.");
-      return;
-    }
-
-    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-    recognitionRef.current = new SpeechRecognition();
-    recognitionRef.current.lang = "en-US";
-    recognitionRef.current.interimResults = false;
-    recognitionRef.current.maxAlternatives = 1;
-
-    recognitionRef.current.onstart = () => {
-      setIsListening(true);
-      setSpeechError("");
-    };
-
-    recognitionRef.current.onresult = (event) => {
-      const transcript = event.results[0][0].transcript.trim().toLowerCase();
-      console.log(`Speech recognized for product: ${transcript}`);
-      const normalizedTranscript = normalizeTranscript(transcript);
-
-      let product;
-
-      // 1. Handle exact shot counts (e.g., "30 shot" or "60 shot")
-      const shotMatch = normalizedTranscript.match(/^(\d+)\s*shot$/);
-      if (shotMatch) {
-        const shotCount = shotMatch[1];
-        product = products.find(
-          (p) => p.productname.toLowerCase() === `${shotCount} shot` &&
-                p.productname.toLowerCase().split(' ').length === 2 // Ensure exact match (e.g., "30 Shot" but not "30 Shot Crack Jack")
-        );
-        if (product) {
-          console.log(`Found exact shot product: ${product.productname}`);
-        }
-      }
-
-      // 2. Handle inch sizes with specific names (e.g., "3.5 inch laxmi" or "4'' laxmi")
-      if (!product) {
-        const inchMatch = normalizedTranscript.match(/(\d*\.?\d*)\'\'\s*(laxmi|lakshmi)?\s*(\w*)/);
-        if (inchMatch) {
-          const size = inchMatch[1]; // e.g., "3.5" or "4"
-          const name = inchMatch[2] || ''; // e.g., "laxmi" or empty
-          const variant = inchMatch[3] || ''; // e.g., "deluxe", "super", "golden", or empty
-
-          // First, try exact match with size and name (e.g., "4'' Laxmi" or "4'' Super Deluxe Laxmi")
-          product = products.find(
-            (p) => {
-              const productNameLower = p.productname.toLowerCase();
-              const includesSize = productNameLower.includes(`${size}''`);
-              const includesName = name ? productNameLower.includes('laxmi') : true;
-              const includesVariant = variant ? productNameLower.includes(variant) : true;
-              return includesSize && includesName && includesVariant;
-            }
-          );
-
-          // If no exact variant match, try matching size and "Laxmi" without variant
-          if (!product && name) {
-            product = products.find(
-              (p) => {
-                const productNameLower = p.productname.toLowerCase();
-                return productNameLower.includes(`${size}''`) && productNameLower.includes('laxmi');
-              }
-            );
-          }
-
-          // If still no match, try size only
-          if (!product) {
-            product = products.find(
-              (p) => p.productname.toLowerCase().includes(`${size}''`)
-            );
-          }
-
-          if (product) {
-            console.log(`Found product: ${product.productname}`);
-          }
-        }
-      }
-
-      // 3. Fallback: Search by product name
-      if (!product) {
-        product = products.find((p) =>
-          normalizeTranscript(p.productname).includes(normalizedTranscript)
-        );
-        if (product) {
-          console.log(`Found product by name: ${product.productname}`);
-        }
-      }
-
-      if (product) {
-        setSelectedProduct({
-          value: `${product.id}-${product.product_type}`,
-          label: `${product.serial_number} - ${product.productname} (${product.product_type})`,
-        });
-        // Add product to cart with default quantity of 1
-        addToCart(isModal, {
-          ...product,
-          quantity: 1,
-          discount: product.discount || 0,
-        });
-      } else {
-        setSpeechError(`Product "${transcript}" not found. Please try again.`);
-        recognitionRef.current.stop();
-      }
-    };
-
-    recognitionRef.current.onerror = (event) => {
-      setSpeechError(`Speech recognition error: ${event.error}`);
-      setIsListening(false);
-    };
-
-    recognitionRef.current.onend = () => {
-      setIsListening(false);
-      recognitionRef.current = null;
-    };
-
-    recognitionRef.current.start();
-  };
-
-  const startSpeechRecognitionForQuantity = (addedProduct) => {
-    if (!window.SpeechRecognition && !window.webkitSpeechRecognition) {
-      setSpeechError("Speech recognition is not supported in this browser.");
-      return;
-    }
-
-    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-    recognitionRef.current = new SpeechRecognition();
-    recognitionRef.current.lang = "en-US";
-    recognitionRef.current.interimResults = false;
-    recognitionRef.current.maxAlternatives = 1;
-
-    recognitionRef.current.onstart = () => {
-      setIsListening(true);
-      setSpeechError("");
-      // Prompt for quantity
-      const utterance = new SpeechSynthesisUtterance("Please say the quantity.");
-      window.speechSynthesis.speak(utterance);
-    };
-
-    recognitionRef.current.onresult = (event) => {
-      const transcript = event.results[0][0].transcript.trim().toLowerCase();
-      console.log(`Speech recognized for quantity: ${transcript}`);
-
-      if (transcript.includes("short")) {
-        // Handle "short" as sort command
-        const sortedCart = [...cart].sort((a, b) =>
-          a.productname.localeCompare(b.productname)
-        );
-        updateState({ [isModal ? "modalCart" : "cart"]: sortedCart });
-        setSpeechError("Cart sorted by product name.");
-      } else {
-        const quantity = parseInt(transcript, 10);
-        if (isNaN(quantity) || quantity <= 0) {
-          setSpeechError("Invalid quantity. Please try again.");
-        } else {
-          // Update quantity for the recently added product
-          updateQuantity(
-            addedProduct.id,
-            addedProduct.product_type,
-            quantity,
-            isModal
-          );
-        }
-      }
-    };
-
-    recognitionRef.current.onerror = (event) => {
-      setSpeechError(`Speech recognition error: ${event.error}`);
-      setIsListening(false);
-    };
-
-    recognitionRef.current.onend = () => {
-      setIsListening(false);
-      recognitionRef.current = null;
-    };
-
-    recognitionRef.current.start();
-  };
-
   return (
     <div className="space-y-4">
       <div className="flex flex-col items-center mobile:w-full">
         <label className="text-lg font-semibold text-gray-700 dark:text-gray-100 mb-2 mobile:text-base">Product</label>
-        <div className="flex items-center gap-2 mobile:w-full onefifty:w-96">
-          <Select
-            ref={productSelectRef}
-            value={selectedProduct}
-            onChange={setSelectedProduct}
-            options={products.map((p) => ({
-              value: `${p.id}-${p.product_type}`,
-              label: `${p.serial_number} - ${p.productname} (${p.product_type})`,
-            }))}
-            placeholder="Search for a product..."
-            isClearable
-            className="flex-1"
-            classNamePrefix="react-select"
-            styles={selectStyles}
-          />
-          <button
-            onClick={startSpeechRecognition}
-            disabled={isListening}
-            className={`h-10 w-10 flex items-center justify-center rounded-lg ${
-              isListening ? "bg-gray-400 cursor-not-allowed" : "bg-blue-600 hover:bg-blue-700 text-white"
-            }`}
-            title="Use voice to select product"
-          >
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-              className="w-6 h-6"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"
-              />
-            </svg>
-          </button>
-        </div>
-        {speechError && (
-          <div className="mt-2 text-red-600 text-sm">{speechError}</div>
-        )}
+        <Select
+          ref={productSelectRef}
+          value={selectedProduct}
+          onChange={setSelectedProduct}
+          options={products.map((p) => ({
+            value: `${p.id}-${p.product_type}`,
+            label: `${p.serial_number} - ${p.productname} (${p.product_type})`,
+          }))}
+          placeholder="Search for a product..."
+          isClearable
+          className="mobile:w-full onefifty:w-96"
+          classNamePrefix="react-select"
+          styles={selectStyles}
+        />
         <button
           onClick={() => addToCart(isModal)}
           disabled={!selectedProduct}
@@ -1071,7 +839,7 @@ export default function Direct() {
         customPrice: Math.round(Number(customProduct.price)),
         dprice: Math.round(Number(customProduct.price)),
         quantity: Number.parseInt(customProduct.quantity) || 1,
-        discount: Number.parseFloat(customProduct.discount) || 0,
+        discount: Number.parseFloat(customProduct.discount) || 0, // Use modal discount as is
         per: customProduct.per || "Unit",
       };
     } else {
@@ -1091,12 +859,12 @@ export default function Direct() {
         ...product,
         basePrice: Math.round(Number(product.price)),
         dprice: Math.round(Number(product.dprice)),
-        customPrice: effectivePrice,
-        quantity: customProduct ? customProduct.quantity : 1,
+        customPrice: effectivePrice, // Initialize customPrice
+        quantity: 1,
         discount:
           type !== "net_rate_products"
-            ? Number.parseFloat(targetDiscount) || Number.parseFloat(product.discount) || 0
-            : Number.parseFloat(product.discount) || 0,
+            ? Number.parseFloat(targetDiscount) || Number.parseFloat(product.discount) || 0 // Use changeDiscount if provided, else product.discount, else 0
+            : Number.parseFloat(product.discount) || 0, // For net_rate_products, always use product.discount
         per: product.per || "Unit",
         product_type: type,
       };
@@ -1241,7 +1009,7 @@ export default function Direct() {
           id: item.id,
           product_type: item.product_type,
           productname: item.productname,
-          price: getEffectivePrice(item, selectedCustomer, customers, userType),
+          price: getEffectivePrice(item, selectedCustomer, customers, userType), // Use customPrice if available
           discount: Number.parseFloat(item.discount) || 0,
           quantity: Number.parseInt(item.quantity) || 0,
           per: item.per || "Unit",
@@ -1329,7 +1097,7 @@ export default function Direct() {
           products?.map((p) => ({
             ...p,
             price: Math.round(Number(p.price) || 0),
-            customPrice: Math.round(Number(p.price) || 0),
+            customPrice: Math.round(Number(p.price) || 0), // Initialize customPrice
             quantity: Number(p.quantity) || 0,
             discount: Number(p.discount) || 0,
             per: p.per || "Unit",
@@ -1355,7 +1123,7 @@ export default function Direct() {
           id: item.id,
           product_type: item.product_type,
           productname: item.productname,
-          price: getEffectivePrice(item, modalSelectedCustomer, customers, modalUserType),
+          price: getEffectivePrice(item, modalSelectedCustomer, customers, modalUserType), // Use customPrice if available
           discount: Number.parseFloat(item.discount) || 0,
           quantity: Number.parseInt(item.quantity) || 0,
           per: item.per || "Unit",
@@ -1488,7 +1256,7 @@ export default function Direct() {
           products?.map((p) => ({
             ...p,
             price: Math.round(Number(p.price) || 0),
-            customPrice: Math.round(Number(p.price) || 0),
+            customPrice: Math.round(Number(p.price) || 0), // Initialize customPrice
             quantity: Number(p.quantity) || 0,
             discount: Number(p.discount) || 0,
             per: p.per || "Unit",
@@ -1534,7 +1302,7 @@ export default function Direct() {
           id: item.id,
           product_type: item.product_type,
           productname: item.productname,
-          price: getEffectivePrice(item, modalSelectedCustomer, customers, modalUserType),
+          price: getEffectivePrice(item, modalSelectedCustomer, customers, modalUserType), // Use customPrice if available
           discount: Number.parseFloat(item.discount) || 0,
           quantity: Number.parseInt(item.quantity) || 0,
           per: item.per || "Unit",
