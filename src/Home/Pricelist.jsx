@@ -1129,7 +1129,7 @@ const Pricelist = () => {
         <motion.div className="fixed inset-0 flex items-center justify-center z-60 pointer-events-none" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.5 }}>
           <BigFireworkAnimation delay={0} />
           <motion.div className="flex flex-col items-center gap-4 z-10" style={{ background: "none" }} initial={{ scale: 0.8, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} transition={{ duration: 0.5, delay: 0.5 }}>
-            <motion.h2 className="text-5xl font-bold bg-gradient-to-r from-green-600 via-emerald-500 to-green-700 bg-clip-text text-transparent" style={{ textShadow: "0 0 20px rgba(34, 197, 94, 0.8), 0 0 40px rgba(34, 197, 94, 0.5)" }} animate={{ scale: [1, 1.1, 1] }} transition={{ duration: 2, repeat: 1, delay: 0.5 }}>Booked</motion.h2>
+            <motion.h2 className="text-5xl font-bold from-green-600 via-emerald-500 to-green-700 bg-clip-text text-transparent" style={{ textShadow: "0 0 20px rgba(34, 197, 94, 0.8), 0 0 40px rgba(34, 197, 94, 0.5)" }} animate={{ scale: [1, 1.1, 1] }} transition={{ duration: 2, repeat: 1, delay: 0.5 }}>Booked</motion.h2>
           </motion.div>
         </motion.div>
       )}
@@ -1164,7 +1164,7 @@ const Pricelist = () => {
         </AnimatePresence>
       )}
       <main className={`relative pt-28 px-4 sm:px-8 max-w-7xl mx-auto transition-all duration-300 ${isCartOpen ? "mr-80" : ""}`}>
-        <section className="rounded-xl px-4 py-3 shadow-inner flex justify-between flex-wrap gap-4 text-sm sm:text-base border border-sky-300 bg-gradient-to-br from-sky-400/80 to-sky-600/90 text-white font-semibold">
+        <section className="rounded-xl px-4 py-3 shadow-inner flex justify-between flex-wrap gap-4 text-sm sm:text-base border border-sky-300 from-sky-400/80 to-sky-600/90 text-white font-semibold">
           <div>Net Rate: ₹{totals.net}</div>
           <div>You Save: ₹{totals.save}</div>
           {appliedPromo && <div>Promocode ({appliedPromo.code}): -₹{totals.promo_discount}</div>}
@@ -1246,7 +1246,7 @@ const Pricelist = () => {
                         )}
                       </div>
                       <Carousel media={product.image} onImageClick={() => handleShowImage(product)} />
-                      <div className="relative min-h-[3rem] flex items-end justify-end">
+                      <div className="relative flex items-end justify-end">
                         <AnimatePresence mode="wait">
                           {count > 0 ? (
                             <motion.div
