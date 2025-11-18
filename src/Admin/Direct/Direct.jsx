@@ -671,6 +671,7 @@ export default function Direct() {
     modalUserType: "",
     currentPage: 1,
     searchQuery: "",
+    customerTypeFilter: "",
   });
 
   const isMounted = useRef(true);
@@ -809,6 +810,10 @@ export default function Direct() {
       console.error("Failed to download customers Excel:", err);
       updateState({ error: `Failed to download customers Excel: ${err.message}` });
     }
+  };
+
+  const exportQuotationsToExcel = () => {
+    window.location.href = `${API_BASE_URL}/api/direct/export-quotations-excel`;
   };
 
   const addToCart = (isModal = false, customProduct = null) => {
@@ -1089,127 +1094,127 @@ export default function Direct() {
     return () => controller.abort();
   };
 
-const editQuotation = async (quotation = null) => {
-  if (quotation) {
-    const products = typeof quotation.products === "string" ? JSON.parse(quotation.products) : quotation.products;
-    updateState({
-      modalMode: "edit",
-      modalSelectedCustomer: quotation.customer_id?.toString() || "",
-      quotationId: quotation.quotation_id,
-      modalAdditionalDiscount: Number.parseFloat(quotation.additional_discount) || 0,
-      modalChangeDiscount: 0,
-      modalCart:
-        products?.map((p) => ({
-          ...p,
-          price: Math.round(Number(p.price) || 0),
-          customPrice: Math.round(Number(p.price) || 0),
-          quantity: Number(p.quantity) || 0,
-          discount: Number(p.discount) || 0,
-          per: p.per || "Unit",
-          product_type: p.product_type,
-        })) || [],
-      modalIsOpen: true,
-      modalUserType: quotation.customer_type || "",
-    });
-    return;
-  }
-
-  const controller = new AbortController();
-  const { modalSelectedCustomer, modalCart, modalAdditionalDiscount, customers, quotationId, modalUserType } = state;
-
-  if (!modalSelectedCustomer || !modalCart.length)
-    return updateState({ error: "Customer and products are required" });
-
-  if (modalCart.some((item) => item.quantity === 0))
-    return updateState({ error: "Please remove products with zero quantity" });
-
-  try {
-    const customer = customers.find((c) => c.id.toString() === modalSelectedCustomer);
-
-    const payload = {
-      customer_id: Number(modalSelectedCustomer),
-      products: modalCart.map((item) => {
-        const freshPrice = getEffectivePrice(item, modalSelectedCustomer, customers, modalUserType);
-        const finalPrice = item.customPrice !== undefined && item.customPrice !== freshPrice
-          ? item.customPrice
-          : freshPrice;
-
-        return {
-          id: item.id,
-          product_type: item.product_type,
-          productname: item.productname,
-          price: finalPrice,
-          discount: Number.parseFloat(item.discount) || 0,
-          quantity: Number.parseInt(item.quantity) || 0,
-          per: item.per || "Unit",
-        };
-      }),
-      net_rate: Math.round(calculateNetRate(modalCart)),
-      you_save: Math.round(calculateYouSave(modalCart)),
-      total: Math.round(calculateTotal(modalCart, modalSelectedCustomer, true)),
-      promo_discount: 0,
-      additional_discount: Number.parseFloat(modalAdditionalDiscount.toFixed(2)),
-      status: "pending",
-    };
-
-    const response = await axios.put(
-      `${API_BASE_URL}/api/direct/quotations/${quotationId}`,
-      payload,
-      { responseType: "blob", signal: controller.signal }
-    );
-
-    const url = window.URL.createObjectURL(new Blob([response.data]));
-    const link = document.createElement("a");
-    link.href = url;
-    link.setAttribute(
-      "download",
-      `${(customer?.name || "unknown")
-        .toLowerCase()
-        .replace(/[^a-z0-9]+/g, "_")
-        .replace(/^_+|_+$/g, "")}-${quotationId}-quotation.pdf`
-    );
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    window.URL.revokeObjectURL(url);
-
-    updateState({
-      quotations: state.quotations.map((q) =>
-        q.quotation_id === quotationId
-          ? { ...q, ...payload, customer_name: customer?.name || "N/A", total: payload.total }
-          : q
-      ),
-      successMessage: "Quotation updated successfully! Check downloads for PDF.",
-      showSuccess: true,
-      modalIsOpen: false,
-      modalMode: null,
-      modalCart: [],
-      modalSelectedCustomer: "",
-      modalSelectedProduct: null,
-      orderId: "",
-      modalAdditionalDiscount: 0,
-      modalChangeDiscount: 0,
-      modalLastAddedProduct: null,
-      modalUserType: "",
-      error: "",
-    });
-
-    setTimeout(() => updateState({ showSuccess: false }), 3000);
-  } catch (err) {
-    if (err.name === "AbortError") return;
-    console.error("Edit quotation error:", err);
-    let errorMessage = "Failed to update quotation";
-    if (err.response?.status === 400) {
-      try {
-        const text = await err.response.data.text();
-        errorMessage = JSON.parse(text).message || errorMessage;
-      } catch (e) {}
+  const editQuotation = async (quotation = null) => {
+    if (quotation) {
+      const products = typeof quotation.products === "string" ? JSON.parse(quotation.products) : quotation.products;
+      updateState({
+        modalMode: "edit",
+        modalSelectedCustomer: quotation.customer_id?.toString() || "",
+        quotationId: quotation.quotation_id,
+        modalAdditionalDiscount: Number.parseFloat(quotation.additional_discount) || 0,
+        modalChangeDiscount: 0,
+        modalCart:
+          products?.map((p) => ({
+            ...p,
+            price: Math.round(Number(p.price) || 0),
+            customPrice: Math.round(Number(p.price) || 0),
+            quantity: Number(p.quantity) || 0,
+            discount: Number(p.discount) || 0,
+            per: p.per || "Unit",
+            product_type: p.product_type,
+          })) || [],
+        modalIsOpen: true,
+        modalUserType: quotation.customer_type || "",
+      });
+      return;
     }
-    updateState({ error: `Failed to update quotation: ${errorMessage}` });
-  }
 
-  return () => controller.abort();
-};
+    const controller = new AbortController();
+    const { modalSelectedCustomer, modalCart, modalAdditionalDiscount, customers, quotationId, modalUserType } = state;
+
+    if (!modalSelectedCustomer || !modalCart.length)
+      return updateState({ error: "Customer and products are required" });
+
+    if (modalCart.some((item) => item.quantity === 0))
+      return updateState({ error: "Please remove products with zero quantity" });
+
+    try {
+      const customer = customers.find((c) => c.id.toString() === modalSelectedCustomer);
+
+      const payload = {
+        customer_id: Number(modalSelectedCustomer),
+        products: modalCart.map((item) => {
+          const freshPrice = getEffectivePrice(item, modalSelectedCustomer, customers, modalUserType);
+          const finalPrice = item.customPrice !== undefined && item.customPrice !== freshPrice
+            ? item.customPrice
+            : freshPrice;
+
+          return {
+            id: item.id,
+            product_type: item.product_type,
+            productname: item.productname,
+            price: finalPrice,
+            discount: Number.parseFloat(item.discount) || 0,
+            quantity: Number.parseInt(item.quantity) || 0,
+            per: item.per || "Unit",
+          };
+        }),
+        net_rate: Math.round(calculateNetRate(modalCart)),
+        you_save: Math.round(calculateYouSave(modalCart)),
+        total: Math.round(calculateTotal(modalCart, modalSelectedCustomer, true)),
+        promo_discount: 0,
+        additional_discount: Number.parseFloat(modalAdditionalDiscount.toFixed(2)),
+        status: "pending",
+      };
+
+      const response = await axios.put(
+        `${API_BASE_URL}/api/direct/quotations/${quotationId}`,
+        payload,
+        { responseType: "blob", signal: controller.signal }
+      );
+
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement("a");
+      link.href = url;
+      link.setAttribute(
+        "download",
+        `${(customer?.name || "unknown")
+          .toLowerCase()
+          .replace(/[^a-z0-9]+/g, "_")
+          .replace(/^_+|_+$/g, "")}-${quotationId}-quotation.pdf`
+      );
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+
+      updateState({
+        quotations: state.quotations.map((q) =>
+          q.quotation_id === quotationId
+            ? { ...q, ...payload, customer_name: customer?.name || "N/A", total: payload.total }
+            : q
+        ),
+        successMessage: "Quotation updated successfully! Check downloads for PDF.",
+        showSuccess: true,
+        modalIsOpen: false,
+        modalMode: null,
+        modalCart: [],
+        modalSelectedCustomer: "",
+        modalSelectedProduct: null,
+        orderId: "",
+        modalAdditionalDiscount: 0,
+        modalChangeDiscount: 0,
+        modalLastAddedProduct: null,
+        modalUserType: "",
+        error: "",
+      });
+
+      setTimeout(() => updateState({ showSuccess: false }), 3000);
+    } catch (err) {
+      if (err.name === "AbortError") return;
+      console.error("Edit quotation error:", err);
+      let errorMessage = "Failed to update quotation";
+      if (err.response?.status === 400) {
+        try {
+          const text = await err.response.data.text();
+          errorMessage = JSON.parse(text).message || errorMessage;
+        } catch (e) {}
+      }
+      updateState({ error: `Failed to update quotation: ${errorMessage}` });
+    }
+
+    return () => controller.abort();
+  };
 
   const cancelQuotation = async (quotationIdToCancel = null) => {
     const controller = new AbortController();
@@ -1522,23 +1527,55 @@ const editQuotation = async (quotation = null) => {
             </button>
           </div>
           <div className="mt-12">
-            <h2 className="text-2xl font-semibold mb-4 text-center text-gray-800 mobile:text-xl">All Quotations</h2>
-            <div className="flex justify-between items-center mb-4 mobile:flex-col mobile:gap-2">
+            <h2 className="text-2xl font-semibold mb-4 text-center text-gray-800 mobile:text-xl dark:text-gray-100">
+              All Quotations
+            </h2>
+
+            {/* Filters + Export Buttons */}
+            <div className="flex flex-wrap justify-between items-center gap-4 mb-6 mobile:flex-col">
+              <div className="flex items-center gap-3 mobile:w-full">
+                <label className="text-sm font-medium text-gray-700 dark:text-gray-300 whitespace-nowrap">
+                  Filter by Customer Type:
+                </label>
+                <select
+                  value={state.customerTypeFilter || ""}
+                  onChange={(e) => updateState({ customerTypeFilter: e.target.value, currentPage: 1 })}
+                  className="p-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600"
+                  style={styles.input}
+                >
+                  <option value="">All Types</option>
+                  <option value="User">User</option>
+                  <option value="Customer">Customer</option>
+                  <option value="Agent">Agent</option>
+                  <option value="Customer of Agent">Customer of Agent</option>
+                </select>
+              </div>
+
               <input
                 type="text"
                 placeholder="Search by Quotation ID or Customer Name..."
                 value={state.searchQuery}
                 onChange={handleSearch}
-                className="w-1/3 p-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 mobile:w-full"
+                className="w-80 p-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 mobile:w-full"
                 style={styles.input}
               />
-              <button
-                onClick={exportToExcel}
-                className="h-10 text-white px-4 rounded-lg font-bold shadow bg-green-600 hover:bg-green-700 mobile:w-full"
-                style={styles.button}
-              >
-                Export Customers to Excel
-              </button>
+
+              <div className="flex gap-3 mobile:w-full mobile:flex-row">
+                <button
+                  onClick={exportToExcel}
+                  className="h-10 text-white px-6 rounded-lg font-bold shadow bg-green-600 hover:bg-green-700"
+                  style={styles.button}
+                >
+                  Export Customers
+                </button>
+                <button
+                  onClick={exportQuotationsToExcel}
+                  className="h-10 text-white px-6 rounded-lg font-bold shadow bg-purple-600 hover:bg-purple-700"
+                  style={styles.button}
+                >
+                  Export Quotations
+                </button>
+              </div>
             </div>
             {paginatedQuotations.length ? (
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 mobile:gap-4">
