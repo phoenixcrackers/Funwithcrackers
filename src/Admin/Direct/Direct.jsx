@@ -503,6 +503,9 @@ const NewProductModal = ({ isOpen, onClose, onSubmit, newProductData, setNewProd
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [localProductData, setLocalProductData] = useState(newProductData);
   const isMounted = useRef(true);
+  const [state, setState] = useState({
+  isExporting: false,
+});
 
   useEffect(() => {
     setLocalProductData(newProductData);
@@ -812,8 +815,59 @@ export default function Direct() {
     }
   };
 
-  const exportQuotationsToExcel = () => {
-    window.location.href = `${API_BASE_URL}/api/direct/export-quotations-excel`;
+  const exportQuotationsToExcel = async () => {
+    // Prevent multiple clicks
+    if (state.isExporting) return;
+
+    updateState({ isExporting: true, error: "", successMessage: "" });
+
+    try {
+      const response = await axios.get(`${API_BASE_URL}/api/direct/export-quotations-excel`, {
+        responseType: "blob", // Important for file download
+        timeout: 300000, // 5 minutes timeout (for large exports)
+      });
+
+      // Extract filename from header or fallback
+      const contentDisposition = response.headers["content-disposition"];
+      const filename = contentDisposition
+        ? contentDisposition.split("filename=")[1]?.replace(/["']/g, "") || `PhoenixCrackers_Export_${new Date().toISOString().slice(0, 10)}.xlsx`
+        : `PhoenixCrackers_Export_${new Date().toISOString().slice(0, 10)}.xlsx`;
+
+      // Trigger download
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement("a");
+      link.href = url;
+      link.setAttribute("download", filename);
+      document.body.appendChild(link);
+      link.click();
+
+      // Cleanup
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+
+      // Success feedback
+      updateState({
+        successMessage: "Export completed successfully!",
+        showSuccess: true,
+      });
+      setTimeout(() => updateState({ showSuccess: false }), 4000);
+
+    } catch (err) {
+      console.error("Export failed:", err);
+
+      let message = "Export failed. Please try again.";
+      if (err.code === "ECONNABORTED") {
+        message = "Export took too long and was cancelled. Try again or contact admin.";
+      } else if (err.response?.status === 500) {
+        message = "Server error during export. Please try later.";
+      }
+
+      updateState({
+        error: message,
+      });
+    } finally {
+      updateState({ isExporting: false });
+    }
   };
 
   const addToCart = (isModal = false, customProduct = null) => {
@@ -1570,10 +1624,25 @@ export default function Direct() {
                 </button>
                 <button
                   onClick={exportQuotationsToExcel}
-                  className="h-10 text-white px-6 rounded-lg font-bold shadow bg-purple-600 hover:bg-purple-700"
+                  disabled={state.isExporting}
+                  className={`relative h-10 text-white px-6 rounded-lg font-bold shadow transition-all flex items-center justify-center min-w-[200px]
+                    ${state.isExporting 
+                      ? 'bg-purple-400 cursor-not-allowed opacity-90' 
+                      : 'bg-purple-600 hover:bg-purple-700'
+                    }`}
                   style={styles.button}
                 >
-                  Export Quotations
+                  {state.isExporting ? (
+                    <>
+                      <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                      </svg>
+                      Exporting... Please wait
+                    </>
+                  ) : (
+                    'Export Quotations'
+                  )}
                 </button>
               </div>
             </div>
