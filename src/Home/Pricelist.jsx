@@ -63,19 +63,35 @@ const ImageModal = ({ media, onClose }) => {
   const [currentIndex, setCurrentIndex] = useState(0);
   const videoRef = useRef(null);
 
+  // ─── Safe image parsing ────────────────────────────────
   const mediaItems = useMemo(() => {
-    const items = media && typeof media === 'string' ? JSON.parse(media) : (Array.isArray(media) ? media : []);
-    return items.sort((a, b) => {
-      const aStr = typeof a === 'string' ? a : '';
-      const bStr = typeof b === 'string' ? b : '';
-      const isAVideo = aStr.includes('/video/') || aStr.startsWith('data:video/');
-      const isBVideo = bStr.includes('/video/') || bStr.startsWith('data:video/');
-      const isAGif = aStr.startsWith('data:image/gif') || aStr.toLowerCase().endsWith('.gif');
-      const isBGif = bStr.startsWith('data:image/gif') || bStr.toLowerCase().endsWith('.gif');
-      const isAImage = aStr.startsWith('data:image/') && !isAGif;
-      const isBImage = bStr.startsWith('data:image/') && !isBGif;
-      return (isAImage ? 0 : isAVideo ? 1 : isAGif ? 2 : 3) - (isBImage ? 0 : isBVideo ? 1 : isBGif ? 2 : 3);
-    });
+    const raw = media;
+
+    let parsed = [];
+    if (typeof raw === 'string') {
+      try {
+        parsed = JSON.parse(raw);
+        if (!Array.isArray(parsed)) parsed = [parsed];
+      } catch {
+        parsed = raw.trim() ? [raw.trim()] : [];
+      }
+    } else if (Array.isArray(raw)) {
+      parsed = raw;
+    }
+
+    return parsed
+      .filter(item => typeof item === 'string' && item.trim())
+      .sort((a, b) => {
+        const aStr = a || '';
+        const bStr = b || '';
+        const isAVideo = aStr.includes('/video/') || aStr.startsWith('data:video/');
+        const isBVideo = bStr.includes('/video/') || bStr.startsWith('data:video/');
+        const isAGif = aStr.startsWith('data:image/gif') || aStr.toLowerCase().endsWith('.gif');
+        const isBGif = bStr.startsWith('data:image/gif') || bStr.toLowerCase().endsWith('.gif');
+        const isAImage = aStr.startsWith('data:image/') && !isAGif;
+        const isBImage = bStr.startsWith('data:image/') && !isBGif;
+        return (isAImage ? 0 : isAVideo ? 1 : isAGif ? 2 : 3) - (isBImage ? 0 : isBVideo ? 1 : isBGif ? 2 : 3);
+      });
   }, [media]);
 
   const isVideo = (media) => typeof media === 'string' && (media.includes('/video/') || media.startsWith('data:video/'));
@@ -110,6 +126,7 @@ const ImageModal = ({ media, onClose }) => {
         src={src || need}
         alt={`media-${idx}`}
         className="w-full h-full object-contain rounded-xl"
+        onError={(e) => { e.target.src = need; }}
       />
     );
   };
@@ -185,19 +202,35 @@ const Carousel = ({ media, onImageClick }) => {
   const [startX, setStartX] = useState(0);
   const videoRef = useRef(null);
 
+  // ─── Safe image parsing ────────────────────────────────
   const mediaItems = useMemo(() => {
-    const items = media && typeof media === 'string' ? JSON.parse(media) : (Array.isArray(media) ? media : []);
-    return items.sort((a, b) => {
-      const aStr = typeof a === 'string' ? a : '';
-      const bStr = typeof b === 'string' ? b : '';
-      const isAVideo = aStr.includes('/video/') || aStr.startsWith('data:video/');
-      const isBVideo = bStr.includes('/video/') || bStr.startsWith('data:video/');
-      const isAGif = aStr.startsWith('data:image/gif') || aStr.toLowerCase().endsWith('.gif');
-      const isBGif = bStr.startsWith('data:image/gif') || bStr.toLowerCase().endsWith('.gif');
-      const isAImage = !isAVideo && !isAGif;
-      const isBImage = !isBVideo && !isBGif;
-      return (isAImage ? 0 : isAVideo ? 1 : isAGif ? 2 : 3) - (isBImage ? 0 : isBVideo ? 1 : isBGif ? 2 : 3);
-    });
+    const raw = media;
+
+    let parsed = [];
+    if (typeof raw === 'string') {
+      try {
+        parsed = JSON.parse(raw);
+        if (!Array.isArray(parsed)) parsed = [parsed];
+      } catch {
+        parsed = raw.trim() ? [raw.trim()] : [];
+      }
+    } else if (Array.isArray(raw)) {
+      parsed = raw;
+    }
+
+    return parsed
+      .filter(item => typeof item === 'string' && item.trim())
+      .sort((a, b) => {
+        const aStr = a || '';
+        const bStr = b || '';
+        const isAVideo = aStr.includes('/video/') || aStr.startsWith('data:video/');
+        const isBVideo = bStr.includes('/video/') || bStr.startsWith('data:video/');
+        const isAGif = aStr.startsWith('data:image/gif') || aStr.toLowerCase().endsWith('.gif');
+        const isBGif = bStr.startsWith('data:image/gif') || bStr.toLowerCase().endsWith('.gif');
+        const isAImage = aStr.startsWith('data:image/') && !isAGif;
+        const isBImage = bStr.startsWith('data:image/') && !isBGif;
+        return (isAImage ? 0 : isAVideo ? 1 : isAGif ? 2 : 3) - (isBImage ? 0 : isBVideo ? 1 : isBGif ? 2 : 3);
+      });
   }, [media]);
 
   const isVideo = (media) => typeof media === 'string' && (media.includes('/video/') || media.startsWith('data:video/'));
@@ -233,6 +266,7 @@ const Carousel = ({ media, onImageClick }) => {
         alt={`media-${idx}`}
         className="w-full h-full object-contain p-2 cursor-pointer"
         onClick={onImageClick}
+        onError={(e) => { e.target.src = need; }}
       />
     );
   };
@@ -351,6 +385,17 @@ const Pricelist = () => {
   const debounceTimeout = useRef(null);
   const loadingTimeout = useRef(null);
 
+  // ─── AI Assistant States ────────────────────────────────
+  const [showAiModal, setShowAiModal] = useState(false);
+  const [aiStep, setAiStep] = useState(0);
+  const [aiBudget, setAiBudget] = useState("");
+  const [aiPreferences, setAiPreferences] = useState({
+    kids: false,
+    sound: false,
+    night: false,
+  });
+  const [suggestedCart, setSuggestedCart] = useState({});
+
   const styles = {
     card: { background: "linear-gradient(135deg, rgba(255,255,255,0.4), rgba(224,242,254,0.3), rgba(186,230,253,0.2))", backdropFilter: "blur(20px)", border: "1px solid rgba(2,132,199,0.3)", boxShadow: "0 25px 45px rgba(2,132,199,0.1), inset 0 1px 0 rgba(255,255,255,0.4), inset 0 -1px 0 rgba(2,132,199,0.1)" },
     button: { background: "linear-gradient(135deg, rgba(2,132,199,0.9), rgba(14,165,233,0.95))", backdropFilter: "blur(15px)", border: "1px solid rgba(125,211,252,0.4)", boxShadow: "0 15px 35px rgba(2,132,199,0.3), inset 0 1px 0 rgba(255,255,255,0.2)" },
@@ -365,161 +410,18 @@ const Pricelist = () => {
 
   const capitalize = str => str ? str.split('_').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ') : '';
 
-  // const downloadPDF = async () => {
-  //   try {
-  //     // Fetch all products without status filter
-  //     const productsRes = await fetch(`${API_BASE_URL}/api/products`);
-  //     const productsData = await productsRes.json();
-
-  //     // Normalize products
-  //     const naturalSort = (a, b) => {
-  //       const collator = new Intl.Collator(undefined, {
-  //         numeric: true,
-  //         sensitivity: "base",
-  //       });
-  //       return collator.compare(a.productname, b.productname);
-  //     };
-
-  //     const serialSort = (a, b) => {
-  //       const collator = new Intl.Collator(undefined, {
-  //         numeric: true,
-  //         sensitivity: "base",
-  //       });
-  //       return collator.compare(a.serial_number, b.serial_number);
-  //     };
-
-  //     const seenSerials = new Set();
-  //     const normalizedProducts = productsData.data
-  //       .filter((p) => {
-  //         if (seenSerials.has(p.serial_number)) {
-  //           console.warn(`Duplicate serial_number found: ${p.serial_number}`);
-  //           return false;
-  //         }
-  //         seenSerials.add(p.serial_number);
-  //         return true;
-  //       })
-  //       .map((product) => ({
-  //         ...product,
-  //         images: product.image
-  //           ? typeof product.image === "string"
-  //             ? JSON.parse(product.image)
-  //             : product.image
-  //           : [],
-  //       }))
-  //       .sort(naturalSort);
-
-  //     if (!normalizedProducts.length) {
-  //       showError('No products available to export');
-  //       return;
-  //     }
-
-  //     const doc = new jsPDF();
-  //     const pageWidth = doc.internal.pageSize.getWidth();
-  //     let yOffset = 20;
-
-  //     doc.setFontSize(16);
-  //     doc.setFont('helvetica', 'bold');
-  //     doc.text('FUN WITH CRACKERS', pageWidth / 2, yOffset, { align: 'center' });
-  //     yOffset += 10;
-  //     doc.setFontSize(12);
-  //     doc.setFont('helvetica', 'normal');
-  //     doc.text('Website - www.funwithcrackers.com', pageWidth / 2, yOffset, { align: 'center' });
-  //     yOffset += 10;
-  //     doc.text('Retail Pricelist - 2025', pageWidth / 2, yOffset, { align: 'center' });
-  //     yOffset += 20;
-
-  //     const tableData = [];
-  //     let slNo = 1;
-  //     const orderedTypes = [
-  //       "One sound crackers",
-  //       "Ground Chakkar",
-  //       "Flower Pots",
-  //       "Twinkling Star",
-  //       "Rockets",
-  //       "Bombs",
-  //       "Repeating Shots",
-  //       "Comets Sky Shots",
-  //       "Fancy pencil varieties",
-  //       "Fountain and Fancy Novelties",
-  //       "Matches",
-  //       "Guns and Caps",
-  //       "Sparklers",
-  //       "Gift Boxes"
-  //     ];
-
-  //     orderedTypes.forEach(type => {
-  //       const typeKey = type.replace(/ /g, "_").toLowerCase();
-  //       const typeProducts = normalizedProducts
-  //         .filter(product => product.product_type.toLowerCase() === typeKey)
-  //         .sort(serialSort); // Sort by serial_number within each product type
-  //       if (typeProducts.length > 0) {
-  //         tableData.push([{ content: type, colSpan: 7, styles: { fontStyle: 'bold', halign: 'left', fillColor: [200, 200, 200] } }]);
-  //         tableData.push(['Sl No.', 'Product No.', 'Product Name', 'Rate', 'Per', 'Quantity', 'Amount']);
-  //         typeProducts.forEach(product => {
-  //           tableData.push([
-  //             slNo++,
-  //             product.serial_number,
-  //             product.productname,
-  //             `Rs.${formatPrice(product.price)}`,
-  //             product.per,
-  //             '', // Empty Quantity column
-  //             ''  // Empty Amount column
-  //           ]);
-  //         });
-  //         tableData.push([]);
-  //       }
-  //     });
-
-  //     autoTable(doc, {
-  //       startY: yOffset,
-  //       head: [['Sl No.', 'Product No.', 'Product Name', 'Rate', 'Per', 'Quantity', 'Amount']],
-  //       body: tableData,
-  //       theme: 'grid',
-  //       styles: { fontSize: 10, cellPadding: 3 },
-  //       headStyles: { fillColor: [2, 132, 199], textColor: [255, 255, 255] },
-  //       columnStyles: { 
-  //         0: { cellWidth: 15 }, 
-  //         1: { cellWidth: 30 }, 
-  //         2: { cellWidth: 50 }, 
-  //         3: { cellWidth: 30 }, 
-  //         4: { cellWidth: 20 }, 
-  //         5: { cellWidth: 20 }, 
-  //         6: { cellWidth: 20 } 
-  //       },
-  //       didDrawCell: (data) => {
-  //         if (data.row.section === 'body' && data.cell.raw && data.cell.raw.colSpan === 7) {
-  //           data.cell.styles.cellPadding = 5;
-  //           data.cell.styles.fontSize = 12;
-  //         }
-  //       },
-  //     });
-
-  //     doc.save('FWC_Pricelist_2025.pdf');
-  //   } catch (err) {
-  //     showError('Failed to generate PDF: ' + err.message);
-  //   }
-  // };
-
   const downloadPDF = async () => {
     try {
-      // Fetch all products without status filter
       const productsRes = await fetch(`${API_BASE_URL}/api/products`);
       const productsData = await productsRes.json();
 
-      // Normalize products
       const naturalSort = (a, b) => {
-        const collator = new Intl.Collator(undefined, {
-          numeric: true,
-          sensitivity: "base",
-        });
+        const collator = new Intl.Collator(undefined, { numeric: true, sensitivity: "base" });
         return collator.compare(a.productname, b.productname);
       };
 
       const serialSort = (a, b) => {
-        const collator = new Intl.Collator(undefined, {
-          numeric: true,
-          sensitivity: "base",
-        });
+        const collator = new Intl.Collator(undefined, { numeric: true, sensitivity: "base" });
         return collator.compare(a.serial_number, b.serial_number);
       };
 
@@ -531,7 +433,7 @@ const Pricelist = () => {
             return false;
           }
           seenSerials.add(p.serial_number);
-          return p.status === "on"; // Only include products with status "on"
+          return p.status === "on";
         })
         .map((product) => ({
           ...product,
@@ -540,8 +442,8 @@ const Pricelist = () => {
               ? JSON.parse(product.image)
               : product.image
             : [],
-          price: parseFloat(product.price) || 0, // Ensure price is a number
-          discount: parseFloat(product.discount) || 0 // Ensure discount is a number
+          price: parseFloat(product.price) || 0,
+          discount: parseFloat(product.discount) || 0
         }))
         .sort(naturalSort);
 
@@ -558,6 +460,7 @@ const Pricelist = () => {
       doc.setFont('helvetica', 'bold');
       doc.text('FUN WITH CRACKERS', pageWidth / 2, yOffset, { align: 'center' });
       yOffset += 10;
+
       doc.setFontSize(12);
       doc.setFont('helvetica', 'normal');
       doc.text('Website - www.funwithcrackers.com', pageWidth / 2, yOffset, { align: 'center' });
@@ -567,23 +470,12 @@ const Pricelist = () => {
 
       const tableData = [];
       let slNo = 1;
+
       const orderedTypes = [
-        "One sound crackers",
-        "Ground Chakkar",
-        "Flower Pots",
-        "Twinkling Star",
-        "Rockets",
-        "Bombs",
-        "Repeating Shots",
-        "Comets Sky Shots",
-        "Fancy pencil varieties",
-        "Fountain and Fancy Novelties",
-        "Matches",
-        "Guns and Caps",
-        "Sparklers",
-        "Gift Boxes",
-        "Combo Pack",
-        "New Arrivals"
+        "One sound crackers", "Ground Chakkar", "Flower Pots", "Twinkling Star",
+        "Rockets", "Bombs", "Repeating Shots", "Comets Sky Shots",
+        "Fancy pencil varieties", "Fountain and Fancy Novelties", "Matches",
+        "Guns and Caps", "Sparklers", "Gift Boxes", "Combo Pack", "New Arrivals"
       ];
 
       orderedTypes.forEach(type => {
@@ -591,11 +483,12 @@ const Pricelist = () => {
         const typeProducts = normalizedProducts
           .filter(product => product.product_type.toLowerCase() === typeKey)
           .sort(serialSort);
+
         if (typeProducts.length > 0) {
           tableData.push([{ content: type, colSpan: 6, styles: { fontStyle: 'bold', halign: 'left', fillColor: [200, 200, 200] } }]);
           tableData.push(['Sl No.', 'Prod No.', 'Product Name', 'Rate', 'Discounted Rate', 'Per']);
           typeProducts.forEach(product => {
-            const dis = product.price*(product.discount/100)
+            const dis = product.price * (product.discount / 100);
             const discountedRate = product.price - dis;
             tableData.push([
               slNo++,
@@ -617,16 +510,16 @@ const Pricelist = () => {
         theme: 'grid',
         styles: { fontSize: 10, cellPadding: 3 },
         headStyles: { fillColor: [2, 132, 199], textColor: [255, 255, 255] },
-        columnStyles: { 
-          0: { cellWidth: 15 }, 
-          1: { cellWidth: 20 }, 
-          2: { cellWidth: 70 }, 
+        columnStyles: {
+          0: { cellWidth: 15 },
+          1: { cellWidth: 20 },
+          2: { cellWidth: 70 },
           3: { cellWidth: 20 },
-          4: { cellWidth: 30 }, 
+          4: { cellWidth: 30 },
           5: { cellWidth: 25 }
         },
         didDrawCell: (data) => {
-          if (data.row.section === 'body' && data.cell.raw && data.cell.raw.colSpan === 5) {
+          if (data.row.section === 'body' && data.cell.raw && data.cell.raw.colSpan === 6) {
             data.cell.styles.cellPadding = 5;
             data.cell.styles.fontSize = 12;
           }
@@ -639,6 +532,35 @@ const Pricelist = () => {
     }
   };
 
+  // ─── Safe image helper ────────────────────────────────
+  const getSafeImages = useCallback((raw) => {
+    if (!raw) return [];
+
+    if (Array.isArray(raw)) {
+      return raw.filter(url => typeof url === 'string' && url.trim());
+    }
+
+    if (typeof raw !== 'string') return [];
+
+    const str = raw.trim();
+
+    try {
+      const parsed = JSON.parse(str);
+      if (Array.isArray(parsed)) {
+        return parsed.filter(url => typeof url === 'string' && url.trim());
+      }
+      if (typeof parsed === 'string' && parsed.trim()) {
+        return [parsed.trim()];
+      }
+    } catch {}
+
+    if (str.startsWith('http') || str.startsWith('//') || str.startsWith('/')) {
+      return [str];
+    }
+
+    return [];
+  }, []);
+
   useEffect(() => {
     const initializeData = async () => {
       try {
@@ -648,23 +570,23 @@ const Pricelist = () => {
 
         const savedCart = localStorage.getItem("firecracker-cart");
         if (savedCart) setCart(JSON.parse(savedCart));
+
         const [statesRes, productsRes, promocodesRes] = await Promise.all([
           fetch(`${API_BASE_URL}/api/locations/states`),
           fetch(`${API_BASE_URL}/api/products`),
           fetch(`${API_BASE_URL}/api/promocodes`),
         ]);
+
         const [statesData, productsData, promocodesData] = await Promise.all([
           statesRes.json(),
           productsRes.json(),
           promocodesRes.json(),
         ]);
+
         setStates(Array.isArray(statesData) ? statesData : []);
 
         const naturalSort = (a, b) => {
-          const collator = new Intl.Collator(undefined, {
-            numeric: true,
-            sensitivity: "base",
-          });
+          const collator = new Intl.Collator(undefined, { numeric: true, sensitivity: "base" });
           return collator.compare(a.productname, b.productname);
         };
 
@@ -681,11 +603,7 @@ const Pricelist = () => {
           })
           .map((product) => ({
             ...product,
-            images: product.image
-              ? typeof product.image === "string"
-                ? JSON.parse(product.image)
-                : product.image
-              : [],
+            images: getSafeImages(product.image),
           }))
           .sort(naturalSort);
 
@@ -707,12 +625,13 @@ const Pricelist = () => {
         clearTimeout(loadingTimeout.current);
       }
     };
+
     initializeData();
 
     return () => {
       if (loadingTimeout.current) clearTimeout(loadingTimeout.current);
     };
-  }, []);
+  }, [getSafeImages]);
 
   useEffect(() => {
     if (customerDetails.state) {
@@ -789,10 +708,12 @@ const Pricelist = () => {
         status: product.status
       };
     });
+
     if (!selectedProducts.length) {
       setIsBooking(false);
       return showError("Your cart is empty.");
     }
+
     if (!customerDetails.customer_name.trim()) {
       setIsBooking(false);
       return showError("Customer name is required.");
@@ -813,21 +734,25 @@ const Pricelist = () => {
       setIsBooking(false);
       return showError("Mobile number is required.");
     }
+
     const mobile = customerDetails.mobile_number.replace(/\D/g, '').slice(-10);
     if (mobile.length !== 10) {
       setIsBooking(false);
       return showError("Mobile number must be 10 digits.");
     }
+
     if (customerDetails.email.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(customerDetails.email)) {
       setIsBooking(false);
       return showError("Please enter a valid email address.");
     }
+
     const selectedState = customerDetails.state.trim();
     const minOrder = states.find(s => s.name === selectedState)?.min_rate;
     if (minOrder && parseFloat(totals.total) < minOrder) {
       setIsBooking(false);
       return showError(`Minimum order for ${selectedState} is ₹${minOrder}. Your total is ₹${totals.total}.`);
     }
+
     try {
       const response = await fetch(`${API_BASE_URL}/api/direct/bookings`, {
         method: "POST",
@@ -849,7 +774,9 @@ const Pricelist = () => {
           promocode: appliedPromo?.code || null
         })
       });
+
       const data = await response.json();
+
       if (response.ok) {
         setShowSuccess(true);
         setTimeout(() => setShowSuccess(false), 4000);
@@ -945,7 +872,6 @@ const Pricelist = () => {
       net += originalPrice * qty;
       productDiscount += discount * qty;
       let itemTotal = priceAfterProductDiscount * qty;
-
       if (appliedPromo) {
         const promoDiscountRate = Number.parseFloat(appliedPromo.discount) || 0;
         const isApplicable = !appliedPromo.product_type || product.product_type === appliedPromo.product_type;
@@ -958,10 +884,10 @@ const Pricelist = () => {
       total += itemTotal;
     }
     save = productDiscount + promoDiscount;
-    return { 
-      net: formatPrice(net), 
-      save: formatPrice(save), 
-      total: formatPrice(total), 
+    return {
+      net: formatPrice(net),
+      save: formatPrice(save),
+      total: formatPrice(total),
       promo_discount: formatPrice(promoDiscount),
       product_discount: formatPrice(productDiscount)
     };
@@ -977,28 +903,28 @@ const Pricelist = () => {
       const res = await fetch(`${API_BASE_URL}/api/promocodes`);
       const promos = await res.json();
       const found = promos.find(p => p.code.toLowerCase() === code.toLowerCase());
-      
+
       if (!found) {
         showError("Invalid promocode.");
         setAppliedPromo(null);
         setPromocode("");
         return;
       }
-      
+
       if (found.min_amount && parseFloat(totals.total) < found.min_amount) {
         showError(`Minimum order amount for this promocode is ₹${found.min_amount}. Your total is ₹${totals.total}.`);
         setAppliedPromo(null);
         setPromocode("");
         return;
       }
-      
+
       if (found.end_date && new Date(found.end_date) < new Date()) {
         showError("This promocode has expired.");
         setAppliedPromo(null);
         setPromocode("");
         return;
       }
-      
+
       if (found.product_type) {
         const cartProductTypes = Object.keys(cart).map(serial => {
           const product = products.find(p => p.serial_number === serial);
@@ -1008,9 +934,10 @@ const Pricelist = () => {
           showError(`This promocode is only valid for ${found.product_type.replace(/_/g, " ")} products, and none are in your cart.`);
           setAppliedPromo(null);
           setPromocode("");
+          return;
         }
       }
-      
+
       setAppliedPromo(found);
       toast.success(`Promocode ${found.code} applied successfully! Discount: ${found.discount}%`, {
         position: "top-center",
@@ -1033,12 +960,148 @@ const Pricelist = () => {
     debounceTimeout.current = setTimeout(() => {
       if (promocode && promocode !== "custom") handleApplyPromo(promocode);
       else if (promocode === "custom") {
+        // do nothing
       } else {
         setAppliedPromo(null);
       }
     }, 500);
     return () => clearTimeout(debounceTimeout.current);
   }, [promocode, handleApplyPromo]);
+
+  const generateSuggestions = useCallback(() => {
+    const budget = Number(aiBudget);
+    if (!budget || budget <= 0) {
+      showError("Please enter a valid budget");
+      return;
+    }
+
+    const categories = {
+      kids: [
+        "flower_pots",
+        "ground_chakkar",
+        "fountain_and_fancy_novelties",
+        "sparklers",
+        "new_arrivals",
+        "fancy_pencil_varieties",
+        "twinkling_star"
+      ],
+      sound: ["bombs", "one_sound_crackers"],
+      night: [
+        "repeating_shots",
+        "comets_sky_shots",
+        "new_arrivals",
+        "fountain_and_fancy_novelties",
+        "flower_pots",
+        "ground_chakkar",
+        "sparklers",
+        "rockets"
+      ]
+    };
+
+    const selectedPrefs = ["night", "kids", "sound"].filter(p => aiPreferences[p]);
+
+    if (!selectedPrefs.length) {
+      showError("Select at least one preference");
+      return;
+    }
+
+    const TARGET = 50;
+
+    const pool = products
+      .filter(p => selectedPrefs.some(pref => categories[pref].includes(p.product_type?.toLowerCase())))
+      .map(p => ({
+        ...p,
+        finalPrice: p.price * (1 - (p.discount || 0) / 100),
+        rand: Math.random()
+      }))
+      .sort((a, b) => a.rand - b.rand);
+
+    const cheap = pool.filter(p => p.finalPrice <= budget * 0.03);
+    const mid = pool.filter(p => p.finalPrice > budget * 0.03 && p.finalPrice <= budget * 0.08);
+    const costly = pool.filter(p => p.finalPrice > budget * 0.08);
+
+    const tempCart = {};
+    let remaining = budget;
+    let count = 0;
+    const usedTypes = new Set();
+    const sparklerSizeCount = {};
+
+    const getSparklerSize = name => {
+      const m = name?.match(/(\d+)\s*cm/i);
+      return m ? m[1] : null;
+    };
+
+    const tryAdd = (p, allowSameType = false) => {
+      if (count >= TARGET) return;
+      if (p.finalPrice > remaining) return;
+      if (tempCart[p.serial_number]) return;
+
+      if (p.product_type === "sparklers" || p.product_type === "premium_sparklers") {
+        const size = getSparklerSize(p.productname) || "unknown";
+        if (sparklerSizeCount[size] >= 2) return;
+        sparklerSizeCount[size] = (sparklerSizeCount[size] || 0) + 1;
+      } else {
+        if (!allowSameType && usedTypes.has(p.product_type)) return;
+        usedTypes.add(p.product_type);
+      }
+
+      tempCart[p.serial_number] = 1;
+      remaining -= p.finalPrice;
+      count++;
+    };
+
+    cheap.forEach(p => tryAdd(p, false));
+    mid.forEach(p => tryAdd(p, true));
+    costly.forEach(p => tryAdd(p, true));
+    pool.forEach(p => {
+      if (count < TARGET) tryAdd(p, true);
+    });
+
+    setSuggestedCart(tempCart);
+  }, [aiBudget, aiPreferences, products]);
+
+  const handleAiNext = () => {
+    if (aiStep === 0 && !aiBudget) return showError("Please enter a budget.");
+    if (aiStep < 2) {
+      setAiStep(aiStep + 1);
+    } else {
+      generateSuggestions();
+    }
+  };
+
+  const handleAiBack = () => {
+    if (aiStep > 0) {
+      if (aiStep === 2) setSuggestedCart({});
+      setAiStep(aiStep - 1);
+    }
+  };
+
+  const addSuggestedToCart = () => {
+    setCart(prev => {
+      const updated = { ...prev };
+      Object.entries(suggestedCart).forEach(([serial, qty]) => {
+        updated[serial] = (updated[serial] || 0) + qty;
+      });
+      return updated;
+    });
+    setShowAiModal(false);
+    setAiStep(0);
+    setAiBudget("");
+    setAiPreferences({ kids: false, sound: false, night: false });
+    setSuggestedCart({});
+  };
+
+  const suggestedTotals = useMemo(() => {
+    let total = 0;
+    for (const serial in suggestedCart) {
+      const qty = suggestedCart[serial];
+      const product = products.find(p => p.serial_number === serial);
+      if (!product) continue;
+      const priceAfterDisc = product.price * (1 - (product.discount || 0) / 100);
+      total += priceAfterDisc * qty;
+    }
+    return formatPrice(total);
+  }, [suggestedCart, products]);
 
   const productTypes = useMemo(() => {
     const orderedTypes = [
@@ -1063,7 +1126,7 @@ const Pricelist = () => {
       .filter(p => p.product_type !== "gift_box_dealers")
       .map(p => p.product_type || "Others")
     )];
-    const filteredOrderedTypes = orderedTypes.filter(type => 
+    const filteredOrderedTypes = orderedTypes.filter(type =>
       availableTypes.includes(type.replace(/ /g, "_").toLowerCase())
     );
     return ["All", ...filteredOrderedTypes];
@@ -1091,8 +1154,8 @@ const Pricelist = () => {
     const result = products
       .filter(p => p.product_type !== "gift_box_dealers" &&
                    (selectedType === "All" || p.product_type === selectedType.replace(/ /g, "_").toLowerCase()) &&
-                   (!searchTerm || 
-                    p.productname.toLowerCase().includes(searchTerm.toLowerCase()) || 
+                   (!searchTerm ||
+                    p.productname.toLowerCase().includes(searchTerm.toLowerCase()) ||
                     p.serial_number.toLowerCase().includes(searchTerm.toLowerCase())))
       .reduce((acc, p) => {
         const key = p.product_type || "Others";
@@ -1124,7 +1187,9 @@ const Pricelist = () => {
     <>
       <Navbar />
       <ToastContainer />
+
       {isCartOpen && <div className="fixed inset-0 bg-black/40 z-30" onClick={() => setIsCartOpen(false)} />}
+
       {showSuccess && (
         <motion.div className="fixed inset-0 flex items-center justify-center z-60 pointer-events-none" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.5 }}>
           <BigFireworkAnimation delay={0} />
@@ -1133,11 +1198,13 @@ const Pricelist = () => {
           </motion.div>
         </motion.div>
       )}
+
       {showErrorModal && (
         <motion.div className="fixed inset-0 flex items-center justify-center z-60 pointer-events-none" initial={{ opacity: 0, scale: 0.8 }} animate={{ opacity: 1, scale: 1 }} transition={{ duration: 0.5 }}>
           <div className="bg-red-200 text-red-400 border-2 text-lg font-semibold rounded-xl p-6 max-w-md mx-4 text-center shadow-lg">{errorMessage}</div>
         </motion.div>
       )}
+
       {showDetailsModal && selectedProduct && (
         <div className="fixed inset-0 bg-black/50 z-55 flex items-center justify-center details-modal">
           <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="relative rounded-3xl shadow-lg max-w-md w-full mx-4 overflow-hidden" style={styles.modal}>
@@ -1158,11 +1225,13 @@ const Pricelist = () => {
           </motion.div>
         </div>
       )}
+
       {showImageModal && selectedProduct && (
         <AnimatePresence>
           <ImageModal media={selectedProduct.image} onClose={handleCloseImage} />
         </AnimatePresence>
       )}
+
       <main className={`relative pt-28 px-4 sm:px-8 max-w-7xl mx-auto transition-all duration-300 ${isCartOpen ? "mr-80" : ""}`}>
         <section className="rounded-xl px-4 py-3 shadow-inner flex justify-between flex-wrap gap-4 text-sm sm:text-base border border-sky-300 from-sky-400/80 to-sky-600/90 text-white font-semibold">
           <div>Net Rate: ₹{totals.net}</div>
@@ -1170,6 +1239,7 @@ const Pricelist = () => {
           {appliedPromo && <div>Promocode ({appliedPromo.code}): -₹{totals.promo_discount}</div>}
           <div className="font-bold">Total: ₹{totals.total}</div>
         </section>
+
         <div className="flex justify-center gap-4 mb-8 mt-8">
           <select value={selectedType} onChange={e => setSelectedType(e.target.value)} className="px-4 py-3 rounded-xl text-sm text-slate-800 font-medium focus:ring-2 focus:ring-sky-400 focus:border-transparent transition-all duration-300" style={styles.input}>
             {productTypes.map(type => <option key={type} value={type}>{type}</option>)}
@@ -1183,10 +1253,11 @@ const Pricelist = () => {
             style={styles.input}
           />
         </div>
+
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="flex justify-center mb-8"
+          className="flex hundred:justify-center hundred:gap-8 mobile:gap-0 mobile:justify-around mb-8"
         >
           <motion.button
             whileHover={{ scale: 1.05 }}
@@ -1197,7 +1268,24 @@ const Pricelist = () => {
           >
             Download Pricelist
           </motion.button>
+
+          <motion.button
+            onClick={() => setShowAiModal(true)}
+            whileHover={{ scale: 1.12 }}
+            whileTap={{ scale: 0.95 }}
+            className="relative right-6 z-50 w-16 h-16 rounded-full bg-gradient-to-br from-sky-500 to-indigo-600 text-white flex items-center justify-center shadow-2xl text-2xl hover:shadow-xl transition-shadow"
+          >
+            <span>🤖</span>
+            <motion.span
+              initial={{ scale: 0 }}
+              animate={{ scale: 1 }}
+              className="absolute -top-1 -right-12 bg-red-500 text-white text-xs px-2 py-0.5 rounded-full font-bold shadow"
+            >
+              Need Help?
+            </motion.span>
+          </motion.button>
         </motion.div>
+
         {Object.entries(grouped).map(([type, items]) => (
           <div key={type} className="mt-12 mb-10">
             <h2 className="text-3xl text-sky-800 mb-5 font-semibold capitalize border-b-4 border-sky-500 pb-2">{type.replace(/_/g, " ")}</h2>
@@ -1208,6 +1296,9 @@ const Pricelist = () => {
                 const discount = originalPrice * (product.discount / 100);
                 const finalPrice = product.discount > 0 ? formatPrice(originalPrice - discount) : formatPrice(originalPrice);
                 const count = cart[product.serial_number] || 0;
+
+                const images = getSafeImages(product.image);
+
                 return (
                   <motion.div
                     key={product.serial_number}
@@ -1245,7 +1336,24 @@ const Pricelist = () => {
                           <p className="text-xl font-bold text-sky-700 group-hover:text-sky-800 transition-colors duration-500">₹{finalPrice} / {product.per}</p>
                         )}
                       </div>
-                      <Carousel media={product.image} onImageClick={() => handleShowImage(product)} />
+
+                      <div
+                        className="relative w-full h-40 rounded-2xl mb-4 overflow-hidden select-none"
+                        style={{ background: "linear-gradient(135deg, rgba(255,255,255,0.6), rgba(240,249,255,0.4))", backdropFilter: "blur(10px)", border: "1px solid rgba(2,132,199,0.2)" }}
+                      >
+                        {images.length > 0 ? (
+                          <img
+                            src={images[0]}
+                            alt={product.productname}
+                            className="w-full h-full object-contain p-2 cursor-pointer"
+                            onClick={() => handleShowImage(product)}
+                            onError={e => { e.target.src = need; }}
+                          />
+                        ) : (
+                          <img src={need} alt="Default" className="w-full h-full object-contain p-2" />
+                        )}
+                      </div>
+
                       <div className="relative flex items-end justify-end">
                         <AnimatePresence mode="wait">
                           {count > 0 ? (
@@ -1302,6 +1410,7 @@ const Pricelist = () => {
                         </AnimatePresence>
                       </div>
                     </div>
+
                     <div
                       className="absolute bottom-0 left-0 right-0 h-px opacity-60"
                       style={{ background: "linear-gradient(90deg, transparent, rgba(2,132,199,0.6), transparent)" }}
@@ -1313,6 +1422,7 @@ const Pricelist = () => {
           </div>
         ))}
       </main>
+
       {showModal && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center">
           <motion.div
@@ -1367,6 +1477,7 @@ const Pricelist = () => {
                     </p>
                   </div>
                 ))}
+
                 <div className="relative">
                   <div className="flex items-center">
                     <label className="block text-sm font-medium text-slate-700 mb-1">
@@ -1388,6 +1499,7 @@ const Pricelist = () => {
                     Please select a state
                   </p>
                 </div>
+
                 {customerDetails.state && (
                   <div className="relative">
                     <div className="flex items-center">
@@ -1411,6 +1523,7 @@ const Pricelist = () => {
                     </p>
                   </div>
                 )}
+
                 <div>
                   <label className="block text-sm font-medium text-slate-700 mb-1">Promocode</label>
                   <select
@@ -1445,6 +1558,7 @@ const Pricelist = () => {
                     </p>
                   )}
                 </div>
+
                 <div className="text-sm text-slate-700 space-y-1">
                   <p>Net Rate: ₹{totals.net}</p>
                   <p>Product Discount: ₹{totals.product_discount}</p>
@@ -1452,6 +1566,7 @@ const Pricelist = () => {
                   <p className="font-bold text-sky-800 text-lg">Total: ₹{totals.total}</p>
                 </div>
               </div>
+
               <div className="mt-6 flex justify-end gap-3">
                 <motion.button
                   onClick={() => setShowModal(false)}
@@ -1463,6 +1578,7 @@ const Pricelist = () => {
                 >
                   Cancel
                 </motion.button>
+
                 <motion.button
                   onClick={handleFinalCheckout}
                   whileHover={{ scale: isBooking ? 1 : 1.05 }}
@@ -1504,6 +1620,202 @@ const Pricelist = () => {
           </motion.div>
         </div>
       )}
+
+      {/* AI Modal */}
+      {showAiModal && (
+        <div className="fixed inset-0 bg-black/60 z-60 flex items-center justify-center backdrop-blur-sm"
+             onClick={() => {
+               setShowAiModal(false);
+               setAiStep(0);
+               setAiBudget("");
+               setAiPreferences({ kids: false, sound: false, night: false });
+               setSuggestedCart({});
+             }}
+        >
+          <motion.div
+            initial={{ scale: 0.82, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            exit={{ scale: 0.82, opacity: 0 }}
+            onClick={e => e.stopPropagation()}
+            className="bg-white/95 backdrop-blur-md rounded-2xl shadow-2xl max-w-lg w-full mx-4 max-h-[92vh] overflow-y-auto border border-sky-200/40"
+            style={{ ...styles.modal, boxShadow: "0 25px 60px -15px rgba(2,132,199,0.4)" }}
+          >
+            <div className="p-6">
+              <div className="flex justify-between items-center mb-6">
+                <h2 className="text-2xl font-bold text-sky-800">Smart Fireworks Assistant</h2>
+                <button
+                  onClick={() => {
+                    setShowAiModal(false);
+                    setAiStep(0);
+                    setAiBudget("");
+                    setAiPreferences({ kids: false, sound: false, night: false });
+                    setSuggestedCart({});
+                  }}
+                  className="text-gray-500 hover:text-red-500 text-2xl"
+                >
+                  ×
+                </button>
+              </div>
+
+              <AnimatePresence mode="wait">
+                {aiStep === 0 && (
+                  <motion.div
+                    key="budget"
+                    initial={{ x: 40, opacity: 0 }}
+                    animate={{ x: 0, opacity: 1 }}
+                    exit={{ x: -40, opacity: 0 }}
+                    className="space-y-4"
+                  >
+                    <p className="text-lg text-slate-700">What's your approximate budget? (₹)</p>
+                    <input
+                      type="number"
+                      value={aiBudget}
+                      onChange={e => setAiBudget(e.target.value)}
+                      placeholder="e.g. 5000"
+                      className="w-full px-4 py-3 rounded-xl border border-sky-200 focus:ring-2 focus:ring-sky-400 focus:border-transparent text-lg"
+                      style={styles.input}
+                    />
+                  </motion.div>
+                )}
+
+                {aiStep === 1 && (
+                  <motion.div
+                    key="preferences"
+                    initial={{ x: 40, opacity: 0 }}
+                    animate={{ x: 0, opacity: 1 }}
+                    exit={{ x: -40, opacity: 0 }}
+                    className="space-y-5"
+                  >
+                    <p className="text-lg text-slate-700">What would you like more of?</p>
+                    <div className="space-y-4">
+                      {[
+                        { key: "kids",  label: "More for Kids (Sparklers, Novelties, Pots...)" },
+                        { key: "sound", label: "Loud Sound Crackers (Bombs, Atom Bombs...)" },
+                        { key: "night", label: "Night-time Visuals (Rockets, Sky Shots, Fancy...)" },
+                      ].map(({ key, label }) => (
+                        <label key={key} className="flex items-center gap-3 cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={aiPreferences[key]}
+                            onChange={e => setAiPreferences(prev => ({ ...prev, [key]: e.target.checked }))}
+                            className="w-5 h-5 accent-sky-600"
+                          />
+                          <span className="text-slate-700">{label}</span>
+                        </label>
+                      ))}
+                    </div>
+                  </motion.div>
+                )}
+
+                {aiStep === 2 && (
+                  <motion.div
+                    key="suggestions"
+                    initial={{ x: 40, opacity: 0 }}
+                    animate={{ x: 0, opacity: 1 }}
+                    exit={{ x: -40, opacity: 0 }}
+                    className="space-y-6"
+                  >
+                    <div className="flex justify-between items-center">
+                      <div>
+                        <p className="text-xl font-bold text-sky-800">Your Smart Suggestions</p>
+                        <p className="text-sm text-slate-600 mt-1">
+                          {Object.keys(suggestedCart).length} items • ≈ ₹{suggestedTotals}
+                        </p>
+                      </div>
+                      <button
+                        onClick={generateSuggestions}
+                        className="px-4 py-2 bg-sky-500 hover:bg-sky-400 text-white rounded-xl text-sm font-medium flex items-center gap-2"
+                      >
+                        Change List
+                      </button>
+                    </div>
+
+                    {Object.keys(suggestedCart).length === 0 ? (
+                      <div className="text-center py-12 text-slate-500">
+                        <p>No suitable combination found.</p>
+                        <p className="text-sm mt-2">Try a higher budget or different preferences.</p>
+                      </div>
+                    ) : (
+                      <div className="space-y-4 max-h-[50vh] overflow-y-auto pr-2">
+                        {Object.entries(suggestedCart).map(([serial, qty]) => {
+                          const p = products.find(x => x.serial_number === serial);
+                          if (!p) return null;
+                          const priceAfter = p.price * (1 - (p.discount || 0) / 100);
+                          const images = getSafeImages(p.image);
+
+                          return (
+                            <div key={serial} className="flex gap-4 p-4 bg-sky-50/60 rounded-2xl border border-sky-100">
+                              <div className="w-20 h-20 rounded-xl overflow-hidden bg-white border border-sky-200 flex-shrink-0">
+                                <img
+                                  src={images[0] || need}
+                                  alt={p.productname}
+                                  className="w-full h-full object-contain p-1"
+                                  onError={e => { e.target.src = need; }}
+                                />
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <p className="font-medium text-slate-800 line-clamp-2">{p.productname}</p>
+                                <p className="text-sm text-sky-700 mt-1">₹{formatPrice(priceAfter)} × {qty}</p>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <button
+                                  onClick={() => {
+                                    const updated = { ...suggestedCart };
+                                    if (qty <= 1) delete updated[serial];
+                                    else updated[serial] = qty - 1;
+                                    setSuggestedCart(updated);
+                                  }}
+                                  className="w-9 h-9 rounded-full bg-sky-100 hover:bg-sky-200 flex items-center justify-center text-sky-700"
+                                >
+                                  <FaMinus />
+                                </button>
+                                <span className="w-10 text-center font-medium">{qty}</span>
+                                <button
+                                  onClick={() => setSuggestedCart(prev => ({ ...prev, [serial]: (prev[serial] || 0) + 1 }))}
+                                  className="w-9 h-9 rounded-full bg-sky-100 hover:bg-sky-200 flex items-center justify-center text-sky-700"
+                                >
+                                  <FaPlus />
+                                </button>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+
+                    {Object.keys(suggestedCart).length > 0 && (
+                      <button
+                        onClick={addSuggestedToCart}
+                        className="w-full py-3.5 bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white font-semibold rounded-xl shadow-lg"
+                      >
+                        Add All Suggested Items to Cart
+                      </button>
+                    )}
+                  </motion.div>
+                )}
+              </AnimatePresence>
+
+              <div className="mt-8 flex justify-between gap-4">
+                {aiStep > 0 && (
+                  <button
+                    onClick={handleAiBack}
+                    className="px-6 py-3 bg-gray-200 hover:bg-gray-300 rounded-xl font-medium"
+                  >
+                    Back
+                  </button>
+                )}
+                <button
+                  onClick={handleAiNext}
+                  className="flex-1 py-3 bg-gradient-to-r from-sky-500 to-sky-600 hover:from-sky-600 hover:to-sky-700 text-white font-semibold rounded-xl shadow-md"
+                >
+                  {aiStep < 2 ? "Next" : "Generate Suggestions"}
+                </button>
+              </div>
+            </div>
+          </motion.div>
+        </div>
+      )}
+
       <motion.button
         onClick={() => setIsCartOpen(true)}
         whileHover={{ scale: 1.1 }}
@@ -1511,7 +1823,8 @@ const Pricelist = () => {
         className={`fixed cursor-pointer bottom-6 right-6 z-50 text-white rounded-full shadow-xl w-16 h-16 flex items-center justify-center text-2xl transition-all duration-300 ${isCartOpen ? "hidden" : ""}`}
         style={styles.button}
       >
-        🛒{Object.keys(cart).length > 0 && (
+        🛒
+        {Object.keys(cart).length > 0 && (
           <motion.span
             initial={{ scale: 0 }}
             animate={{ scale: 1 }}
@@ -1521,6 +1834,7 @@ const Pricelist = () => {
           </motion.span>
         )}
       </motion.button>
+
       <motion.aside
         initial={false}
         animate={{ x: isCartOpen ? 0 : 320 }}
@@ -1532,6 +1846,7 @@ const Pricelist = () => {
           <h3 className="text-lg font-bold text-sky-800">Your Cart</h3>
           <button onClick={() => setIsCartOpen(false)} className="text-gray-600 hover:text-red-500 text-xl cursor-pointer">×</button>
         </div>
+
         <div className="overflow-y-auto h-[calc(100%-280px)] p-4 space-y-4">
           {Object.keys(cart).length === 0 ? (
             <p className="text-gray-500 text-sm">Your cart is empty.</p>
@@ -1541,7 +1856,8 @@ const Pricelist = () => {
               if (!product) return null;
               const discount = (product.price * product.discount) / 100;
               const priceAfterDiscount = formatPrice(product.price - discount);
-              const imageSrc = (product.image && typeof product.image === 'string' ? JSON.parse(product.image) : (Array.isArray(product.image) ? product.image : [])).filter(item => !item.includes('/video/') && !item.startsWith('data:video/') && !item.startsWith('data:image/gif') && !item.toLowerCase().endsWith('.gif'))[0] || need;
+              const images = getSafeImages(product.image);
+
               return (
                 <motion.div
                   key={serial}
@@ -1550,7 +1866,12 @@ const Pricelist = () => {
                   className="flex items-center gap-3 border-b pb-3 border-sky-100"
                 >
                   <div className="w-16 h-16">
-                    <img src={imageSrc} alt={product.productname} className="w-full h-full object-contain rounded-lg" />
+                    <img
+                      src={images[0] || need}
+                      alt={product.productname}
+                      className="w-full h-full object-contain rounded-lg p-1"
+                      onError={e => { e.target.src = need; }}
+                    />
                   </div>
                   <div className="flex-1">
                     <p className="text-sm font-semibold text-slate-800">{product.productname}</p>
@@ -1578,6 +1899,7 @@ const Pricelist = () => {
             })
           )}
         </div>
+
         <div className="p-4 border-t border-sky-200 absolute bottom-0 w-full space-y-4" style={styles.modal}>
           <div className="overflow-hidden whitespace-nowrap border border-blue-300 bg-blue-50 rounded-xl py-2 px-3 text-sky-900 font-medium text-sm relative">
             <div className="flex justify-center mb-2">
@@ -1587,6 +1909,7 @@ const Pricelist = () => {
               🚚 {states.map(s => `${s.name}: ₹${s.min_rate}`).join(" • ")}
             </div>
           </div>
+
           <div>
             <label className="block text-sm font-medium text-slate-700 mb-1">Promocode</label>
             <select
@@ -1603,6 +1926,7 @@ const Pricelist = () => {
               ))}
               <option value="custom">Enter custom code</option>
             </select>
+
             {promocode === "custom" && (
               <input
                 type="text"
@@ -1613,6 +1937,7 @@ const Pricelist = () => {
                 style={styles.input}
               />
             )}
+
             {appliedPromo && (
               <p className="text-green-600 text-xs mt-1">
                 Applied: {appliedPromo.code} ({appliedPromo.discount}% OFF)
@@ -1621,12 +1946,14 @@ const Pricelist = () => {
               </p>
             )}
           </div>
+
           <div className="text-sm text-slate-700 space-y-1">
             <p>Net Rate: ₹{totals.net}</p>
             <p>Product Discount: ₹{totals.product_discount}</p>
             {appliedPromo && <p>Promocode ({appliedPromo.code}): -₹{totals.promo_discount}</p>}
             <p className="font-bold text-sky-800 text-lg">Total: ₹{totals.total}</p>
           </div>
+
           <div className="flex gap-2">
             <button
               onClick={() => { setCart({}); setAppliedPromo(null); setPromocode(""); }}
@@ -1645,6 +1972,7 @@ const Pricelist = () => {
           </div>
         </div>
       </motion.aside>
+
       <style jsx>{`
         .line-clamp-2 { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
         .details-modal { display: flex !important; visibility: visible !important; opacity: 1 !important; }
