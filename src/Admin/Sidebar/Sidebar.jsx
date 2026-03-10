@@ -23,7 +23,7 @@ export default function Sidebar() {
     };
 
     fetchNewOrders();
-    const interval = setInterval(fetchNewOrders, 100000); // Refresh every 100 seconds
+    const interval = setInterval(fetchNewOrders, 3000); // Refresh every 100 seconds
     return () => clearInterval(interval);
   }, []);
 

@@ -393,6 +393,7 @@ const Pricelist = () => {
     kids: false,
     sound: false,
     night: false,
+    kidsnight: false,
   });
   const [suggestedCart, setSuggestedCart] = useState({});
 
@@ -778,6 +779,8 @@ const Pricelist = () => {
       const data = await response.json();
 
       if (response.ok) {
+        // ── 1. Stop spinner & show success IMMEDIATELY on API response ──
+        setIsBooking(false);
         setShowSuccess(true);
         setTimeout(() => setShowSuccess(false), 4000);
         setCart({});
@@ -785,38 +788,51 @@ const Pricelist = () => {
         setPromocode("");
         setIsCartOpen(false);
         setShowModal(false);
+
+        // snapshot before clearing
+        const bookedCustomerName = customerDetails.customer_name;
         setCustomerDetails({ customer_name: "", address: "", district: "", state: "", mobile_number: "", email: "", customer_type: "User" });
         setOriginalTotal(0);
         setTotalDiscount(0);
 
-        const pdfResponse = await fetch(`${API_BASE_URL}/api/direct/invoice/${data.order_id}`, { responseType: 'blob' });
-        const blob = await pdfResponse.blob();
-        const url = window.URL.createObjectURL(blob);
-        const link = document.createElement('a');
-        link.href = url;
-        const safeCustomerName = (customerDetails.customer_name || 'unknown').toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '');
-        link.setAttribute('download', `${safeCustomerName}-${data.order_id}.pdf`);
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        window.URL.revokeObjectURL(url);
+        // ── 2. PDF download happens in background, spinner already gone ──
+        try {
+          const pdfResponse = await fetch(`${API_BASE_URL}/api/direct/invoice/${data.order_id}`);
+          const blob = await pdfResponse.blob();
+          const url = window.URL.createObjectURL(blob);
+          const link = document.createElement('a');
+          link.href = url;
+          const safeCustomerName = (bookedCustomerName || 'unknown').toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '');
+          link.setAttribute('download', `${safeCustomerName}-${data.order_id}.pdf`);
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+          window.URL.revokeObjectURL(url);
 
-        toast.success("Downloaded estimate bill, check downloads", {
-          position: "top-center",
-          autoClose: 5000,
-          hideProgressBar: false,
-          closeOnClick: true,
-          pauseOnHover: true,
-          draggable: true,
-        });
+          toast.success("Downloaded estimate bill, check downloads", {
+            position: "top-center",
+            autoClose: 5000,
+            hideProgressBar: false,
+            closeOnClick: true,
+            pauseOnHover: true,
+            draggable: true,
+          });
+        } catch (pdfErr) {
+          console.error("PDF download error:", pdfErr);
+          toast.error("Booking successful but PDF download failed. Contact support.", {
+            position: "top-center",
+            autoClose: 5000,
+          });
+        }
+
       } else {
+        setIsBooking(false);
         showError(data.message || "Booking failed. Please try again.");
       }
     } catch (err) {
       console.error("Checkout error:", err);
-      showError("Something went wrong during checkout. Please try again.");
-    } finally {
       setIsBooking(false);
+      showError("Something went wrong during checkout. Please try again.");
     }
   };
 
@@ -968,97 +984,208 @@ const Pricelist = () => {
     return () => clearTimeout(debounceTimeout.current);
   }, [promocode, handleApplyPromo]);
 
-  const generateSuggestions = useCallback(() => {
-    const budget = Number(aiBudget);
-    if (!budget || budget <= 0) {
-      showError("Please enter a valid budget");
-      return;
+const generateSuggestions = useCallback(() => {
+  const budget = Number(aiBudget);
+  if (!budget || budget <= 0) {
+    showError("Please enter a valid budget");
+    return;
+  }
+
+  const categories = {
+    kids: [
+      "new_arrivals",
+      "fancy_pencil_varieties",
+      "twinkling_star",
+      "guns_and_caps",
+      "matches"
+    ],
+    sound: [
+      "bombs",
+      "one_sound_crackers"
+    ],
+    night: [
+      "repeating_shots",
+      "comets_sky_shots",
+      "new_arrivals",
+      "rockets"
+    ],
+    kidsnight: [
+      "fountain_and_fancy_novelties",
+      "flower_pots",
+      "ground_chakkar",
+      "sparklers"
+    ]
+  };
+
+  const selectedPrefs = ["night", "kids", "sound", "kidsnight"].filter(p => aiPreferences[p]);
+
+  if (!selectedPrefs.length) {
+    showError("Select at least one preference");
+    return;
+  }
+
+  const budgetPerPref = budget / selectedPrefs.length;
+
+  const tempCart = {};
+  const sparklerSizeCount = {};
+  const categorySpentMap = {};
+  selectedPrefs.forEach(p => { categorySpentMap[p] = 0; });
+
+  const getSparklerSize = name => {
+    const m = name?.match(/(\d+)\s*cm/i);
+    return m ? m[1] : null;
+  };
+
+  // ── Phase 1: Add ONE of EVERY product per category in defined type order ──
+  for (const pref of selectedPrefs) {
+    const phase1Budget = budgetPerPref * 0.70;
+    const types = categories[pref]; // priority order preserved
+
+    // Group products by their type
+    const byType = {};
+    for (const type of types) {
+      byType[type] = [];
     }
 
-    const categories = {
-      kids: [
-        "flower_pots",
-        "ground_chakkar",
-        "fountain_and_fancy_novelties",
-        "sparklers",
-        "new_arrivals",
-        "fancy_pencil_varieties",
-        "twinkling_star"
-      ],
-      sound: ["bombs", "one_sound_crackers"],
-      night: [
-        "repeating_shots",
-        "comets_sky_shots",
-        "new_arrivals",
-        "fountain_and_fancy_novelties",
-        "flower_pots",
-        "ground_chakkar",
-        "sparklers",
-        "rockets"
-      ]
-    };
+    products
+      .filter(p => types.includes(p.product_type?.toLowerCase()))
+      .forEach(p => {
+        const type = p.product_type?.toLowerCase();
+        if (byType[type]) {
+          byType[type].push({
+            ...p,
+            finalPrice: p.price * (1 - (p.discount || 0) / 100),
+          });
+        }
+      });
 
-    const selectedPrefs = ["night", "kids", "sound"].filter(p => aiPreferences[p]);
-
-    if (!selectedPrefs.length) {
-      showError("Select at least one preference");
-      return;
+    // Within each type, sort cheapest first for more variety
+    for (const type of types) {
+      byType[type].sort((a, b) => a.finalPrice - b.finalPrice);
     }
 
-    const TARGET = 50;
+    // Flatten in category-defined order: all type[0] first, then type[1], etc.
+    const sorted = types.flatMap(type => byType[type] || []).filter(p => p.finalPrice > 0);
 
-    const pool = products
-      .filter(p => selectedPrefs.some(pref => categories[pref].includes(p.product_type?.toLowerCase())))
-      .map(p => ({
-        ...p,
-        finalPrice: p.price * (1 - (p.discount || 0) / 100),
-        rand: Math.random()
-      }))
-      .sort((a, b) => a.rand - b.rand);
+    let prefSpent = 0;
 
-    const cheap = pool.filter(p => p.finalPrice <= budget * 0.03);
-    const mid = pool.filter(p => p.finalPrice > budget * 0.03 && p.finalPrice <= budget * 0.08);
-    const costly = pool.filter(p => p.finalPrice > budget * 0.08);
+    for (const p of sorted) {
+      if (prefSpent + p.finalPrice > phase1Budget) continue; // skip expensive, try next
+      if (tempCart[p.serial_number]) continue; // already added
 
-    const tempCart = {};
-    let remaining = budget;
-    let count = 0;
-    const usedTypes = new Set();
-    const sparklerSizeCount = {};
-
-    const getSparklerSize = name => {
-      const m = name?.match(/(\d+)\s*cm/i);
-      return m ? m[1] : null;
-    };
-
-    const tryAdd = (p, allowSameType = false) => {
-      if (count >= TARGET) return;
-      if (p.finalPrice > remaining) return;
-      if (tempCart[p.serial_number]) return;
-
+      // Sparkler size cap
       if (p.product_type === "sparklers" || p.product_type === "premium_sparklers") {
         const size = getSparklerSize(p.productname) || "unknown";
-        if (sparklerSizeCount[size] >= 2) return;
+        if ((sparklerSizeCount[size] || 0) >= 3) continue;
         sparklerSizeCount[size] = (sparklerSizeCount[size] || 0) + 1;
-      } else {
-        if (!allowSameType && usedTypes.has(p.product_type)) return;
-        usedTypes.add(p.product_type);
       }
 
       tempCart[p.serial_number] = 1;
-      remaining -= p.finalPrice;
-      count++;
-    };
+      prefSpent += p.finalPrice;
+      categorySpentMap[pref] = (categorySpentMap[pref] || 0) + p.finalPrice;
+    }
+  }
 
-    cheap.forEach(p => tryAdd(p, false));
-    mid.forEach(p => tryAdd(p, true));
-    costly.forEach(p => tryAdd(p, true));
-    pool.forEach(p => {
-      if (count < TARGET) tryAdd(p, true);
-    });
+  // ── Phase 2: Quantity boost — per category using its own remaining 30% ──
+  for (const pref of selectedPrefs) {
+    const phase2Budget = budgetPerPref * 0.30;
+    const types = categories[pref];
 
-    setSuggestedCart(tempCart);
-  }, [aiBudget, aiPreferences, products]);
+    // Only boost products belonging to this category, in type-priority order
+    const boostCandidates = types
+      .flatMap(type => {
+        return Object.keys(tempCart)
+          .map(serial => {
+            const p = products.find(x => x.serial_number === serial);
+            if (!p) return null;
+            if (p.product_type?.toLowerCase() !== type) return null;
+            return { ...p, finalPrice: p.price * (1 - (p.discount || 0) / 100) };
+          })
+          .filter(Boolean)
+          .sort((a, b) => a.finalPrice - b.finalPrice); // cheapest first within each type
+      });
+
+    if (!boostCandidates.length) continue;
+
+    let boostRemaining = phase2Budget;
+    const boostThreshold = budgetPerPref * 0.02;
+    let safetyLimit = 500;
+
+    while (boostRemaining > boostThreshold && safetyLimit-- > 0) {
+      let addedAny = false;
+
+      for (const p of boostCandidates) {
+        if (boostRemaining < p.finalPrice) continue;
+
+        // Cap: no single product exceeds 25% of its category budget
+        const maxQty = Math.max(1, Math.floor((budgetPerPref * 0.25) / p.finalPrice));
+        const currentQty = tempCart[p.serial_number] || 0;
+        if (currentQty >= maxQty) continue;
+
+        tempCart[p.serial_number] = currentQty + 1;
+        boostRemaining -= p.finalPrice;
+        addedAny = true;
+
+        if (boostRemaining <= boostThreshold) break;
+      }
+
+      if (!addedAny) break;
+    }
+  }
+
+  // ── Phase 3: Global mop-up of any leftover budget ────
+  const totalSpent = Object.entries(tempCart).reduce((sum, [serial, qty]) => {
+    const p = products.find(x => x.serial_number === serial);
+    if (!p) return sum;
+    return sum + (p.price * (1 - (p.discount || 0) / 100)) * qty;
+  }, 0);
+
+  let globalRemaining = budget - totalSpent;
+  const globalThreshold = budget * 0.03;
+
+  if (globalRemaining > globalThreshold && Object.keys(tempCart).length > 0) {
+    // Global boost candidates in category-type order across all selected prefs
+    const globalCandidates = selectedPrefs
+      .flatMap(pref =>
+        categories[pref].flatMap(type =>
+          Object.keys(tempCart)
+            .map(serial => {
+              const p = products.find(x => x.serial_number === serial);
+              if (!p) return null;
+              if (p.product_type?.toLowerCase() !== type) return null;
+              return { ...p, finalPrice: p.price * (1 - (p.discount || 0) / 100) };
+            })
+            .filter(Boolean)
+            .sort((a, b) => a.finalPrice - b.finalPrice)
+        )
+      );
+
+    let safetyLimit = 500;
+
+    while (globalRemaining > globalThreshold && safetyLimit-- > 0) {
+      let addedAny = false;
+
+      for (const p of globalCandidates) {
+        if (globalRemaining < p.finalPrice) continue;
+
+        // Global cap: no single product exceeds 20% of total budget
+        const maxQty = Math.max(1, Math.floor((budget * 0.20) / p.finalPrice));
+        const currentQty = tempCart[p.serial_number] || 0;
+        if (currentQty >= maxQty) continue;
+
+        tempCart[p.serial_number] = currentQty + 1;
+        globalRemaining -= p.finalPrice;
+        addedAny = true;
+
+        if (globalRemaining <= globalThreshold) break;
+      }
+
+      if (!addedAny) break;
+    }
+  }
+
+  setSuggestedCart(tempCart);
+}, [aiBudget, aiPreferences, products]);
 
   const handleAiNext = () => {
     if (aiStep === 0 && !aiBudget) return showError("Please enter a budget.");
@@ -1087,7 +1214,7 @@ const Pricelist = () => {
     setShowAiModal(false);
     setAiStep(0);
     setAiBudget("");
-    setAiPreferences({ kids: false, sound: false, night: false });
+    setAiPreferences({ kids: false, sound: false, night: false, kidsnight: false });
     setSuggestedCart({});
   };
 
@@ -1628,7 +1755,7 @@ const Pricelist = () => {
                setShowAiModal(false);
                setAiStep(0);
                setAiBudget("");
-               setAiPreferences({ kids: false, sound: false, night: false });
+               setAiPreferences({ kids: false, sound: false, night: false, kidsnight: false });
                setSuggestedCart({});
              }}
         >
@@ -1689,21 +1816,25 @@ const Pricelist = () => {
                     <p className="text-lg text-slate-700">What would you like more of?</p>
                     <div className="space-y-4">
                       {[
-                        { key: "kids",  label: "More for Kids (Sparklers, Novelties, Pots...)" },
-                        { key: "sound", label: "Loud Sound Crackers (Bombs, Atom Bombs...)" },
-                        { key: "night", label: "Night-time Visuals (Rockets, Sky Shots, Fancy...)" },
+                        { key: "kids",      label: "🎠 Kids (Twinkling Star, Fancy Pencil, Novelties...)" },
+                        { key: "sound",     label: "💥 Loud Sound Crackers (Bombs, Atom Bombs...)" },
+                        { key: "night",     label: "🚀 Night Sky (Rockets, Repeating Shots, Sky Shots...)" },
+                        { key: "kidsnight", label: "✨ Kids Night (Sparklers, Flower Pots, Fountains, Ground Chakkar...)" },
                       ].map(({ key, label }) => (
-                        <label key={key} className="flex items-center gap-3 cursor-pointer">
+                        <label key={key} className="flex items-center gap-3 cursor-pointer group">
                           <input
                             type="checkbox"
                             checked={aiPreferences[key]}
                             onChange={e => setAiPreferences(prev => ({ ...prev, [key]: e.target.checked }))}
                             className="w-5 h-5 accent-sky-600"
                           />
-                          <span className="text-slate-700">{label}</span>
+                          <span className="text-slate-700 group-hover:text-sky-700 transition-colors">{label}</span>
                         </label>
                       ))}
                     </div>
+                    <p className="text-xs text-slate-400 mt-2">
+                      💡 Select multiple for a mixed experience. Budget splits equally across selections.
+                    </p>
                   </motion.div>
                 )}
 
