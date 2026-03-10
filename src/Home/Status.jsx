@@ -441,7 +441,7 @@ const Status = () => {
                                         {step.transport && (
                                           <div className="text-xs text-slate-600 mt-1">
                                             <p>Company: {step.transport.company || "N/A"}</p>
-                                            <p>Tracking: {step.transport.tracking_number || "N/A"}</p>
+                                            <p>LR Number: {step.transport.tracking_number || "N/A"}</p>
                                             <p>Contact: {step.transport.driver_contact || "N/A"}</p>
                                           </div>
                                         )}

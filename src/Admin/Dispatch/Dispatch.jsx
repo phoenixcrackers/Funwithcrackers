@@ -6,6 +6,33 @@ import { API_BASE_URL } from '../../../Config';
 import Sidebar from '../Sidebar/Sidebar';
 import Logout from '../Logout';
 
+const Spinner = ({ size = 'sm', color = 'text-white' }) => (
+  <svg className={`animate-spin ${size === 'sm' ? 'w-4 h-4' : 'w-8 h-8'} ${color}`} fill="none" viewBox="0 0 24 24">
+    <circle className="opacity-20" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3"/>
+    <path className="opacity-80" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
+  </svg>
+);
+
+const PageLoader = () => (
+  <div className="flex items-center justify-center min-h-[60vh]">
+    <div className="flex flex-col items-center gap-3">
+      <Spinner size="lg" color="text-blue-500" />
+      <p className="text-sm text-gray-400 font-medium">Loading bookings…</p>
+    </div>
+  </div>
+);
+
+const inputCls = "w-full h-9 px-3 rounded-lg border border-gray-200 bg-white text-sm text-gray-700 outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100 transition-all";
+const selectCls = "w-full h-9 px-3 rounded-lg border border-gray-200 bg-white text-sm text-gray-700 outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100 transition-all cursor-pointer";
+
+const STATUS_COLORS = {
+  paid:       'bg-emerald-50 text-emerald-700 border-emerald-200',
+  packed:     'bg-blue-50 text-blue-700 border-blue-200',
+  dispatched: 'bg-violet-50 text-violet-700 border-violet-200',
+  delivered:  'bg-gray-100 text-gray-600 border-gray-200',
+};
+const STATUS_DOTS = { paid: 'bg-emerald-400', packed: 'bg-blue-400', dispatched: 'bg-violet-400', delivered: 'bg-gray-400' };
+
 export default function Dispatch() {
   const [bookings, setBookings] = useState([]);
   const [filterStatus, setFilterStatus] = useState('');
@@ -15,46 +42,22 @@ export default function Dispatch() {
   const [selectedBookingId, setSelectedBookingId] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
-  const [transportDetails, setTransportDetails] = useState({
-    transportName: '',
-    lrNumber: '',
-    transportContact: ''
-  });
+  const [transportDetails, setTransportDetails] = useState({ transportName: '', lrNumber: '', transportContact: '' });
+  const [pageLoading, setPageLoading] = useState(true);
+  const [downloadingId, setDownloadingId] = useState(null);
+  const [updatingStatusId, setUpdatingStatusId] = useState(null);
+  const [modalSubmitting, setModalSubmitting] = useState(false);
   const ordersPerPage = 9;
-
-  const styles = {
-    input: { 
-      background: "linear-gradient(135deg, rgba(255,255,255,0.8), rgba(240,249,255,0.6))", 
-      backgroundDark: "linear-gradient(135deg, rgba(55,65,81,0.8), rgba(75,85,99,0.6))",
-      backdropFilter: "blur(10px)", 
-      border: "1px solid rgba(2,132,199,0.3)", 
-      borderDark: "1px solid rgba(59,130,246,0.4)"
-    },
-    button: { 
-      background: "linear-gradient(135deg, rgba(2,132,199,0.9), rgba(14,165,233,0.95))", 
-      backgroundDark: "linear-gradient(135deg, rgba(59,130,246,0.9), rgba(37,99,235,0.95))",
-      backdropFilter: "blur(15px)", 
-      border: "1px solid rgba(125,211,252,0.4)", 
-      borderDark: "1px solid rgba(147,197,253,0.4)",
-      boxShadow: "0 15px 35px rgba(2,132,199,0.3), inset 0 1px 0 rgba(255,255,255,0.2)",
-      boxShadowDark: "0 15px 35px rgba(59,130,246,0.4), inset 0 1px 0 rgba(255,255,255,0.1)"
-    }
-  };
 
   useEffect(() => {
     const fetchBookings = async () => {
       try {
-        const allowedStatuses = ['paid', 'packed', 'dispatched', 'delivered'];
-        const statuses = filterStatus ? [filterStatus] : allowedStatuses;
-        const response = await axios.get(`${API_BASE_URL}/api/tracking/filtered-bookings`, {
-          params: { status: statuses.join(',') }
-        });
-        setBookings(response.data);
-        setError('');
-        setCurrentPage(1);
-      } catch {
-        setError('Failed to fetch bookings');
-      }
+        const allowed = ['paid', 'packed', 'dispatched', 'delivered'];
+        const statuses = filterStatus ? [filterStatus] : allowed;
+        const res = await axios.get(`${API_BASE_URL}/api/tracking/filtered-bookings`, { params: { status: statuses.join(',') } });
+        setBookings(res.data); setError(''); setCurrentPage(1);
+      } catch { setError('Failed to fetch bookings'); }
+      finally { setPageLoading(false); }
     };
     fetchBookings();
     const interval = setInterval(fetchBookings, 60000);
@@ -62,288 +65,197 @@ export default function Dispatch() {
   }, [filterStatus]);
 
   const handleStatusChange = (id, newStatus) => {
-    if (newStatus === 'dispatched') {
-      setSelectedBookingId(id);
-      setIsModalOpen(true);
-    } else {
-      updateStatus(id, newStatus);
-    }
+    if (newStatus === 'dispatched') { setSelectedBookingId(id); setIsModalOpen(true); }
+    else updateStatus(id, newStatus);
   };
 
   const updateStatus = async (id, newStatus, transportInfo = null) => {
     try {
-      const payload = { status: newStatus, ...transportInfo };
+      setUpdatingStatusId(id);
+      const payload = { status: newStatus };
+      if (transportInfo) payload.transportDetails = transportInfo;
       await axios.put(`${API_BASE_URL}/api/tracking/fbookings/${id}/status`, payload);
-      setBookings(prev =>
-        prev.map(booking =>
-          booking.id === id ? { ...booking, status: newStatus, ...transportInfo } : booking
-        )
-      );
-      if (newStatus === 'dispatched' && transportInfo) {
-        setSuccessMessage('Transport details added successfully');
-        setTimeout(() => setSuccessMessage(''), 3000);
-      }
+      setBookings(prev => prev.map(b => b.id === id ? { ...b, status: newStatus, ...transportInfo } : b));
+      if (newStatus === 'dispatched' && transportInfo) { setSuccessMessage('Transport details saved'); setTimeout(() => setSuccessMessage(''), 3000); }
       setError('');
-    } catch {
-      setError('Failed to update status');
-    }
+    } catch { setError('Failed to update status'); }
+    finally { setUpdatingStatusId(null); }
   };
 
   const handleModalSubmit = async (e) => {
     e.preventDefault();
-    if (!transportDetails.transportName || !transportDetails.lrNumber) {
-      setError('Transport Name and LR Number are required');
-      return;
-    }
+    if (!transportDetails.transportName || !transportDetails.lrNumber) { setError('Transport Name and LR Number are required'); return; }
+    setModalSubmitting(true);
     await updateStatus(selectedBookingId, 'dispatched', transportDetails);
-    setIsModalOpen(false);
-    setTransportDetails({ transportName: '', lrNumber: '', transportContact: '' });
-  };
-
-  const handleModalClose = () => {
-    setIsModalOpen(false);
-    setTransportDetails({ transportName: '', lrNumber: '', transportContact: '' });
+    setIsModalOpen(false); setTransportDetails({ transportName: '', lrNumber: '', transportContact: '' });
+    setModalSubmitting(false);
   };
 
   const generatePDF = async (booking) => {
     try {
-      const response = await fetch(`${API_BASE_URL}/api/direct/invoice/${booking.order_id}`, {
-        responseType: 'blob'
-      });
-      if (!response.ok) {
-        throw new Error('Failed to fetch PDF');
-      }
-      const blob = await response.blob();
+      setDownloadingId(booking.id);
+      const res = await fetch(`${API_BASE_URL}/api/direct/invoice/${booking.order_id}`);
+      if (!res.ok) throw new Error('Failed to fetch PDF');
+      const blob = await res.blob();
       const url = window.URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
-      const safeCustomerName = (booking.customer_name || 'unknown').toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '');
-      link.setAttribute('download', `${safeCustomerName}-${booking.order_id}.pdf`);
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      window.URL.revokeObjectURL(url);
-
-      toast.success("Downloaded estimate bill, check downloads", {
-        position: "top-center",
-        autoClose: 5000,
-        hideProgressBar: false,
-        closeOnClick: true,
-        pauseOnHover: true,
-        draggable: true,
-      });
-    } catch (err) {
-      console.error("PDF download error:", err);
-      toast.error("Failed to download PDF. Please try again.", {
-        position: "top-center",
-        autoClose: 5000,
-      });
-    }
+      link.setAttribute('download', `${(booking.customer_name || 'unknown').toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '')}-${booking.order_id}.pdf`);
+      document.body.appendChild(link); link.click(); document.body.removeChild(link); window.URL.revokeObjectURL(url);
+      toast.success('Downloaded invoice', { position: 'top-center', autoClose: 4000 });
+    } catch (err) { toast.error('Failed to download PDF', { position: 'top-center', autoClose: 4000 }); }
+    finally { setDownloadingId(null); }
   };
 
-  const filteredBookings = bookings.filter(booking =>
-    ['customer_name', 'order_id', 'total'].some(key =>
-      booking[key]?.toString().toLowerCase().includes(searchQuery.toLowerCase())
-    )
-  );
-
-  const indexOfLastOrder = currentPage * ordersPerPage;
-  const indexOfFirstOrder = indexOfLastOrder - ordersPerPage;
-  const currentOrders = filteredBookings.slice(indexOfFirstOrder, indexOfLastOrder);
-  const totalPages = Math.ceil(filteredBookings.length / ordersPerPage);
-
-  // Pagination logic to show only 3 page numbers
-  const getVisiblePages = () => {
-    const maxVisiblePages = 3;
-    let startPage = Math.max(1, currentPage - Math.floor(maxVisiblePages / 2));
-    let endPage = Math.min(totalPages, startPage + maxVisiblePages - 1);
-
-    // Adjust startPage if endPage reaches totalPages
-    if (endPage - startPage < maxVisiblePages - 1) {
-      startPage = Math.max(1, endPage - maxVisiblePages + 1);
-    }
-
-    return Array.from({ length: endPage - startPage + 1 }, (_, i) => startPage + i);
-  };
-
-  const renderInput = (value, onChange, placeholder) => (
-    <input
-      type="text"
-      value={value}
-      onChange={onChange}
-      placeholder={placeholder}
-      className="w-full p-3 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-900 border-gray-300 dark:border-gray-600 focus:outline-none focus:ring-2 focus:ring-indigo-600 dark:focus:ring-blue-500 mobile:p-2 mobile:text-sm"
-      style={{ background: styles.input.background, backgroundDark: styles.input.backgroundDark, border: styles.input.border, borderDark: styles.input.borderDark, backdropFilter: styles.input.backdropFilter }}
-    />
-  );
-
-  const renderSelect = (value, onChange, options, placeholder) => (
-    <select
-      value={value}
-      onChange={onChange}
-      className="w-48 p-3 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-900 border-gray-300 dark:border-gray-600 focus:outline-none focus:ring-2 focus:ring-indigo-600 dark:focus:ring-blue-500 mobile:p-2 mobile:text-sm"
-      style={{ background: styles.input.background, backgroundDark: styles.input.backgroundDark, border: styles.input.border, borderDark: styles.input.borderDark, backdropFilter: styles.input.backdropFilter }}
-    >
-      <option value="">{placeholder}</option>
-      {options.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
-    </select>
-  );
+  const filtered = bookings.filter(b => ['customer_name', 'order_id', 'total'].some(k => b[k]?.toString().toLowerCase().includes(searchQuery.toLowerCase())));
+  const totalPages = Math.ceil(filtered.length / ordersPerPage);
+  const current = filtered.slice((currentPage - 1) * ordersPerPage, currentPage * ordersPerPage);
+  const getPages = () => { const max = 3, start = Math.max(1, Math.min(currentPage - 1, totalPages - max + 1)), end = Math.min(totalPages, start + max - 1); return Array.from({ length: end - start + 1 }, (_, i) => start + i); };
 
   return (
-    <div className="flex min-h-screen bg-gray-50 dark:bg-gray-900">
+    <div className="flex min-h-screen bg-[#f5f6f8]">
       <Sidebar />
       <Logout />
-      <div className="flex-1 flex items-start justify-center p-6 mobile:overflow-hidden onefifty:ml-[0%] hundred:ml-[15%] mobile:ml-[0%]">
-        <div className="w-full max-w-5xl mobile:p-4">
-          <h1 className="text-4xl font-bold mb-8 text-center text-gray-800 dark:text-gray-100 mobile:text-2xl">Dispatch Customers</h1>
-          {error && (
-            <div className="bg-red-100 dark:bg-red-900 border border-red-400 dark:border-red-700 text-red-700 dark:text-red-200 px-6 py-3 rounded-lg mb-6 text-center shadow-md mobile:text-sm mobile:px-3 mobile:py-2">
-              {error}
+      <div className="hundred:ml-64 mobile:ml-0 flex-1 hundred:px-8 mobile:px-4 pt-8 pb-16">
+        <div className="max-w-5xl mx-auto space-y-6">
+
+          {/* Header */}
+          <div className="flex items-end justify-between pb-2 border-b border-gray-200">
+            <div>
+              <p className="text-[11px] font-bold uppercase tracking-[0.12em] text-blue-500 mb-0.5">Logistics</p>
+              <h1 className="text-2xl font-extrabold text-gray-900 tracking-tight leading-none">Dispatch Customers</h1>
             </div>
-          )}
-          {successMessage && (
-            <div className="bg-green-100 dark:bg-green-900 border border-green-400 dark:border-green-700 text-green-700 dark:text-green-200 px-6 py-3 rounded-lg mb-6 text-center shadow-md mobile:text-sm mobile:px-3 mobile:py-2">
-              {successMessage}
-            </div>
-          )}
-          <div className="mb-6 flex justify-center gap-4 flex-wrap mobile:gap-2">
-            {renderSelect(filterStatus, e => setFilterStatus(e.target.value), [
-              { value: 'paid', label: 'Paid' },
-              { value: 'packed', label: 'Packed' },
-              { value: 'dispatched', label: 'Dispatched' },
-              { value: 'delivered', label: 'Delivered' }
-            ], 'All Statuses')}
-            {renderInput(searchQuery, e => setSearchQuery(e.target.value), 'Search by Name, Order ID, or Total')}
+            <p className="text-xs text-gray-400 mb-0.5">{filtered.length} booking{filtered.length !== 1 ? 's' : ''}</p>
           </div>
-          <div className="grid mobile:grid-cols-1 onefifty:grid-cols-2 hundred:grid-cols-3 gap-6 mobile:gap-4">
-            {currentOrders.length > 0 ? (
-              currentOrders.map((booking, index) => (
-                <div key={booking.id} className="bg-white dark:bg-gray-900 p-6 rounded-lg shadow-md border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800 mobile:p-4">
-                  <div className="text-sm text-gray-600 dark:text-gray-400 mb-2">#{indexOfFirstOrder + index + 1}</div>
-                  <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-100 mb-2">{booking.customer_name || 'N/A'}</h3>
-                  <p className="text-gray-700 dark:text-gray-300">
-                    <strong>Contact:</strong>{" "}
-                    <a href={`tel:${booking.mobile_number}`} className="text-blue-600 hover:underline">
-                      {booking.mobile_number}
-                    </a>
-                  </p>
-                  <p className="text-gray-700 dark:text-gray-300"><strong>Order ID:</strong> {booking.order_id || 'N/A'}</p>
-                  <p className="text-gray-700 dark:text-gray-300"><strong>District:</strong> {booking.district || 'N/A'}</p>
-                  <p className="text-gray-700 dark:text-gray-300"><strong>State:</strong> {booking.state || 'N/A'}</p>
-                  <p className="text-gray-700 dark:text-gray-300"><strong>Status:</strong> {booking.status}</p>
-                  <div className="mt-4 flex flex-col gap-2">
-                    {renderSelect(booking.status, e => handleStatusChange(booking.id, e.target.value), [
-                      { value: 'paid', label: 'Paid' },
-                      { value: 'packed', label: 'Packed' },
-                      { value: 'dispatched', label: 'Dispatched' },
-                      { value: 'delivered', label: 'Delivered' }
-                    ], 'Update Status')}
-                    <button
-                      onClick={() => generatePDF(booking)}
-                      className="flex items-center justify-center px-4 py-2 text-sm text-white rounded-lg hover:bg-indigo-700 dark:hover:bg-blue-600 mobile:text-sm"
-                      style={{ background: styles.button.background, backgroundDark: styles.button.backgroundDark, border: styles.button.border, borderDark: styles.button.borderDark, boxShadow: styles.button.boxShadow, boxShadowDark: styles.button.boxShadowDark }}
-                    >
-                      <FaDownload className="mr-2" /> Download
-                    </button>
-                  </div>
+
+          {error && <div className="flex items-start gap-2 bg-red-50 border border-red-200 rounded-lg px-4 py-3 text-sm text-red-700"><span className="font-bold text-red-400 mt-0.5">⚠</span>{error}</div>}
+          {successMessage && <div className="flex items-center gap-2 bg-emerald-50 border border-emerald-200 rounded-lg px-4 py-3 text-sm text-emerald-700 font-medium"><span>✓</span>{successMessage}</div>}
+
+          {pageLoading ? <PageLoader /> : (
+            <>
+              {/* Filters */}
+              <div className="flex flex-wrap gap-3">
+                <select value={filterStatus} onChange={e => { setFilterStatus(e.target.value); setCurrentPage(1); }} className={`${selectCls} w-44`}>
+                  <option value="">All Statuses</option>
+                  {['paid','packed','dispatched','delivered'].map(s => <option key={s} value={s} className="capitalize">{s.charAt(0).toUpperCase()+s.slice(1)}</option>)}
+                </select>
+                <div className="relative flex-1 min-w-[200px]">
+                  <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
+                  <input type="text" placeholder="Search by name, order ID or total…" value={searchQuery} onChange={e => { setSearchQuery(e.target.value); setCurrentPage(1); }} className={`${inputCls} pl-9`} />
                 </div>
-              ))
-            ) : (
-              <div className="col-span-full text-center text-gray-600 dark:text-gray-400 p-4 mobile:text-sm">No bookings found</div>
-            )}
-          </div>
-          {totalPages > 1 && (
-            <div className="mt-6 flex justify-center space-x-2 mobile:space-x-1">
-              <button
-                onClick={() => setCurrentPage(1)}
-                disabled={currentPage === 1}
-                className="px-4 py-2 rounded-lg text-white disabled:bg-gray-400 dark:disabled:bg-gray-700 hover:bg-indigo-700 dark:hover:bg-blue-600 mobile:px-2 mobile:py-1 mobile:text-sm"
-                style={{ background: styles.button.background, backgroundDark: styles.button.backgroundDark, border: styles.button.border, borderDark: styles.button.borderDark, boxShadow: styles.button.boxShadow, boxShadowDark: styles.button.boxShadowDark }}
-              >
-                First
-              </button>
-              <button
-                onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
-                disabled={currentPage === 1}
-                className="px-4 py-2 rounded-lg text-white disabled:bg-gray-400 dark:disabled:bg-gray-700 hover:bg-indigo-700 dark:hover:bg-blue-600 mobile:px-2 mobile:py-1 mobile:text-sm"
-                style={{ background: styles.button.background, backgroundDark: styles.button.backgroundDark, border: styles.button.border, borderDark: styles.button.borderDark, boxShadow: styles.button.boxShadow, boxShadowDark: styles.button.boxShadowDark }}
-              >
-                Previous
-              </button>
-              {getVisiblePages().map(page => (
-                <button
-                  key={page}
-                  onClick={() => setCurrentPage(page)}
-                  className={`px-4 py-2 rounded-lg ${currentPage === page ? 'bg-indigo-600 dark:bg-blue-600 text-white' : 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-100 hover:bg-gray-300 dark:hover:bg-gray-600'} mobile:px-2 mobile:py-1 mobile:text-sm`}
-                >
-                  {page}
-                </button>
-              ))}
-              <button
-                onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
-                disabled={currentPage === totalPages}
-                className="px-4 py-2 rounded-lg text-white disabled:bg-gray-400 dark:disabled:bg-gray-700 hover:bg-indigo-700 dark:hover:bg-blue-600 mobile:px-2 mobile:py-1 mobile:text-sm"
-                style={{ background: styles.button.background, backgroundDark: styles.button.backgroundDark, border: styles.button.border, borderDark: styles.button.borderDark, boxShadow: styles.button.boxShadow, boxShadowDark: styles.button.boxShadowDark }}
-              >
-                Next
-              </button>
-              <button
-                onClick={() => setCurrentPage(totalPages)}
-                disabled={currentPage === totalPages}
-                className="px-4 py-2 rounded-lg text-white disabled:bg-gray-400 dark:disabled:bg-gray-700 hover:bg-indigo-700 dark:hover:bg-blue-600 mobile:px-2 mobile:py-1 mobile:text-sm"
-                style={{ background: styles.button.background, backgroundDark: styles.button.backgroundDark, border: styles.button.border, borderDark: styles.button.borderDark, boxShadow: styles.button.boxShadow, boxShadowDark: styles.button.boxShadowDark }}
-              >
-                Last
-              </button>
-            </div>
-          )}
-          {isModalOpen && (
-            <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 mobile:p-5">
-              <div className="bg-white dark:bg-gray-900 p-6 rounded-xl shadow-2xl w-full max-w-md border border-gray-200 dark:border-gray-700">
-                <h2 className="text-2xl font-bold mb-6 text-gray-800 dark:text-gray-100">Transport Details</h2>
-                <form onSubmit={handleModalSubmit} className="space-y-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Transport Name *</label>
-                    {renderInput(transportDetails.transportName, e => setTransportDetails({ ...transportDetails, transportName: e.target.value }), 'Enter transport name')}
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">LR Number *</label>
-                    {renderInput(transportDetails.lrNumber, e => setTransportDetails({ ...transportDetails, lrNumber: e.target.value }), 'Enter LR number')}
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Transport Contact (Optional)</label>
-                    {renderInput(transportDetails.transportContact, e => setTransportDetails({ ...transportDetails, transportContact: e.target.value }), 'Enter contact number')}
-                  </div>
-                  <div className="flex justify-end space-x-3">
-                    <button
-                      type="button"
-                      onClick={handleModalClose}
-                      className="px-4 py-2 rounded-lg bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-100 hover:bg-gray-300 dark:hover:bg-gray-600 mobile:px-2 mobile:py-1 mobile:text-sm"
-                    >
-                      Cancel
-                    </button>
-                    <button
-                      type="submit"
-                      className="px-4 py-2 rounded-lg text-white hover:bg-indigo-700 dark:hover:bg-blue-600 mobile:px-2 mobile:py-1 mobile:text-sm"
-                      style={{ background: styles.button.background, backgroundDark: styles.button.backgroundDark, border: styles.button.border, borderDark: styles.button.borderDark, boxShadow: styles.button.boxShadow, boxShadowDark: styles.button.boxShadowDark }}
-                    >
-                      Submit
-                    </button>
-                  </div>
-                </form>
               </div>
-            </div>
+
+              {/* Cards */}
+              {current.length > 0 ? (
+                <div className="grid hundred:grid-cols-3 mobile:grid-cols-1 gap-4">
+                  {current.map((booking, i) => (
+                    <div key={booking.id} className="bg-white border border-gray-200 rounded-xl p-4 hover:border-blue-300 hover:shadow-md transition-all duration-200 space-y-3">
+                      <div className="flex justify-between items-start">
+                        <div>
+                          <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-0.5">#{(currentPage-1)*ordersPerPage+i+1}</p>
+                          <h3 className="text-sm font-bold text-gray-800 leading-tight">{booking.customer_name || 'N/A'}</h3>
+                        </div>
+                        <span className={`inline-flex items-center gap-1.5 text-[10px] font-semibold px-2 py-1 rounded-md border ${STATUS_COLORS[booking.status] || 'bg-gray-100 text-gray-500 border-gray-200'}`}>
+                          <span className={`w-1.5 h-1.5 rounded-full ${STATUS_DOTS[booking.status] || 'bg-gray-400'}`} />
+                          {booking.status}
+                        </span>
+                      </div>
+                      <div className="space-y-1 text-xs">
+                        {[['Contact', <a href={`tel:${booking.mobile_number}`} className="text-blue-600 hover:underline">{booking.mobile_number}</a>], ['Order ID', booking.order_id || 'N/A'], ['District', booking.district || 'N/A'], ['State', booking.state || 'N/A']].map(([label, value]) => (
+                          <div key={label} className="flex justify-between gap-2">
+                            <span className="text-gray-400 font-semibold">{label}</span>
+                            <span className="text-gray-700 font-medium text-right">{value}</span>
+                          </div>
+                        ))}
+                      </div>
+                      <div className="pt-2 border-t border-gray-100 space-y-2">
+                        <div className="relative">
+                          {updatingStatusId === booking.id && (
+                            <div className="absolute inset-0 flex items-center justify-center bg-white/70 rounded-lg z-10">
+                              <Spinner color="text-blue-500" />
+                            </div>
+                          )}
+                          <select
+                            value={booking.status}
+                            onChange={e => handleStatusChange(booking.id, e.target.value)}
+                            disabled={updatingStatusId === booking.id}
+                            className={selectCls}
+                          >
+                            {['paid','packed','dispatched','delivered'].map(s => <option key={s} value={s} className="capitalize">{s.charAt(0).toUpperCase()+s.slice(1)}</option>)}
+                          </select>
+                        </div>
+                        <button
+                          onClick={() => generatePDF(booking)}
+                          disabled={downloadingId === booking.id}
+                          className={`w-full flex items-center justify-center gap-2 h-8 rounded-lg border text-xs font-semibold transition-all duration-150
+                            ${downloadingId === booking.id
+                              ? 'bg-gray-100 border-gray-200 text-gray-400 cursor-not-allowed'
+                              : 'border-gray-200 bg-white text-gray-600 hover:bg-blue-600 hover:text-white hover:border-blue-600'}`}
+                        >
+                          {downloadingId === booking.id ? <><Spinner color="text-gray-400" />Downloading…</> : <><FaDownload className="text-[10px]" /> Download Invoice</>}
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="bg-white border-2 border-dashed border-gray-200 rounded-xl py-16 text-center">
+                  <div className="text-3xl mb-3 opacity-30">📦</div>
+                  <p className="text-sm text-gray-400 font-medium">No bookings found</p>
+                </div>
+              )}
+
+              {/* Pagination */}
+              {totalPages > 1 && (
+                <div className="flex justify-center gap-1.5">
+                  {[{ label: '«', action: () => setCurrentPage(1), disabled: currentPage === 1 },
+                    { label: '‹', action: () => setCurrentPage(p => Math.max(p-1,1)), disabled: currentPage === 1 }].map(({label,action,disabled}) => (
+                    <button key={label} onClick={action} disabled={disabled} className={`min-w-[32px] h-8 rounded-md border text-xs font-bold transition-all ${disabled ? 'bg-gray-50 border-gray-200 text-gray-300 cursor-not-allowed' : 'bg-white border-gray-200 text-gray-600 hover:border-blue-400 hover:text-blue-600'}`}>{label}</button>
+                  ))}
+                  {getPages().map(page => (
+                    <button key={page} onClick={() => setCurrentPage(page)} className={`min-w-[32px] h-8 rounded-md border text-xs font-bold transition-all ${currentPage === page ? 'bg-blue-600 border-blue-600 text-white shadow-sm' : 'bg-white border-gray-200 text-gray-600 hover:border-blue-400 hover:text-blue-600'}`}>{page}</button>
+                  ))}
+                  {[{ label: '›', action: () => setCurrentPage(p => Math.min(p+1,totalPages)), disabled: currentPage === totalPages },
+                    { label: '»', action: () => setCurrentPage(totalPages), disabled: currentPage === totalPages }].map(({label,action,disabled}) => (
+                    <button key={label} onClick={action} disabled={disabled} className={`min-w-[32px] h-8 rounded-md border text-xs font-bold transition-all ${disabled ? 'bg-gray-50 border-gray-200 text-gray-300 cursor-not-allowed' : 'bg-white border-gray-200 text-gray-600 hover:border-blue-400 hover:text-blue-600'}`}>{label}</button>
+                  ))}
+                </div>
+              )}
+            </>
           )}
         </div>
       </div>
-      <style>{`
-        [style*="backgroundDark"] { background: var(--bg, ${styles.input.background}); }
-        [style*="backgroundDark"][data-dark] { --bg: ${styles.input.backgroundDark}; }
-        [style*="borderDark"] { border: var(--border, ${styles.input.border}); }
-        [style*="borderDark"][data-dark] { --border: ${styles.input.borderDark}; }
-        [style*="boxShadowDark"] { box-shadow: var(--shadow, ${styles.button.boxShadow}); }
-        [style*="boxShadowDark"][data-dark] { --shadow: ${styles.button.boxShadowDark}; }
-      `}</style>
+
+      {/* Transport modal */}
+      {isModalOpen && (
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-2xl max-w-md w-full overflow-hidden">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+              <h2 className="text-base font-bold text-gray-800">Transport Details</h2>
+              <button onClick={() => { setIsModalOpen(false); setTransportDetails({ transportName: '', lrNumber: '', transportContact: '' }); }} className="w-7 h-7 rounded-lg bg-gray-100 flex items-center justify-center text-gray-400 hover:bg-gray-200 text-sm font-bold">✕</button>
+            </div>
+            <form onSubmit={handleModalSubmit} className="p-6 space-y-4">
+              {[
+                { label: 'Transport Name', key: 'transportName', required: true, placeholder: 'Enter transport company' },
+                { label: 'LR Number', key: 'lrNumber', required: true, placeholder: 'Enter LR number' },
+                { label: 'Transport Contact (Optional)', key: 'transportContact', required: false, placeholder: 'Enter contact number' },
+              ].map(({ label, key, required, placeholder }) => (
+                <div key={key}>
+                  <label className="block text-[11px] font-bold uppercase tracking-widest text-gray-400 mb-1.5">{label}{required && <span className="text-red-400 ml-0.5">*</span>}</label>
+                  <input type="text" value={transportDetails[key]} onChange={e => setTransportDetails({ ...transportDetails, [key]: e.target.value })} placeholder={placeholder} required={required} className={inputCls} />
+                </div>
+              ))}
+              {error && <p className="text-xs text-red-600">{error}</p>}
+              <div className="flex justify-end gap-2 pt-1">
+                <button type="button" onClick={() => { setIsModalOpen(false); setTransportDetails({ transportName: '', lrNumber: '', transportContact: '' }); }} className="px-4 py-2 rounded-lg border border-gray-200 bg-white text-sm font-semibold text-gray-600 hover:bg-gray-50 transition-colors">Cancel</button>
+                <button type="submit" disabled={modalSubmitting} className={`px-5 py-2 rounded-lg text-sm font-bold text-white shadow-sm transition-colors flex items-center gap-2 ${modalSubmitting ? 'bg-blue-400 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700'}`}>
+                  {modalSubmitting ? <><Spinner />Saving…</> : 'Confirm Dispatch'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
