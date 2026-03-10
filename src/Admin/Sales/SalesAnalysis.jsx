@@ -5,7 +5,22 @@ import { API_BASE_URL } from '../../../Config';
 import Sidebar from '../Sidebar/Sidebar';
 import Logout from '../Logout';
 
-// Error Boundary Component — unchanged
+const Spinner = ({ size = 'sm', color = 'text-white' }) => (
+  <svg className={`animate-spin ${size === 'sm' ? 'w-4 h-4' : 'w-8 h-8'} ${color}`} fill="none" viewBox="0 0 24 24">
+    <circle className="opacity-20" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3"/>
+    <path className="opacity-80" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
+  </svg>
+);
+
+const PageLoader = () => (
+  <div className="flex items-center justify-center min-h-[60vh]">
+    <div className="flex flex-col items-center gap-3">
+      <Spinner size="lg" color="text-blue-500" />
+      <p className="text-sm text-gray-400 font-medium">Loading…</p>
+    </div>
+  </div>
+);
+
 class ErrorBoundary extends React.Component {
   state = { hasError: false, error: null };
   static getDerivedStateFromError(error) { return { hasError: true, error }; }
@@ -29,8 +44,6 @@ export default function SalesAnalysis() {
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 20;
   const chartsRef = useRef({});
-
-  // ── all original logic/API calls/charts unchanged ─────────────────────────
 
   useEffect(() => {
     const fetchSalesData = async () => {
@@ -141,19 +154,19 @@ export default function SalesAnalysis() {
     return () => { Object.values(chartsRef.current).forEach(chart => chart?.destroy()); };
   }, []);
 
-  // ── shared table style ────────────────────────────────────────────────────
-  const thCls = "px-4 py-3 text-left text-[11px] font-bold uppercase tracking-widest text-gray-400 border-b border-gray-100";
-  const tdCls = "px-4 py-3 text-sm text-gray-700 border-b border-gray-100";
-  const tdRCls = "px-4 py-3 text-sm text-gray-700 border-b border-gray-100 text-right";
+  // shared table styles
+  const thCls = "px-3 py-3 text-left text-[11px] font-bold uppercase tracking-widest text-gray-400 border-b border-gray-100";
+  const tdCls = "px-3 py-3 text-sm text-gray-700 border-b border-gray-100";
+  const tdRCls = "px-3 py-3 text-sm text-gray-700 border-b border-gray-100 text-right tabular-nums";
   const sectionCard = "bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden";
-  const sectionHeader = "px-6 py-4 border-b border-gray-100 bg-gray-50/70";
+  const sectionHeader = "px-4 py-4 border-b border-gray-100 bg-gray-50/70";
 
   return (
     <ErrorBoundary>
       <div className="flex min-h-screen bg-[#f5f6f8]">
         <Sidebar />
         <Logout />
-        <div className="flex-1 hundred:px-8 mobile:px-4 pt-8 pb-16">
+        <div className="flex-1 hundred:ml-64 mobile:ml-0 hundred:px-8 mobile:px-4 pt-8 pb-16">
           <div className="max-w-5xl mx-auto space-y-6">
 
             {/* Header */}
@@ -162,26 +175,31 @@ export default function SalesAnalysis() {
               <h1 className="text-2xl font-extrabold text-gray-900 tracking-tight">Market Analysis Report</h1>
             </div>
 
-            {loading && (
-              <div className="flex justify-center py-16">
-                <div className="w-8 h-8 rounded-full border-4 border-blue-200 border-t-blue-600 animate-spin" />
-              </div>
-            )}
-
+            {loading && <PageLoader />}
             {error && <div className="px-4 py-3 rounded-lg border bg-red-50 border-red-200 text-red-700 text-sm">{error}</div>}
 
-            {salesData && (
+            {!loading && salesData && (
               <div className="space-y-6">
 
                 {/* Sales Trends */}
                 <div className={sectionCard}>
                   <div className={sectionHeader}><h2 className="text-sm font-bold text-gray-700">Sales Trends Over Time</h2></div>
-                  <div className="p-5">
-                    <div className="h-64 mb-5"><canvas id="salesTrendChart" className="w-full h-full" /></div>
-                    {!salesData.trends?.length && !loading && <p className="text-sm text-gray-400 text-center">No trends data available</p>}
-                    <div className="overflow-x-auto">
-                      <table className="min-w-full">
-                        <thead><tr>{["Month", "Sales Volume", "Total Amount", "Amount Paid"].map(h => <th key={h} className={thCls}>{h}</th>)}</tr></thead>
+                  <div className="p-4">
+                    {/* Chart — shorter on mobile */}
+                    <div className="mobile:h-48 hundred:h-64 mb-5">
+                      <canvas id="salesTrendChart" className="w-full h-full" />
+                    </div>
+                    {!salesData.trends?.length && <p className="text-sm text-gray-400 text-center mb-4">No trends data available</p>}
+                    <div className="overflow-x-auto -mx-4 px-4">
+                      <table className="max-w-full w-full">
+                        <thead>
+                          <tr>
+                            <th className={thCls}>Month</th>
+                            <th className={thCls}>Volume</th>
+                            <th className={`${thCls} text-right`}>Total Amount</th>
+                            <th className={`${thCls} text-right`}>Amount Paid</th>
+                          </tr>
+                        </thead>
                         <tbody>
                           {salesData.trends.length > 0 ? salesData.trends.map((t, i) => (
                             <tr key={i} className="hover:bg-gray-50 transition-colors">
@@ -190,7 +208,7 @@ export default function SalesAnalysis() {
                               <td className={tdRCls}>₹{formatValue(t.total_amount)}</td>
                               <td className={tdRCls}>₹{formatValue(t.amount_paid)}</td>
                             </tr>
-                          )) : <tr><td colSpan="4" className="px-4 py-6 text-center text-sm text-gray-400">No data available</td></tr>}
+                          )) : <tr><td colSpan="4" className="px-3 py-6 text-center text-sm text-gray-400">No data available</td></tr>}
                         </tbody>
                       </table>
                     </div>
@@ -200,22 +218,27 @@ export default function SalesAnalysis() {
                 {/* Product Performance */}
                 <div className={sectionCard}>
                   <div className={sectionHeader}><h2 className="text-sm font-bold text-gray-700">Product Performance</h2></div>
-                  <div className="p-5">
-                    <div className="overflow-x-auto">
-                      <table className="min-w-full">
-                        <thead><tr><th className={thCls}>Product</th><th className={`${thCls} text-right`}>Units Sold</th></tr></thead>
+                  <div className="p-4">
+                    <div className="overflow-x-auto -mx-4 px-4">
+                      <table className="max-w-full w-full">
+                        <thead>
+                          <tr>
+                            <th className={thCls}>Product</th>
+                            <th className={`${thCls} text-right`}>Units Sold</th>
+                          </tr>
+                        </thead>
                         <tbody>
                           {currentProducts.length > 0 ? currentProducts.map((p, i) => (
                             <tr key={i} className="hover:bg-gray-50 transition-colors">
                               <td className={tdCls}>{p.productname}</td>
                               <td className={tdRCls}>{p.quantity}</td>
                             </tr>
-                          )) : <tr><td colSpan="2" className="px-4 py-6 text-center text-sm text-gray-400">No data available</td></tr>}
+                          )) : <tr><td colSpan="2" className="px-3 py-6 text-center text-sm text-gray-400">No data available</td></tr>}
                         </tbody>
                       </table>
                     </div>
                     {totalPages > 1 && (
-                      <div className="mt-4 flex justify-center gap-2">
+                      <div className="mt-4 flex justify-center gap-2 flex-wrap">
                         <button onClick={() => paginate(currentPage - 1)} disabled={currentPage === 1}
                           className={`h-8 px-3 rounded-lg text-sm font-semibold transition-all ${currentPage === 1 ? 'bg-gray-100 text-gray-300 cursor-not-allowed' : 'bg-white border border-gray-200 text-gray-600 hover:bg-gray-50'}`}>
                           Previous
@@ -238,11 +261,19 @@ export default function SalesAnalysis() {
                 {/* Regional Demand */}
                 <div className={sectionCard}>
                   <div className={sectionHeader}><h2 className="text-sm font-bold text-gray-700">Regional Demand</h2></div>
-                  <div className="p-5">
-                    <div className="h-64 mb-5"><canvas id="regionalDemandChart" className="w-full h-full" /></div>
-                    <div className="overflow-x-auto">
-                      <table className="min-w-full">
-                        <thead><tr><th className={thCls}>District</th><th className={`${thCls} text-right`}>Bookings</th><th className={`${thCls} text-right`}>Total Amount</th></tr></thead>
+                  <div className="p-4">
+                    <div className="mobile:h-48 hundred:h-64 mb-5">
+                      <canvas id="regionalDemandChart" className="w-full h-full" />
+                    </div>
+                    <div className="overflow-x-auto -mx-4 px-4">
+                      <table className="max-w-full w-full">
+                        <thead>
+                          <tr>
+                            <th className={thCls}>District</th>
+                            <th className={`${thCls} text-right`}>Bookings</th>
+                            <th className={`${thCls} text-right`}>Total Amount</th>
+                          </tr>
+                        </thead>
                         <tbody>
                           {salesData.cities.length > 0 ? salesData.cities.map((c, i) => (
                             <tr key={i} className="hover:bg-gray-50 transition-colors">
@@ -250,7 +281,7 @@ export default function SalesAnalysis() {
                               <td className={tdRCls}>{c.count}</td>
                               <td className={tdRCls}>₹{formatValue(c.total_amount)}</td>
                             </tr>
-                          )) : <tr><td colSpan="3" className="px-4 py-6 text-center text-sm text-gray-400">No data available</td></tr>}
+                          )) : <tr><td colSpan="3" className="px-3 py-6 text-center text-sm text-gray-400">No data available</td></tr>}
                         </tbody>
                       </table>
                     </div>
@@ -260,33 +291,49 @@ export default function SalesAnalysis() {
                 {/* Profitability */}
                 <div className={sectionCard}>
                   <div className={sectionHeader}><h2 className="text-sm font-bold text-gray-700">Profitability Analysis</h2></div>
-                  <div className="p-5 overflow-x-auto">
-                    <table className="min-w-full">
-                      <thead><tr><th className={thCls}>Metric</th><th className={`${thCls} text-right`}>Value</th></tr></thead>
-                      <tbody>
-                        {[
-                          ['Total Amount (from Total Column)', salesData.profitability.total_amount],
-                          ['Amount Paid (from Amount Paid Column)', salesData.profitability.amount_paid],
-                          ['Unpaid Amount (Total - Paid)', salesData.profitability.unpaid_amount],
-                        ].map(([label, value]) => (
-                          <tr key={label} className="hover:bg-gray-50 transition-colors">
-                            <td className={tdCls}>{label}</td>
-                            <td className={tdRCls}>₹{formatValue(value)}</td>
+                  <div className="p-4">
+                    <div className="overflow-x-auto">
+                      <table className="max-w-full w-full">
+                        <thead>
+                          <tr>
+                            <th className={thCls}>Metric</th>
+                            <th className={`${thCls} text-right`}>Value</th>
                           </tr>
-                        ))}
-                      </tbody>
-                    </table>
+                        </thead>
+                        <tbody>
+                          {[
+                            ['Total Amount', salesData.profitability.total_amount],
+                            ['Amount Paid', salesData.profitability.amount_paid],
+                            ['Unpaid Amount', salesData.profitability.unpaid_amount],
+                          ].map(([label, value]) => (
+                            <tr key={label} className="hover:bg-gray-50 transition-colors">
+                              <td className={tdCls}>{label}</td>
+                              <td className={tdRCls}>₹{formatValue(value)}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
                   </div>
                 </div>
 
                 {/* Quotation Conversion */}
                 <div className={sectionCard}>
                   <div className={sectionHeader}><h2 className="text-sm font-bold text-gray-700">Quotation Conversion Rates</h2></div>
-                  <div className="p-5">
-                    <div className="h-64 mb-5"><canvas id="quotationChart" className="w-full h-full" /></div>
-                    <div className="overflow-x-auto">
-                      <table className="min-w-full">
-                        <thead><tr><th className={thCls}>Status</th><th className={`${thCls} text-right`}>Count</th><th className={`${thCls} text-right`}>Percentage</th><th className={`${thCls} text-right`}>Total Amount</th></tr></thead>
+                  <div className="p-4">
+                    <div className="mobile:h-48 hundred:h-64 mb-5">
+                      <canvas id="quotationChart" className="w-full h-full" />
+                    </div>
+                    <div className="overflow-x-auto -mx-4 px-4">
+                      <table className="max-w-full w-full">
+                        <thead>
+                          <tr>
+                            <th className={thCls}>Status</th>
+                            <th className={`${thCls} text-right`}>Count</th>
+                            <th className={`${thCls} text-right`}>%</th>
+                            <th className={`${thCls} text-right`}>Total Amount</th>
+                          </tr>
+                        </thead>
                         <tbody>
                           {['pending', 'booked', 'canceled'].map(status => {
                             const total = (salesData.quotations.pending?.count || 0) + (salesData.quotations.booked?.count || 0) + (salesData.quotations.canceled?.count || 0);
@@ -308,11 +355,19 @@ export default function SalesAnalysis() {
                 {/* Customer Type */}
                 <div className={sectionCard}>
                   <div className={sectionHeader}><h2 className="text-sm font-bold text-gray-700">Customer Type Analysis</h2></div>
-                  <div className="p-5">
-                    <div className="h-64 mb-5"><canvas id="customerTypeChart" className="w-full h-full" /></div>
-                    <div className="overflow-x-auto">
-                      <table className="min-w-full">
-                        <thead><tr><th className={thCls}>Customer Type</th><th className={`${thCls} text-right`}>Bookings</th><th className={`${thCls} text-right`}>Total Amount</th></tr></thead>
+                  <div className="p-4">
+                    <div className="mobile:h-48 hundred:h-64 mb-5">
+                      <canvas id="customerTypeChart" className="w-full h-full" />
+                    </div>
+                    <div className="overflow-x-auto -mx-4 px-4">
+                      <table className="max-w-full w-full">
+                        <thead>
+                          <tr>
+                            <th className={thCls}>Customer Type</th>
+                            <th className={`${thCls} text-right`}>Bookings</th>
+                            <th className={`${thCls} text-right`}>Total Amount</th>
+                          </tr>
+                        </thead>
                         <tbody>
                           {salesData.customer_types.length > 0 ? salesData.customer_types.map((ct, i) => (
                             <tr key={i} className="hover:bg-gray-50 transition-colors">
@@ -320,7 +375,7 @@ export default function SalesAnalysis() {
                               <td className={tdRCls}>{ct.count}</td>
                               <td className={tdRCls}>₹{formatValue(ct.total_amount)}</td>
                             </tr>
-                          )) : <tr><td colSpan="3" className="px-4 py-6 text-center text-sm text-gray-400">No data available</td></tr>}
+                          )) : <tr><td colSpan="3" className="px-3 py-6 text-center text-sm text-gray-400">No data available</td></tr>}
                         </tbody>
                       </table>
                     </div>
@@ -330,19 +385,27 @@ export default function SalesAnalysis() {
                 {/* Cancellations */}
                 <div className={sectionCard}>
                   <div className={sectionHeader}><h2 className="text-sm font-bold text-gray-700">Cancellations</h2></div>
-                  <div className="p-5 overflow-x-auto">
-                    <table className="min-w-full">
-                      <thead><tr><th className={thCls}>Order ID</th><th className={`${thCls} text-right`}>Total</th><th className={thCls}>Date</th></tr></thead>
-                      <tbody>
-                        {salesData.cancellations.length > 0 ? salesData.cancellations.map((c, i) => (
-                          <tr key={i} className="hover:bg-gray-50 transition-colors">
-                            <td className={tdCls}>{c.order_id}</td>
-                            <td className={tdRCls}>₹{formatValue(c.total)}</td>
-                            <td className={tdCls}>{new Date(c.created_at).toLocaleDateString('en-GB')}</td>
+                  <div className="p-4">
+                    <div className="overflow-x-auto -mx-4 px-4">
+                      <table className="max-w-full w-full">
+                        <thead>
+                          <tr>
+                            <th className={thCls}>Order ID</th>
+                            <th className={`${thCls} text-right`}>Total</th>
+                            <th className={thCls}>Date</th>
                           </tr>
-                        )) : <tr><td colSpan="3" className="px-4 py-6 text-center text-sm text-gray-400">No cancellations</td></tr>}
-                      </tbody>
-                    </table>
+                        </thead>
+                        <tbody>
+                          {salesData.cancellations.length > 0 ? salesData.cancellations.map((c, i) => (
+                            <tr key={i} className="hover:bg-gray-50 transition-colors">
+                              <td className={`${tdCls} font-mono text-xs`}>{c.order_id}</td>
+                              <td className={tdRCls}>₹{formatValue(c.total)}</td>
+                              <td className={tdCls}>{new Date(c.created_at).toLocaleDateString('en-GB')}</td>
+                            </tr>
+                          )) : <tr><td colSpan="3" className="px-3 py-6 text-center text-sm text-gray-400">No cancellations</td></tr>}
+                        </tbody>
+                      </table>
+                    </div>
                   </div>
                 </div>
 

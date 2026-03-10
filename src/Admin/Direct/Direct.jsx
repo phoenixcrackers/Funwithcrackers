@@ -175,11 +175,10 @@ const CartInput = ({ value, onChange, onKeyDown, inputRef, accentCls, suffix }) 
   </div>
 );
 
-// ─── QuotationTable ───────────────────────────────────────────────────────────
 const QuotationTable = ({
   cart = [], products = [], selectedProduct, setSelectedProduct,
   addToCart, updateQuantity, updateDiscount, updatePrice, removeFromCart,
-  calculateNetRate, calculateYouSave, calculateProcessingFee, calculateTotal,
+  calculateNetRate, calculateYouSave, calculateTotal,
   isModal = false, additionalDiscount, setAdditionalDiscount,
   changeDiscount, setChangeDiscount, openNewProductModal,
   lastAddedProduct, setLastAddedProduct, setCart, setModalCart,
@@ -210,10 +209,9 @@ const QuotationTable = ({
 
   return (
     <div className="space-y-4">
-
-      {/* ── Product search bar ── */}
+      {/* Product search + buttons */}
       <div className="flex flex-wrap gap-2 items-end">
-        <div className="flex-1 min-w-[220px]">
+        <div className="flex-1">
           <FieldLabel>Search & Add Product</FieldLabel>
           <Select
             ref={productSelectRef}
@@ -249,11 +247,11 @@ const QuotationTable = ({
         </button>
       </div>
 
-      {/* ── Discount controls ── */}
+      {/* Discount controls */}
       <div className="grid grid-cols-2 gap-3">
         {[
           { label: "Additional Discount", accent: "text-amber-500", value: additionalDiscount, onChange: (v) => setAdditionalDiscount(Math.max(0, Math.min(100, parseFloat(v) || 0))), focusCls: "focus:border-amber-400 focus:ring-2 focus:ring-amber-100" },
-          { label: "Bulk Change Discount", accent: "text-blue-500",  value: changeDiscount,    onChange: handleChangeDiscount,   focusCls: "focus:border-blue-400 focus:ring-2 focus:ring-blue-100" },
+          { label: "Bulk Change Discount", accent: "text-blue-500", value: changeDiscount, onChange: handleChangeDiscount, focusCls: "focus:border-blue-400 focus:ring-2 focus:ring-blue-100" },
         ].map(({ label, accent, value, onChange, focusCls }) => (
           <div key={label} className="bg-white border border-gray-200 rounded-lg p-3">
             <FieldLabel accent={accent}>{label} (%)</FieldLabel>
@@ -272,7 +270,7 @@ const QuotationTable = ({
         ))}
       </div>
 
-      {/* ── Cart table ── */}
+      {/* Cart table */}
       {cart.length === 0 ? (
         <div className="flex flex-col items-center justify-center gap-2 border-2 border-dashed border-gray-200 rounded-xl py-14 bg-gray-50">
           <span className="text-3xl opacity-40">🛒</span>
@@ -280,7 +278,7 @@ const QuotationTable = ({
         </div>
       ) : (
         <div className="border border-gray-200 rounded-xl overflow-hidden bg-white">
-          <div className="overflow-x-auto">
+          <div className="overflow-x-auto hundred:max-w-xl mobile:max-w-xs">
             <table className="w-full border-collapse text-sm">
               <thead>
                 <tr className="bg-gray-50 border-b border-gray-200">
@@ -343,16 +341,17 @@ const QuotationTable = ({
             </table>
           </div>
 
-          {/* Cart summary footer */}
+          {/* Updated summary – no Processing Fee */}
           <div className="bg-gray-50 border-t border-gray-200 px-4 py-3">
             <div className="flex justify-end items-end flex-wrap gap-5">
-              <SummaryChip label="Net Rate"          value={`₹${parseFloat(calculateNetRate(cart)).toLocaleString('en-IN',{minimumFractionDigits:2})}`} color="#64748b" />
-              <SummaryChip label="You Save"          value={`₹${parseFloat(calculateYouSave(cart)).toLocaleString('en-IN',{minimumFractionDigits:2})}`} color="#10b981" />
+              <SummaryChip label="Net Rate" value={`₹${parseFloat(calculateNetRate(cart)).toLocaleString('en-IN', { minimumFractionDigits: 2 })}`} color="#64748b" />
+              <SummaryChip label="You Save" value={`₹${parseFloat(calculateYouSave(cart)).toLocaleString('en-IN', { minimumFractionDigits: 2 })}`} color="#10b981" />
               {additionalDiscount > 0 && <SummaryChip label="Extra Discount" value={`${additionalDiscount}%`} color="#f59e0b" />}
-              <SummaryChip label="Processing Fee"    value={`₹${parseFloat(calculateProcessingFee(cart, additionalDiscount)).toLocaleString('en-IN',{minimumFractionDigits:2})}`} color="#94a3b8" />
               <div className="text-right pl-5 border-l border-gray-200">
                 <div className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-0.5">Grand Total</div>
-                <div className="text-2xl font-extrabold text-blue-600 tabular-nums">₹{total.toLocaleString('en-IN',{minimumFractionDigits:2})}</div>
+                <div className="text-2xl font-extrabold text-blue-600 tabular-nums">
+                  ₹{total.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                </div>
               </div>
             </div>
           </div>
@@ -739,8 +738,13 @@ export default function Direct() {
 
   const calculateNetRate = (targetCart = []) => targetCart.reduce((total, item) => total + getEffectivePrice(item) * item.quantity, 0).toFixed(2);
   const calculateYouSave = (targetCart = []) => targetCart.reduce((total, item) => total + getEffectivePrice(item) * (item.discount / 100) * item.quantity, 0).toFixed(2);
-  const calculateProcessingFee = (targetCart = [], additionalDiscount = 0) => { const subtotal = targetCart.reduce((total, item) => total + getEffectivePrice(item) * (1 - item.discount / 100) * item.quantity, 0); return (subtotal * (1 - additionalDiscount / 100) * 0.03).toFixed(2); };
-  const calculateTotal = (targetCart = [], additionalDiscount = 0) => { const subtotal = targetCart.reduce((total, item) => total + getEffectivePrice(item) * (1 - item.discount / 100) * item.quantity, 0); const discountedSubtotal = subtotal * (1 - additionalDiscount / 100); return (discountedSubtotal + discountedSubtotal * 0.01).toFixed(2); };
+
+  // Updated calculateTotal – no processing fee
+  const calculateTotal = (targetCart = [], additionalDiscount = 0) => {
+    const subtotal = targetCart.reduce((total, item) => total + getEffectivePrice(item) * (1 - item.discount / 100) * item.quantity, 0);
+    const discountedSubtotal = subtotal * (1 - additionalDiscount / 100);
+    return discountedSubtotal.toFixed(2);   // ← only discounted subtotal, no extra fees
+  };
 
   const createQuotation = async () => {
     if (!selectedCustomer || !cart.length) return setError("Customer and products are required");
@@ -947,12 +951,12 @@ export default function Direct() {
                     products={products} selectedProduct={selectedProduct} setSelectedProduct={setSelectedProduct}
                     addToCart={addToCart} updateQuantity={updateQuantity} updateDiscount={updateDiscount}
                     updatePrice={updatePrice} removeFromCart={removeFromCart}
-                    calculateNetRate={calculateNetRate} calculateYouSave={calculateYouSave}
-                    calculateProcessingFee={calculateProcessingFee} calculateTotal={calculateTotal}
+                    calculateNetRate={calculateNetRate} calculateYouSave={calculateYouSave}calculateTotal={calculateTotal}
                     styles={styles} additionalDiscount={additionalDiscount} setAdditionalDiscount={setAdditionalDiscount}
                     changeDiscount={changeDiscount} setChangeDiscount={setChangeDiscount}
                     openNewProductModal={openNewProductModal}
                     lastAddedProduct={lastAddedProduct} setLastAddedProduct={setLastAddedProduct}
+                    className="overflow-x-auto"
                   />
                 </QuotationTableErrorBoundary>
               </div>
@@ -1126,8 +1130,7 @@ export default function Direct() {
                 modalSelectedProduct={modalSelectedProduct} setModalSelectedProduct={setModalSelectedProduct}
                 addToCart={addToCart} updateQuantity={updateQuantity} updateDiscount={updateDiscount}
                 updatePrice={updatePrice} removeFromCart={removeFromCart}
-                calculateNetRate={calculateNetRate} calculateYouSave={calculateYouSave}
-                calculateProcessingFee={calculateProcessingFee} calculateTotal={calculateTotal}
+                calculateNetRate={calculateNetRate} calculateYouSave={calculateYouSave} calculateTotal={calculateTotal}
                 handleSubmit={modalMode === "edit" ? () => editQuotation() : () => convertToBooking()}
                 closeModal={closeModal} styles={styles}
                 modalAdditionalDiscount={modalAdditionalDiscount} setModalAdditionalDiscount={setModalAdditionalDiscount}
