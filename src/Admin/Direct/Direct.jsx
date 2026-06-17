@@ -278,7 +278,7 @@ const QuotationTable = ({
         </div>
       ) : (
         <div className="border border-gray-200 rounded-xl overflow-hidden bg-white">
-          <div className="overflow-x-auto hundred:max-w-xl mobile:max-w-xs">
+          <div className="overflow-x-auto hundred:max-w-full mobile:max-w-xs">
             <table className="w-full border-collapse text-sm">
               <thead>
                 <tr className="bg-gray-50 border-b border-gray-200">

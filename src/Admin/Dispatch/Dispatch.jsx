@@ -1,41 +1,35 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import axios from 'axios';
-import { FaDownload } from 'react-icons/fa';
+import { FaDownload, FaSearch } from 'react-icons/fa';
 import { toast } from 'react-toastify';
 import { API_BASE_URL } from '../../../Config';
 import Sidebar from '../Sidebar/Sidebar';
 import Logout from '../Logout';
 
-const Spinner = ({ size = 'sm', color = 'text-white' }) => (
-  <svg className={`animate-spin ${size === 'sm' ? 'w-4 h-4' : 'w-8 h-8'} ${color}`} fill="none" viewBox="0 0 24 24">
-    <circle className="opacity-20" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3"/>
-    <path className="opacity-80" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
-  </svg>
-);
+const PaginBtn = ({ label, onClick, disabled, active }) => (
+  <button onClick={onClick} disabled={disabled}
+    className={`px-4 py-2 rounded-lg border text-sm font-bold transition-all duration-150
+      ${active ? "bg-indigo-600 border-indigo-600 text-white"
+      : disabled ? "bg-slate-50 border-slate-200 text-slate-300 cursor-not-allowed"
+      : "bg-white border-slate-200 text-slate-800 hover:border-indigo-400 hover:text-indigo-600"}`}>
+    {label}
+  </button>
+)
 
-const PageLoader = () => (
-  <div className="flex items-center justify-center min-h-[60vh]">
-    <div className="flex flex-col items-center gap-3">
-      <Spinner size="lg" color="text-blue-500" />
-      <p className="text-sm text-gray-400 font-medium">Loading bookings…</p>
-    </div>
-  </div>
-);
+const inputCls = "w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm font-medium text-slate-800 bg-slate-50 outline-none focus:border-indigo-400 transition-colors box-border"
 
-const inputCls = "w-full h-9 px-3 rounded-lg border border-gray-200 bg-white text-sm text-gray-700 outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100 transition-all";
-const selectCls = "w-full h-9 px-3 rounded-lg border border-gray-200 bg-white text-sm text-gray-700 outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100 transition-all cursor-pointer";
-
-const STATUS_COLORS = {
-  paid:       'bg-emerald-50 text-emerald-700 border-emerald-200',
-  packed:     'bg-blue-50 text-blue-700 border-blue-200',
-  dispatched: 'bg-violet-50 text-violet-700 border-violet-200',
-  delivered:  'bg-gray-100 text-gray-600 border-gray-200',
-};
-const STATUS_DOTS = { paid: 'bg-emerald-400', packed: 'bg-blue-400', dispatched: 'bg-violet-400', delivered: 'bg-gray-400' };
+const statusColors = {
+  paid:       "text-amber-600 bg-amber-50 border-amber-200",
+  packed:     "text-sky-600 bg-sky-50 border-sky-200",
+  dispatched: "text-indigo-600 bg-indigo-50 border-indigo-200",
+  delivered:  "text-emerald-600 bg-emerald-50 border-emerald-200",
+}
 
 export default function Dispatch() {
   const [bookings, setBookings] = useState([]);
   const [filterStatus, setFilterStatus] = useState('');
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
   const [error, setError] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -43,213 +37,494 @@ export default function Dispatch() {
   const [searchQuery, setSearchQuery] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [transportDetails, setTransportDetails] = useState({ transportName: '', lrNumber: '', transportContact: '' });
-  const [pageLoading, setPageLoading] = useState(true);
-  const [downloadingId, setDownloadingId] = useState(null);
-  const [updatingStatusId, setUpdatingStatusId] = useState(null);
-  const [modalSubmitting, setModalSubmitting] = useState(false);
-  const ordersPerPage = 9;
+  const [showDownloadModal, setShowDownloadModal] = useState(false);
+  const [downloadTarget, setDownloadTarget] = useState(null);
+  const ordersPerPage = 10;
 
   useEffect(() => {
     const fetchBookings = async () => {
       try {
-        const allowed = ['paid', 'packed', 'dispatched', 'delivered'];
-        const statuses = filterStatus ? [filterStatus] : allowed;
-        const res = await axios.get(`${API_BASE_URL}/api/tracking/filtered-bookings`, { params: { status: statuses.join(',') } });
-        setBookings(res.data); setError(''); setCurrentPage(1);
-      } catch { setError('Failed to fetch bookings'); }
-      finally { setPageLoading(false); }
+        const allowedStatuses = ['paid', 'packed', 'dispatched', 'delivered'];
+        const statuses = filterStatus ? [filterStatus] : allowedStatuses;
+
+        const response = await axios.get(`${API_BASE_URL}/api/tracking/filtered-bookings`, {
+          params: { status: statuses.join(',') }
+        });
+
+        const sortedBookings = [...response.data].sort((a, b) => (b.id || 0) - (a.id || 0));
+        setBookings(sortedBookings);
+        setError('');
+      } catch {
+        setError('Failed to fetch bookings');
+      }
     };
+
     fetchBookings();
-    const interval = setInterval(fetchBookings, 60000);
+    const interval = setInterval(fetchBookings, 10000);
     return () => clearInterval(interval);
   }, [filterStatus]);
 
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [filterStatus, startDate, endDate]);
+
   const handleStatusChange = (id, newStatus) => {
-    if (newStatus === 'dispatched') { setSelectedBookingId(id); setIsModalOpen(true); }
-    else updateStatus(id, newStatus);
+    if (newStatus === 'dispatched') {
+      setSelectedBookingId(id);
+      setIsModalOpen(true);
+    } else {
+      updateStatus(id, newStatus);
+    }
   };
 
   const updateStatus = async (id, newStatus, transportInfo = null) => {
     try {
-      setUpdatingStatusId(id);
       const payload = { status: newStatus };
-      if (transportInfo) payload.transportDetails = transportInfo;
-      await axios.put(`${API_BASE_URL}/api/tracking/fbookings/${id}/status`, payload);
-      setBookings(prev => prev.map(b => b.id === id ? { ...b, status: newStatus, ...transportInfo } : b));
-      if (newStatus === 'dispatched' && transportInfo) { setSuccessMessage('Transport details saved'); setTimeout(() => setSuccessMessage(''), 3000); }
-      setError('');
-    } catch { setError('Failed to update status'); }
-    finally { setUpdatingStatusId(null); }
+
+      if (transportInfo) {
+        payload.transportName = transportInfo.transportName;
+        payload.lrNumber = transportInfo.lrNumber;
+        payload.transportContact = transportInfo.transportContact;
+      }
+
+      const response = await axios.put(
+        `${API_BASE_URL}/api/tracking/fbookings/${id}/status`,
+        payload
+      );
+
+      const updated = response.data?.data || {};
+      setBookings(prev => prev.map(b => b.id === id ? { ...b, ...updated, status: newStatus } : b ));
+      setSuccessMessage('Status updated successfully');
+      setTimeout(() => setSuccessMessage(''), 3000);
+
+    } catch (err) {
+      console.error(err);
+      setError('Failed to update status');
+    }
   };
 
   const handleModalSubmit = async (e) => {
     e.preventDefault();
-    if (!transportDetails.transportName || !transportDetails.lrNumber) { setError('Transport Name and LR Number are required'); return; }
-    setModalSubmitting(true);
+    if (!transportDetails.transportName || !transportDetails.lrNumber) {
+      setError('Transport Name and LR Number are required');
+      return;
+    }
     await updateStatus(selectedBookingId, 'dispatched', transportDetails);
-    setIsModalOpen(false); setTransportDetails({ transportName: '', lrNumber: '', transportContact: '' });
-    setModalSubmitting(false);
+    setIsModalOpen(false);
+    setTransportDetails({ transportName: '', lrNumber: '', transportContact: '' });
   };
 
-  const generatePDF = async (booking) => {
+  const handleModalClose = () => {
+    setIsModalOpen(false);
+    setTransportDetails({ transportName: '', lrNumber: '', transportContact: '' });
+  };
+
+  const generateBillPDF = async (booking) => {
     try {
-      setDownloadingId(booking.id);
-      const res = await fetch(`${API_BASE_URL}/api/direct/invoice/${booking.order_id}`);
-      if (!res.ok) throw new Error('Failed to fetch PDF');
-      const blob = await res.blob();
+      const response = await fetch(`${API_BASE_URL}/api/direct/invoice/${booking.order_id}`, { responseType: 'blob' });
+      if (!response.ok) throw new Error('Failed to fetch PDF');
+      const blob = await response.blob();
       const url = window.URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
-      link.setAttribute('download', `${(booking.customer_name || 'unknown').toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '')}-${booking.order_id}.pdf`);
-      document.body.appendChild(link); link.click(); document.body.removeChild(link); window.URL.revokeObjectURL(url);
-      toast.success('Downloaded invoice', { position: 'top-center', autoClose: 4000 });
-    } catch (err) { toast.error('Failed to download PDF', { position: 'top-center', autoClose: 4000 }); }
-    finally { setDownloadingId(null); }
+      const safeCustomerName = (booking.customer_name || 'unknown').toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '');
+      link.setAttribute('download', `${safeCustomerName}-${booking.order_id}.pdf`);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+      toast.success("Downloaded estimate bill, check downloads", { position: "top-center", autoClose: 5000 });
+    } catch {
+      toast.error("Failed to download PDF. Please try again.", { position: "top-center", autoClose: 5000 });
+    }
   };
 
-  const filtered = bookings.filter(b => ['customer_name', 'order_id', 'total'].some(k => b[k]?.toString().toLowerCase().includes(searchQuery.toLowerCase())));
-  const totalPages = Math.ceil(filtered.length / ordersPerPage);
-  const current = filtered.slice((currentPage - 1) * ordersPerPage, currentPage * ordersPerPage);
-  const getPages = () => { const max = 3, start = Math.max(1, Math.min(currentPage - 1, totalPages - max + 1)), end = Math.min(totalPages, start + max - 1); return Array.from({ length: end - start + 1 }, (_, i) => start + i); };
+  const generatePackingPDF = async (booking) => {
+    try {
+      const { jsPDF } = await import('jspdf');
+      const { default: autoTable } = await import('jspdf-autotable');
+
+      const doc = new jsPDF();
+      const pageW = doc.internal.pageSize.getWidth();
+      const marginL = 14;
+      const contentW = pageW - marginL * 2;
+
+      // Blue color scheme
+      const brandBlue = [0, 102, 204];      // Main blue
+      const darkBlue = [13, 71, 161];
+      const lightBlue = [33, 150, 243];
+
+      doc.setFontSize(18);
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(...brandBlue);
+      doc.text('PHOENIX CRACKERS', pageW / 2, 18, { align: 'center' });
+
+      doc.setFontSize(8.5);
+      doc.setFont('helvetica', 'normal');
+      doc.setTextColor(100, 100, 100);
+      doc.text('www.funwithcrackers.com  |  +91 63836 59214  |  nivasramasamy27@gmail.com', 
+               pageW / 2, 25, { align: 'center' });
+
+      doc.setDrawColor(...brandBlue);
+      doc.setLineWidth(0.8);
+      doc.line(marginL, 29, marginL + contentW, 29);
+
+      doc.setFontSize(13);
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(40, 40, 40);
+      doc.text('PACKING SLIP', marginL, 38);
+
+      doc.setDrawColor(200, 200, 200);
+      doc.setLineWidth(0.4);
+      doc.line(marginL, 41, marginL + contentW, 41);
+
+      const boxY = 46;
+      const boxH = 52;
+      const halfW = contentW / 2 - 4;
+
+      doc.setDrawColor(220, 220, 220);
+      doc.setLineWidth(0.5);
+      doc.rect(marginL, boxY, halfW, boxH);
+      doc.setFontSize(7);
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(150, 150, 150);
+      doc.text('FROM', marginL + 4, boxY + 7);
+      doc.setFontSize(9);
+      doc.setTextColor(...darkBlue);
+      doc.text('Phoenix Crackers', marginL + 4, boxY + 16);
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(8);
+      doc.setTextColor(80, 80, 80);
+      doc.text('Sivakasi, Tamil Nadu', marginL + 4, boxY + 24);
+      doc.text('+91 63836 59214', marginL + 4, boxY + 32);
+      doc.text('nivasramasamy27@gmail.com', marginL + 4, boxY + 40);
+
+      const shipX = marginL + halfW + 8;
+      doc.rect(shipX, boxY, halfW, boxH);
+      doc.setFontSize(7);
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(150, 150, 150);
+      doc.text('SHIP TO', shipX + 4, boxY + 7);
+      doc.setFontSize(9);
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(40, 40, 40);
+      doc.text(booking.customer_name || 'N/A', shipX + 4, boxY + 16, { width: halfW - 8 });
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(8);
+      doc.setTextColor(80, 80, 80);
+      let addr = booking.address || '';
+      if (addr.length > 40) addr = addr.substring(0, 37) + '…';
+      doc.text(addr, shipX + 4, boxY + 24, { width: halfW - 8 });
+      const distState = [booking.district, booking.state].filter(Boolean).join(', ');
+      doc.text(distState, shipX + 4, boxY + 32);
+      doc.text(`Mobile: ${booking.mobile_number || 'N/A'}`, shipX + 4, boxY + 40);
+
+      const metaY = boxY + boxH + 8;
+      doc.setFontSize(8);
+      doc.setFont('helvetica', 'normal');
+      doc.setTextColor(100, 100, 100);
+      doc.text(`Order ID:`, marginL, metaY);
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(40, 40, 40);
+      doc.text(booking.order_id || 'N/A', marginL + 20, metaY);
+
+      doc.setDrawColor(200, 200, 200);
+      doc.setLineWidth(0.4);
+      doc.line(marginL, metaY + 4, marginL + contentW, metaY + 4);
+
+      let products = [];
+      try {
+        products = typeof booking.products === 'string' ? JSON.parse(booking.products) : (booking.products || []);
+      } catch { products = []; }
+
+      const tableRows = products.map((p, i) => [i + 1, p.productname || 'N/A', p.quantity || 1]);
+
+      autoTable(doc, {
+        startY: metaY + 10,
+        head: [['Sl.No', 'Product Name', 'Quantity']],
+        body: tableRows,
+        theme: 'grid',
+        styles: { fontSize: 9, cellPadding: 4 },
+        headStyles: {
+          fillColor: [255, 255, 255], 
+          textColor: [...darkBlue], 
+          fontStyle: 'bold',
+          halign: 'center', 
+          lineColor: [200, 200, 200], 
+          lineWidth: 0.3,
+        },
+        columnStyles: {
+          0: { cellWidth: 18, halign: 'center' },
+          1: { cellWidth: 'auto', halign: 'left' },
+          2: { cellWidth: 28, halign: 'center' },
+        },
+        alternateRowStyles: { fillColor: [240, 248, 255] }, // Light blue tint
+      });
+
+      const finalY = doc.lastAutoTable.finalY + 10;
+      doc.setDrawColor(...brandBlue);
+      doc.setLineWidth(0.6);
+      doc.line(marginL, finalY, marginL + contentW, finalY);
+      doc.setFontSize(7.5);
+      doc.setFont('helvetica', 'normal');
+      doc.setTextColor(120, 120, 120);
+      doc.text('Thank you for your business with Phoenix Crackers, Sivakasi', 
+               pageW / 2, finalY + 7, { align: 'center' });
+
+      const safeCustomerName = (booking.customer_name || 'unknown').toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '');
+      doc.save(`${safeCustomerName}-${booking.order_id}-packing.pdf`);
+      toast.success("Packing slip downloaded!", { position: "top-center", autoClose: 5000 });
+    } catch (err) {
+      console.error(err);
+      toast.error("Failed to generate packing slip.", { position: "top-center", autoClose: 5000 });
+    }
+  };
+
+  const handleDownloadClick = (booking) => {
+    setDownloadTarget(booking);
+    setShowDownloadModal(true);
+  };
+
+  const handleDownloadChoice = async (type) => {
+    setShowDownloadModal(false);
+    if (!downloadTarget) return;
+    if (type === 'bill') await generateBillPDF(downloadTarget);
+    else await generatePackingPDF(downloadTarget);
+    setDownloadTarget(null);
+  };
+
+  const filteredBookings = useMemo(() => {
+    return bookings.filter(b => {
+      const matchesSearch = ['customer_name', 'order_id', 'total'].some(key =>
+        b[key]?.toString().toLowerCase().includes(searchQuery.toLowerCase())
+      );
+
+      const bookingDate = new Date(b.created_at || b.date).setHours(0, 0, 0, 0);
+      const start = startDate ? new Date(startDate).setHours(0, 0, 0, 0) : null;
+      const end = endDate ? new Date(endDate).setHours(0, 0, 0, 0) : null;
+      const matchesDate = (!start || bookingDate >= start) && (!end || bookingDate <= end);
+
+      const matchesStatus = filterStatus ? b.status === filterStatus : true;
+
+      return matchesSearch && matchesDate && matchesStatus;
+    });
+  }, [bookings, searchQuery, startDate, endDate, filterStatus]);
+
+  const totalPages = Math.ceil(filteredBookings.length / ordersPerPage);
+  const currentOrders = filteredBookings.slice(
+    (currentPage - 1) * ordersPerPage,
+    currentPage * ordersPerPage
+  );
 
   return (
-    <div className="flex min-h-screen bg-[#f5f6f8]">
+    <div className="min-h-screen bg-slate-50">
       <Sidebar />
       <Logout />
-      <div className="hundred:ml-64 mobile:ml-0 flex-1 hundred:px-8 mobile:px-4 pt-8 pb-16">
-        <div className="max-w-5xl mx-auto space-y-6">
+      <div className="hundred:ml-64 mobile:ml-0 mobile:px-3 w-auto">
+        <div className="mx-auto px-6 py-8 w-full">
 
-          {/* Header */}
-          <div className="flex items-end justify-between pb-2 border-b border-gray-200">
-            <div>
-              <p className="text-[11px] font-bold uppercase tracking-[0.12em] text-blue-500 mb-0.5">Logistics</p>
-              <h1 className="text-2xl font-extrabold text-gray-900 tracking-tight leading-none">Dispatch Customers</h1>
-            </div>
-            <p className="text-xs text-gray-400 mb-0.5">{filtered.length} booking{filtered.length !== 1 ? 's' : ''}</p>
+          <div className="mb-8 text-center">
+            <h1 className="text-3xl font-extrabold text-slate-800 tracking-tight">Dispatch Customers</h1>
+            <p className="text-slate-400 mt-1.5 text-sm">Manage and update order dispatch statuses</p>
           </div>
 
-          {error && <div className="flex items-start gap-2 bg-red-50 border border-red-200 rounded-lg px-4 py-3 text-sm text-red-700"><span className="font-bold text-red-400 mt-0.5">⚠</span>{error}</div>}
-          {successMessage && <div className="flex items-center gap-2 bg-emerald-50 border border-emerald-200 rounded-lg px-4 py-3 text-sm text-emerald-700 font-medium"><span>✓</span>{successMessage}</div>}
+          {error && <div className="bg-red-50 border border-red-200 border-l-4 border-l-red-500 text-red-700 px-4 py-3.5 rounded-xl mb-5 text-sm font-medium">⚠️ {error}</div>}
+          {successMessage && <div className="bg-emerald-50 border border-emerald-200 border-l-4 border-l-emerald-500 text-emerald-800 px-4 py-3.5 rounded-xl mb-5 text-sm font-medium">✓ {successMessage}</div>}
 
-          {pageLoading ? <PageLoader /> : (
-            <>
-              {/* Filters */}
-              <div className="flex flex-wrap gap-3">
-                <select value={filterStatus} onChange={e => { setFilterStatus(e.target.value); setCurrentPage(1); }} className={`${selectCls} w-44`}>
+          <div className="bg-white rounded-2xl border border-slate-200 shadow-sm px-6 py-5 mb-6">
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-3 items-end">
+              <div>
+                <label className="block text-xs font-semibold text-indigo-500 uppercase tracking-widest mb-1.5">Status</label>
+                <select value={filterStatus} onChange={e => setFilterStatus(e.target.value)} className={inputCls}>
                   <option value="">All Statuses</option>
-                  {['paid','packed','dispatched','delivered'].map(s => <option key={s} value={s} className="capitalize">{s.charAt(0).toUpperCase()+s.slice(1)}</option>)}
+                  {['paid', 'packed', 'dispatched', 'delivered'].map(s => (
+                    <option key={s} value={s}>{s.charAt(0).toUpperCase() + s.slice(1)}</option>
+                  ))}
                 </select>
-                <div className="relative flex-1 min-w-[200px]">
-                  <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
-                  <input type="text" placeholder="Search by name, order ID or total…" value={searchQuery} onChange={e => { setSearchQuery(e.target.value); setCurrentPage(1); }} className={`${inputCls} pl-9`} />
-                </div>
               </div>
 
-              {/* Cards */}
-              {current.length > 0 ? (
-                <div className="grid hundred:grid-cols-3 mobile:grid-cols-1 gap-4">
-                  {current.map((booking, i) => (
-                    <div key={booking.id} className="bg-white border border-gray-200 rounded-xl p-4 hover:border-blue-300 hover:shadow-md transition-all duration-200 space-y-3">
-                      <div className="flex justify-between items-start">
-                        <div>
-                          <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-0.5">#{(currentPage-1)*ordersPerPage+i+1}</p>
-                          <h3 className="text-sm font-bold text-gray-800 leading-tight">{booking.customer_name || 'N/A'}</h3>
-                        </div>
-                        <span className={`inline-flex items-center gap-1.5 text-[10px] font-semibold px-2 py-1 rounded-md border ${STATUS_COLORS[booking.status] || 'bg-gray-100 text-gray-500 border-gray-200'}`}>
-                          <span className={`w-1.5 h-1.5 rounded-full ${STATUS_DOTS[booking.status] || 'bg-gray-400'}`} />
-                          {booking.status}
-                        </span>
-                      </div>
-                      <div className="space-y-1 text-xs">
-                        {[['Contact', <a href={`tel:${booking.mobile_number}`} className="text-blue-600 hover:underline">{booking.mobile_number}</a>], ['Order ID', booking.order_id || 'N/A'], ['District', booking.district || 'N/A'], ['State', booking.state || 'N/A']].map(([label, value]) => (
-                          <div key={label} className="flex justify-between gap-2">
-                            <span className="text-gray-400 font-semibold">{label}</span>
-                            <span className="text-gray-700 font-medium text-right">{value}</span>
-                          </div>
-                        ))}
-                      </div>
-                      <div className="pt-2 border-t border-gray-100 space-y-2">
-                        <div className="relative">
-                          {updatingStatusId === booking.id && (
-                            <div className="absolute inset-0 flex items-center justify-center bg-white/70 rounded-lg z-10">
-                              <Spinner color="text-blue-500" />
-                            </div>
-                          )}
-                          <select
-                            value={booking.status}
-                            onChange={e => handleStatusChange(booking.id, e.target.value)}
-                            disabled={updatingStatusId === booking.id}
-                            className={selectCls}
-                          >
-                            {['paid','packed','dispatched','delivered'].map(s => <option key={s} value={s} className="capitalize">{s.charAt(0).toUpperCase()+s.slice(1)}</option>)}
-                          </select>
-                        </div>
-                        <button
-                          onClick={() => generatePDF(booking)}
-                          disabled={downloadingId === booking.id}
-                          className={`w-full flex items-center justify-center gap-2 h-8 rounded-lg border text-xs font-semibold transition-all duration-150
-                            ${downloadingId === booking.id
-                              ? 'bg-gray-100 border-gray-200 text-gray-400 cursor-not-allowed'
-                              : 'border-gray-200 bg-white text-gray-600 hover:bg-blue-600 hover:text-white hover:border-blue-600'}`}
-                        >
-                          {downloadingId === booking.id ? <><Spinner color="text-gray-400" />Downloading…</> : <><FaDownload className="text-[10px]" /> Download Invoice</>}
-                        </button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <div className="bg-white border-2 border-dashed border-gray-200 rounded-xl py-16 text-center">
-                  <div className="text-3xl mb-3 opacity-30">📦</div>
-                  <p className="text-sm text-gray-400 font-medium">No bookings found</p>
-                </div>
-              )}
+              <div>
+                <label className="block text-xs font-semibold text-indigo-500 uppercase tracking-widest mb-1.5">From Date</label>
+                <input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} className={inputCls} />
+              </div>
 
-              {/* Pagination */}
-              {totalPages > 1 && (
-                <div className="flex justify-center gap-1.5">
-                  {[{ label: '«', action: () => setCurrentPage(1), disabled: currentPage === 1 },
-                    { label: '‹', action: () => setCurrentPage(p => Math.max(p-1,1)), disabled: currentPage === 1 }].map(({label,action,disabled}) => (
-                    <button key={label} onClick={action} disabled={disabled} className={`min-w-[32px] h-8 rounded-md border text-xs font-bold transition-all ${disabled ? 'bg-gray-50 border-gray-200 text-gray-300 cursor-not-allowed' : 'bg-white border-gray-200 text-gray-600 hover:border-blue-400 hover:text-blue-600'}`}>{label}</button>
-                  ))}
-                  {getPages().map(page => (
-                    <button key={page} onClick={() => setCurrentPage(page)} className={`min-w-[32px] h-8 rounded-md border text-xs font-bold transition-all ${currentPage === page ? 'bg-blue-600 border-blue-600 text-white shadow-sm' : 'bg-white border-gray-200 text-gray-600 hover:border-blue-400 hover:text-blue-600'}`}>{page}</button>
-                  ))}
-                  {[{ label: '›', action: () => setCurrentPage(p => Math.min(p+1,totalPages)), disabled: currentPage === totalPages },
-                    { label: '»', action: () => setCurrentPage(totalPages), disabled: currentPage === totalPages }].map(({label,action,disabled}) => (
-                    <button key={label} onClick={action} disabled={disabled} className={`min-w-[32px] h-8 rounded-md border text-xs font-bold transition-all ${disabled ? 'bg-gray-50 border-gray-200 text-gray-300 cursor-not-allowed' : 'bg-white border-gray-200 text-gray-600 hover:border-blue-400 hover:text-blue-600'}`}>{label}</button>
-                  ))}
+              <div>
+                <label className="block text-xs font-semibold text-indigo-500 uppercase tracking-widest mb-1.5">To Date</label>
+                <input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} className={inputCls} />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-indigo-500 uppercase tracking-widest mb-1.5">Search</label>
+                <div className="relative">
+                  <FaSearch className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-xs" />
+                  <input
+                    type="text"
+                    placeholder="Name, Order ID or Total..."
+                    value={searchQuery}
+                    onChange={e => { setSearchQuery(e.target.value); setCurrentPage(1); }}
+                    className="w-full pl-9 pr-3.5 py-2.5 rounded-xl border border-slate-200 text-sm bg-slate-50 outline-none focus:border-indigo-400 transition-colors box-border"
+                  />
                 </div>
-              )}
-            </>
+              </div>
+            </div>
+            {(startDate || endDate || filterStatus || searchQuery) && (
+              <button onClick={() => { setStartDate(''); setEndDate(''); setFilterStatus(''); setSearchQuery(''); }} className="mt-3 text-xs font-bold text-red-500 hover:underline block">
+                Clear Filters
+              </button>
+            )}
+          </div>
+
+          {currentOrders.length === 0 ? (
+            <div className="text-center py-16 bg-white border border-slate-200 rounded-2xl mb-6">
+              <div className="text-4xl mb-3">📦</div>
+              <p className="text-slate-400 font-medium text-sm">No bookings found</p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-4 mb-6">
+              {currentOrders.map((booking) => (
+                <div key={booking.id} className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm hover:shadow-lg hover:-translate-y-0.5 transition-all duration-200">
+                  <div className="flex justify-between items-start mb-3">
+                    <div>
+                      <div className="text-base font-bold text-slate-800">{booking.customer_name || 'N/A'}</div>
+                      {booking.mobile_number && (
+                        <a href={`tel:${booking.mobile_number}`} className="text-xs font-semibold text-indigo-500 hover:text-indigo-700">
+                          📞 {booking.mobile_number}
+                        </a>
+                      )}
+                    </div>
+                    <span className={`inline-block px-2.5 py-0.5 rounded-full text-xs font-bold border ${statusColors[booking.status] || "text-slate-400 bg-slate-50 border-slate-200"}`}>
+                      {booking.status}
+                    </span>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-1.5 mb-3">
+                    {[
+                      ["🆔 Order ID", booking.order_id || 'N/A'],
+                      ["📍 District",  booking.district  || 'N/A'],
+                      ["🏛️ State",     booking.state     || 'N/A'],
+                      ["💰 Total",     booking.total ? `₹${Math.round(parseFloat(booking.total))}` : 'N/A'],
+                    ].map(([label, value]) => (
+                      <div key={label} className="bg-slate-50 rounded-lg px-2 py-1.5">
+                        <div className="text-xs font-bold text-slate-400">{label}</div>
+                        <div className="text-xs font-semibold text-slate-700">{value}</div>
+                      </div>
+                    ))}
+                  </div>
+
+                  {booking.status === 'dispatched' && booking.transport_name && (
+                    <div className="bg-indigo-50 border border-indigo-100 rounded-xl px-3 py-2.5 mb-3 space-y-1">
+                      <p className="text-xs font-bold text-indigo-500 uppercase tracking-widest mb-1">🚚 Transport Info</p>
+                      <p className="text-xs text-slate-700"><span className="font-bold">Company:</span> {booking.transport_name}</p>
+                      <p className="text-xs text-slate-700"><span className="font-bold">LR No:</span> {booking.lr_number}</p>
+                      {booking.transport_contact && (
+                        <p className="text-xs text-slate-700"><span className="font-bold">Contact:</span> {booking.transport_contact}</p>
+                      )}
+                    </div>
+                  )}
+
+                  <div className="flex flex-col gap-2">
+                    <select 
+                      value={booking.status} 
+                      onChange={e => handleStatusChange(booking.id, e.target.value)} 
+                      className={inputCls}
+                    >
+                      <option value="" disabled>Update Status</option>
+                      {[
+                        { value: 'paid', label: 'Paid', level: 1 },
+                        { value: 'packed', label: 'Packed', level: 2 },
+                        { value: 'dispatched', label: 'Dispatched', level: 3 },
+                        { value: 'delivered', label: 'Delivered', level: 4 }
+                      ].map(s => {
+                        const currentLevels = { paid: 1, packed: 2, dispatched: 3, delivered: 4 };
+                        const currentLevel = currentLevels[booking.status] || 0;
+                        
+                        return (
+                          <option 
+                            key={s.value} 
+                            value={s.value} 
+                            disabled={s.level < currentLevel || booking.status === 'delivered'}
+                          >
+                            {s.label}
+                          </option>
+                        );
+                      })}
+                    </select>
+                    <button onClick={() => handleDownloadClick(booking)}
+                      className="flex items-center justify-center gap-1.5 py-2 rounded-lg text-xs font-bold bg-indigo-50 text-indigo-600 border border-indigo-200 hover:bg-indigo-500 hover:text-white hover:border-indigo-500 transition-all duration-200">
+                      <FaDownload className="text-xs" /> Download Invoice
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {totalPages > 1 && (
+            <div className="flex justify-center gap-1.5 flex-wrap">
+              <PaginBtn label="← Prev" onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage === 1} />
+              {Array.from({ length: totalPages }, (_, i) => i + 1)
+                .slice(Math.max(0, currentPage - 3), Math.min(totalPages, currentPage + 2))
+                .map(page => (
+                  <PaginBtn key={page} label={page} onClick={() => setCurrentPage(page)} active={currentPage === page} />
+                ))}
+              <PaginBtn label="Next →" onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} disabled={currentPage === totalPages} />
+            </div>
           )}
         </div>
       </div>
 
-      {/* Transport modal */}
-      {isModalOpen && (
-        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-2xl max-w-md w-full overflow-hidden">
-            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
-              <h2 className="text-base font-bold text-gray-800">Transport Details</h2>
-              <button onClick={() => { setIsModalOpen(false); setTransportDetails({ transportName: '', lrNumber: '', transportContact: '' }); }} className="w-7 h-7 rounded-lg bg-gray-100 flex items-center justify-center text-gray-400 hover:bg-gray-200 text-sm font-bold">✕</button>
+      {showDownloadModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl p-8 max-w-sm w-full shadow-2xl text-center">
+            <div className="text-4xl mb-4">📄</div>
+            <h2 className="text-xl font-extrabold text-slate-800 mb-2">Download PDF</h2>
+            <p className="text-slate-400 text-sm mb-7">Choose the type of PDF to download</p>
+            <div className="flex gap-3">
+              <button onClick={() => handleDownloadChoice('bill')} className="flex-1 py-3 rounded-xl font-bold text-sm text-white bg-gradient-to-br from-indigo-500 to-indigo-400 shadow-lg shadow-indigo-200 hover:from-indigo-600 hover:to-indigo-500 transition-all">
+                🧾 Bill
+              </button>
+              <button onClick={() => handleDownloadChoice('packing')} className="flex-1 py-3 rounded-xl font-bold text-sm text-white bg-gradient-to-br from-orange-500 to-orange-400 shadow-lg shadow-orange-200 hover:from-orange-600 hover:to-orange-500 transition-all">
+                📦 Packing
+              </button>
             </div>
-            <form onSubmit={handleModalSubmit} className="p-6 space-y-4">
+            <button onClick={() => { setShowDownloadModal(false); setDownloadTarget(null); }} className="mt-4 w-full py-2.5 rounded-xl border border-slate-200 text-slate-500 font-semibold text-sm hover:bg-slate-50 transition-colors">
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
+
+      {isModalOpen && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl p-8 max-w-md w-full shadow-2xl">
+            <h2 className="text-xl font-extrabold text-slate-800 mb-6 text-center">🚚 Transport Details</h2>
+            {error && <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-xl mb-4 text-xs">⚠️ {error}</div>}
+            <form onSubmit={handleModalSubmit} className="space-y-4">
               {[
-                { label: 'Transport Name', key: 'transportName', required: true, placeholder: 'Enter transport company' },
-                { label: 'LR Number', key: 'lrNumber', required: true, placeholder: 'Enter LR number' },
-                { label: 'Transport Contact (Optional)', key: 'transportContact', required: false, placeholder: 'Enter contact number' },
-              ].map(({ label, key, required, placeholder }) => (
+                ["Transport Name",    "transportName",    "Enter transport company name", true],
+                ["LR Number",         "lrNumber",         "Enter LR / consignment number", true],
+                ["Transport Contact", "transportContact", "Enter contact number (optional)", false],
+              ].map(([label, key, placeholder, required]) => (
                 <div key={key}>
-                  <label className="block text-[11px] font-bold uppercase tracking-widest text-gray-400 mb-1.5">{label}{required && <span className="text-red-400 ml-0.5">*</span>}</label>
-                  <input type="text" value={transportDetails[key]} onChange={e => setTransportDetails({ ...transportDetails, [key]: e.target.value })} placeholder={placeholder} required={required} className={inputCls} />
+                  <label className="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-1.5">
+                    {label}{required && <span className="text-red-500 ml-0.5">*</span>}
+                  </label>
+                  <input
+                    type="text"
+                    value={transportDetails[key]}
+                    onChange={e => setTransportDetails({ ...transportDetails, [key]: e.target.value })}
+                    placeholder={placeholder}
+                    className={inputCls}
+                    required={required}
+                  />
                 </div>
               ))}
-              {error && <p className="text-xs text-red-600">{error}</p>}
-              <div className="flex justify-end gap-2 pt-1">
-                <button type="button" onClick={() => { setIsModalOpen(false); setTransportDetails({ transportName: '', lrNumber: '', transportContact: '' }); }} className="px-4 py-2 rounded-lg border border-gray-200 bg-white text-sm font-semibold text-gray-600 hover:bg-gray-50 transition-colors">Cancel</button>
-                <button type="submit" disabled={modalSubmitting} className={`px-5 py-2 rounded-lg text-sm font-bold text-white shadow-sm transition-colors flex items-center gap-2 ${modalSubmitting ? 'bg-blue-400 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700'}`}>
-                  {modalSubmitting ? <><Spinner />Saving…</> : 'Confirm Dispatch'}
+              <div className="flex justify-end gap-2.5 pt-2">
+                <button type="button" onClick={handleModalClose} className="px-5 py-2.5 rounded-xl border border-slate-200 bg-white text-slate-500 font-semibold text-sm hover:bg-slate-50 transition-colors">
+                  Cancel
+                </button>
+                <button type="submit" className="px-6 py-2.5 rounded-xl font-bold text-sm text-white bg-gradient-to-br from-indigo-500 to-indigo-400 shadow-lg shadow-indigo-200 hover:from-indigo-600 hover:to-indigo-500 transition-all duration-200">
+                  Confirm Dispatch
                 </button>
               </div>
             </form>

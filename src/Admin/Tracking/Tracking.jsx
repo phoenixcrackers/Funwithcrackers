@@ -1,31 +1,60 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
 import { API_BASE_URL } from '../../../Config';
 import Sidebar from '../Sidebar/Sidebar';
 import Logout from '../Logout';
-import { FaDownload, FaTrash } from 'react-icons/fa';
+import { FaDownload, FaTrash, FaSearch } from 'react-icons/fa';
 import { toast } from 'react-toastify';
 
-const Spinner = ({ size = 'sm', color = 'text-white' }) => (
-  <svg className={`animate-spin ${size === 'sm' ? 'w-4 h-4' : 'w-8 h-8'} ${color}`} fill="none" viewBox="0 0 24 24">
-    <circle className="opacity-20" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3"/>
-    <path className="opacity-80" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
-  </svg>
+const StatusBadge = ({ status }) => {
+  const map = {
+    booked:     "text-sky-600 bg-sky-50 border-sky-200",
+    paid:       "text-amber-600 bg-amber-50 border-amber-200",
+    dispatched: "text-emerald-600 bg-emerald-50 border-emerald-200",
+    delivered:  "text-emerald-700 bg-emerald-100 border-emerald-300",
+  };
+  const icons = {
+    booked: "⏳ Booked",
+    paid: "💰 Paid",
+    dispatched: "🚚 Dispatched",
+    delivered: "✓ Delivered",
+  };
+  const cls = map[status?.toLowerCase()] || "text-slate-400 bg-slate-50 border-slate-200";
+  return (
+    <span className={`inline-block px-2.5 py-0.5 rounded-full text-xs font-bold border ${cls}`}>
+      {icons[status?.toLowerCase()] || status}
+    </span>
+  );
+};
+
+const PaginBtn = ({ label, onClick, disabled, active }) => (
+  <button
+    onClick={onClick}
+    disabled={disabled}
+    className={`px-4 py-2 rounded-lg border text-sm font-bold transition-all duration-150
+      ${active    ? "bg-indigo-600 border-indigo-600 text-white"
+      : disabled  ? "bg-slate-50 border-slate-200 text-slate-300 cursor-not-allowed"
+                  : "bg-white border-slate-200 text-slate-800 hover:border-indigo-400 hover:text-indigo-600"}`}
+  >
+    {label}
+  </button>
 );
 
-const PageLoader = () => (
-  <div className="flex items-center justify-center min-h-[60vh]">
-    <div className="flex flex-col items-center gap-3">
-      <Spinner size="lg" color="text-blue-500" />
-      <p className="text-sm text-gray-400 font-medium">Loading bookings…</p>
+const ModalWrapper = ({ children }) => (
+  <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+    <div className="bg-white rounded-2xl p-8 max-w-sm w-full shadow-2xl">
+      {children}
     </div>
   </div>
 );
+
+const selectStyles = "w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm font-medium text-slate-800 bg-slate-50 outline-none focus:border-indigo-400 transition-colors box-border";
 
 export default function Tracking() {
   const [bookings, setBookings] = useState([]);
   const [filterCustomerType, setFilterCustomerType] = useState('');
   const [filterStatus, setFilterStatus] = useState('');
+  const [filterDate, setFilterDate] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
   const [error, setError] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
@@ -33,18 +62,26 @@ export default function Tracking() {
   const [showDetailsModal, setShowDetailsModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [selectedBookingId, setSelectedBookingId] = useState(null);
+  const [selectedTotal, setSelectedTotal] = useState(0);
   const [selectedOrderId, setSelectedOrderId] = useState(null);
   const [paymentMethod, setPaymentMethod] = useState('cash');
   const [transactionId, setTransactionId] = useState('');
   const [amountPaid, setAmountPaid] = useState('');
-  const [pageLoading, setPageLoading] = useState(true);
-  const [downloadingId, setDownloadingId] = useState(null);
-  const [updatingStatusId, setUpdatingStatusId] = useState(null);
-  const [deletingLoading, setDeletingLoading] = useState(false);
-  const [detailsSubmitLoading, setDetailsSubmitLoading] = useState(false);
-  const ordersPerPage = 9;
+  const [showDownloadModal, setShowDownloadModal] = useState(false);
+  const [downloadTarget, setDownloadTarget] = useState(null);
+  const ordersPerPage = 12;
+  const amountPaidRef = useRef(null);
+  const transactionIdRef = useRef(null);
 
-  // ── all original logic/API calls unchanged ────────────────────────────────
+  useEffect(() => {
+    if (showDetailsModal) {
+      setTimeout(() => {
+        if (amountPaidRef.current) {
+          amountPaidRef.current.focus();
+        }
+      }, 150);
+    }
+  }, [showDetailsModal]);
 
   const fetchBookings = async (resetPage = false) => {
     try {
@@ -57,8 +94,6 @@ export default function Tracking() {
       if (resetPage) setCurrentPage(1);
     } catch {
       setError('Failed to fetch bookings');
-    } finally {
-      setPageLoading(false);
     }
   };
 
@@ -68,14 +103,18 @@ export default function Tracking() {
     return () => clearInterval(interval);
   }, [filterStatus, filterCustomerType]);
 
-  const handleStatusChange = (id, newStatus) => {
-    if (newStatus === 'paid') { setSelectedBookingId(id); setShowPaidModal(true); }
-    else updateStatus(id, newStatus);
+  const handleStatusChange = (id, newStatus, total) => {
+    if (newStatus === 'paid') {
+      setSelectedBookingId(id);
+      setSelectedTotal(total || 0);
+      setShowPaidModal(true);
+    } else {
+      updateStatus(id, newStatus);
+    }
   };
 
   const updateStatus = async (id, newStatus, paymentDetails = null) => {
     try {
-      setUpdatingStatusId(id);
       const payload = { status: newStatus };
       if (paymentDetails) {
         payload.payment_method = paymentDetails.paymentMethod;
@@ -83,53 +122,64 @@ export default function Tracking() {
         payload.amount_paid = paymentDetails.amountPaid;
       }
       await axios.put(`${API_BASE_URL}/api/tracking/bookings/${id}/status`, payload);
+
       setBookings((prev) =>
         prev.map((booking) =>
           booking.id === id
-            ? { ...booking, status: newStatus, ...(paymentDetails && { payment_method: paymentDetails.paymentMethod || booking.payment_method, transaction_id: paymentDetails.transactionId || booking.transaction_id, amount_paid: paymentDetails.amountPaid || booking.amount_paid }) }
+            ? {
+                ...booking,
+                status: newStatus,
+                ...(paymentDetails && {
+                  payment_method: paymentDetails.paymentMethod,
+                  transaction_id: paymentDetails.transactionId,
+                  amount_paid: paymentDetails.amountPaid
+                })
+              }
             : booking
         ).sort((a, b) => b.id - a.id)
       );
-      setError(''); setShowPaidModal(false); setShowDetailsModal(false);
-      setPaymentMethod('cash'); setTransactionId(''); setAmountPaid('');
-      toast.success("Status updated successfully", { position: "top-center", autoClose: 5000, hideProgressBar: false, closeOnClick: true, pauseOnHover: true, draggable: true });
+
+      setError('');
+      setShowPaidModal(false);
+      setShowDetailsModal(false);
+      resetPaymentForm();
+      toast.success("Status updated successfully", { position: "top-center", autoClose: 5000 });
     } catch (err) {
-      console.error('Error Response:', err.response?.data);
       setError(err.response?.data?.message || 'Failed to update status');
-    } finally {
-      setUpdatingStatusId(null);
     }
   };
 
-  const handleDeleteBooking = async () => {
-    try {
-      setDeletingLoading(true);
-      await axios.delete(`${API_BASE_URL}/api/tracking/bookings/${selectedOrderId}`);
-      setBookings((prev) => prev.filter((booking) => booking.order_id !== selectedOrderId));
-      setShowDeleteModal(false); setError('');
-      toast.success("Booking deleted successfully", { position: "top-center", autoClose: 5000, hideProgressBar: false, closeOnClick: true, pauseOnHover: true, draggable: true });
-    } catch (err) {
-      console.error('Error Response:', err.response?.data);
-      setError(err.response?.data?.message || 'Failed to delete booking');
-      setShowDeleteModal(false);
-    } finally {
-      setDeletingLoading(false);
+  const resetPaymentForm = () => {
+    setPaymentMethod('cash');
+    setTransactionId('');
+    setAmountPaid('');
+    setSelectedTotal(0);
+  };
+
+  const handleFillDetails = () => {
+    setShowPaidModal(false);
+    setShowDetailsModal(true);
+  };
+
+  const handleDetailsSubmit = () => {
+    if (!amountPaid.trim() || isNaN(amountPaid) || Number(amountPaid) <= 0) {
+      setError('Please enter a valid amount paid');
+      return;
     }
+    if (paymentMethod === 'bank' && !transactionId.trim()) {
+      setError('Transaction ID is required for bank transactions');
+      return;
+    }
+
+    updateStatus(selectedBookingId, 'paid', {
+      paymentMethod,
+      transactionId: paymentMethod === 'bank' ? transactionId : null,
+      amountPaid: Number(amountPaid)
+    });
   };
 
-  const handleFillDetails = () => { setShowPaidModal(false); setShowDetailsModal(true); };
-
-  const handleDetailsSubmit = async () => {
-    if (!amountPaid.trim() || isNaN(amountPaid) || Number(amountPaid) <= 0) { setError('Please enter a valid amount paid'); return; }
-    if (paymentMethod === 'bank' && !transactionId.trim()) { setError('Transaction ID is required for bank transactions'); return; }
-    setDetailsSubmitLoading(true);
-    await updateStatus(selectedBookingId, 'paid', { paymentMethod, transactionId: paymentMethod === 'bank' ? transactionId : null, amountPaid: Number(amountPaid) });
-    setDetailsSubmitLoading(false);
-  };
-
-  const generatePDF = async (booking) => {
+  const generateBillPDF = async (booking) => {
     try {
-      setDownloadingId(booking.id);
       const response = await fetch(`${API_BASE_URL}/api/direct/invoice/${booking.order_id}`, { responseType: 'blob' });
       if (!response.ok) throw new Error('Failed to fetch PDF');
       const blob = await response.blob();
@@ -138,27 +188,212 @@ export default function Tracking() {
       link.href = url;
       const safeCustomerName = (booking.customer_name || 'unknown').toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '');
       link.setAttribute('download', `${safeCustomerName}-${booking.order_id}.pdf`);
-      document.body.appendChild(link); link.click(); document.body.removeChild(link); window.URL.revokeObjectURL(url);
-      toast.success("Downloaded estimate bill, check downloads", { position: "top-center", autoClose: 5000, hideProgressBar: false, closeOnClick: true, pauseOnHover: true, draggable: true });
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+      toast.success("Downloaded estimate bill, check downloads", { position: "top-center", autoClose: 5000 });
     } catch (err) {
-      console.error("PDF download error:", err);
       toast.error("Failed to download PDF. Please try again.", { position: "top-center", autoClose: 5000 });
-    } finally {
-      setDownloadingId(null);
     }
   };
 
-  const filteredBookings = bookings.filter((booking) =>
-    ['customer_name', 'order_id', 'total', 'customer_type'].some((key) =>
-      booking[key].toString().toLowerCase().includes(searchTerm.toLowerCase())
-    )
-  );
+  const generatePackingPDF = async (booking) => {
+    try {
+      const { jsPDF } = await import('jspdf');
+      const { default: autoTable } = await import('jspdf-autotable');
+
+      const doc = new jsPDF();
+      const pageW = doc.internal.pageSize.getWidth();
+      const marginL = 14;
+      const contentW = pageW - marginL * 2;
+
+      // Blue color scheme
+      const brandBlue = [0, 102, 204];      // Main blue
+      const darkBlue = [13, 71, 161];
+      const lightBlue = [33, 150, 243];
+
+      doc.setFontSize(18);
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(...brandBlue);
+      doc.text('PHOENIX CRACKERS', pageW / 2, 18, { align: 'center' });
+
+      doc.setFontSize(8.5);
+      doc.setFont('helvetica', 'normal');
+      doc.setTextColor(100, 100, 100);
+      doc.text('www.funwithcrackers.com  |  +91 63836 59214  |  nivasramasamy27@gmail.com', 
+               pageW / 2, 25, { align: 'center' });
+
+      doc.setDrawColor(...brandBlue);
+      doc.setLineWidth(0.8);
+      doc.line(marginL, 29, marginL + contentW, 29);
+
+      doc.setFontSize(13);
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(40, 40, 40);
+      doc.text('PACKING SLIP', marginL, 38);
+
+      doc.setDrawColor(200, 200, 200);
+      doc.setLineWidth(0.4);
+      doc.line(marginL, 41, marginL + contentW, 41);
+
+      const boxY = 46;
+      const boxH = 52;
+      const halfW = contentW / 2 - 4;
+
+      doc.setDrawColor(220, 220, 220);
+      doc.setLineWidth(0.5);
+      doc.rect(marginL, boxY, halfW, boxH);
+      doc.setFontSize(7);
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(150, 150, 150);
+      doc.text('FROM', marginL + 4, boxY + 7);
+      doc.setFontSize(9);
+      doc.setTextColor(...darkBlue);
+      doc.text('Phoenix Crackers', marginL + 4, boxY + 16);
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(8);
+      doc.setTextColor(80, 80, 80);
+      doc.text('Sivakasi, Tamil Nadu', marginL + 4, boxY + 24);
+      doc.text('+91 63836 59214', marginL + 4, boxY + 32);
+      doc.text('nivasramasamy27@gmail.com', marginL + 4, boxY + 40);
+
+      const shipX = marginL + halfW + 8;
+      doc.rect(shipX, boxY, halfW, boxH);
+      doc.setFontSize(7);
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(150, 150, 150);
+      doc.text('SHIP TO', shipX + 4, boxY + 7);
+      doc.setFontSize(9);
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(40, 40, 40);
+      doc.text(booking.customer_name || 'N/A', shipX + 4, boxY + 16, { width: halfW - 8 });
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(8);
+      doc.setTextColor(80, 80, 80);
+      let addr = booking.address || '';
+      if (addr.length > 40) addr = addr.substring(0, 37) + '…';
+      doc.text(addr, shipX + 4, boxY + 24, { width: halfW - 8 });
+      const distState = [booking.district, booking.state].filter(Boolean).join(', ');
+      doc.text(distState, shipX + 4, boxY + 32);
+      doc.text(`Mobile: ${booking.mobile_number || 'N/A'}`, shipX + 4, boxY + 40);
+
+      const metaY = boxY + boxH + 8;
+      doc.setFontSize(8);
+      doc.setFont('helvetica', 'normal');
+      doc.setTextColor(100, 100, 100);
+      doc.text(`Order ID:`, marginL, metaY);
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(40, 40, 40);
+      doc.text(booking.order_id || 'N/A', marginL + 20, metaY);
+
+      doc.setDrawColor(200, 200, 200);
+      doc.setLineWidth(0.4);
+      doc.line(marginL, metaY + 4, marginL + contentW, metaY + 4);
+
+      let products = [];
+      try {
+        products = typeof booking.products === 'string' ? JSON.parse(booking.products) : (booking.products || []);
+      } catch { products = []; }
+
+      const tableRows = products.map((p, i) => [i + 1, p.productname || 'N/A', p.quantity || 1]);
+
+      autoTable(doc, {
+        startY: metaY + 10,
+        head: [['Sl.No', 'Product Name', 'Quantity']],
+        body: tableRows,
+        theme: 'grid',
+        styles: { fontSize: 9, cellPadding: 4 },
+        headStyles: {
+          fillColor: [255, 255, 255], 
+          textColor: [...darkBlue], 
+          fontStyle: 'bold',
+          halign: 'center', 
+          lineColor: [200, 200, 200], 
+          lineWidth: 0.3,
+        },
+        columnStyles: {
+          0: { cellWidth: 18, halign: 'center' },
+          1: { cellWidth: 'auto', halign: 'left' },
+          2: { cellWidth: 28, halign: 'center' },
+        },
+        alternateRowStyles: { fillColor: [240, 248, 255] }, // Light blue tint
+      });
+
+      const finalY = doc.lastAutoTable.finalY + 10;
+      doc.setDrawColor(...brandBlue);
+      doc.setLineWidth(0.6);
+      doc.line(marginL, finalY, marginL + contentW, finalY);
+      doc.setFontSize(7.5);
+      doc.setFont('helvetica', 'normal');
+      doc.setTextColor(120, 120, 120);
+      doc.text('Thank you for your business with Phoenix Crackers, Sivakasi', 
+               pageW / 2, finalY + 7, { align: 'center' });
+
+      const safeCustomerName = (booking.customer_name || 'unknown').toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '');
+      doc.save(`${safeCustomerName}-${booking.order_id}-packing.pdf`);
+      toast.success("Packing slip downloaded!", { position: "top-center", autoClose: 5000 });
+    } catch (err) {
+      console.error(err);
+      toast.error("Failed to generate packing slip.", { position: "top-center", autoClose: 5000 });
+    }
+  };
+
+  const handleDownloadClick = (booking) => {
+    setDownloadTarget(booking);
+    setShowDownloadModal(true);
+  };
+
+  const handleDownloadChoice = async (type) => {
+    setShowDownloadModal(false);
+    if (!downloadTarget) return;
+    if (type === 'bill') await generateBillPDF(downloadTarget);
+    else await generatePackingPDF(downloadTarget);
+    setDownloadTarget(null);
+  };
+
+  const handleDeleteBooking = async () => {
+    try {
+      await axios.delete(`${API_BASE_URL}/api/tracking/bookings/${selectedOrderId}`);
+      setBookings((prev) => prev.filter((booking) => booking.order_id !== selectedOrderId));
+      setShowDeleteModal(false);
+      toast.success("Booking deleted successfully", { position: "top-center", autoClose: 5000 });
+    } catch (err) {
+      setError(err.response?.data?.message || 'Failed to delete booking');
+      setShowDeleteModal(false);
+    }
+  };
+
+  const getISTDateString = (dateStr) => {
+    if (!dateStr) return '';
+    const date = new Date(dateStr);
+    if (isNaN(date)) return '';
+    const utc = date.getTime() + date.getTimezoneOffset() * 60000;
+    const istDate = new Date(utc + 3600000 * 5.5);
+    return `${istDate.getFullYear()}-${String(istDate.getMonth() + 1).padStart(2, '0')}-${String(istDate.getDate()).padStart(2, '0')}`;
+  };
+
+  const filteredBookings = bookings.filter((booking) => {
+    const matchesSearch = ['customer_name', 'order_id', 'total', 'customer_type'].some((key) =>
+      booking[key]?.toString().toLowerCase().includes(searchTerm.toLowerCase())
+    );
+
+    let matchesDate = true;
+    if (filterDate) {
+      const bookingISTDate = getISTDateString(booking.created_at);
+      matchesDate = bookingISTDate === filterDate;
+    }
+
+    return matchesSearch && matchesDate;
+  });
 
   const formatDate = (dateStr) => {
     if (!dateStr) return 'N/A';
     const date = new Date(dateStr);
     if (isNaN(date)) return 'N/A';
-    return `${String(date.getDate()).padStart(2, '0')}-${String(date.getMonth() + 1).padStart(2, '0')}-${date.getFullYear()}`;
+    const utc = date.getTime() + date.getTimezoneOffset() * 60000;
+    const istDate = new Date(utc + 3600000 * 5.5);
+    return `${String(istDate.getDate()).padStart(2, '0')}-${String(istDate.getMonth() + 1).padStart(2, '0')}-${istDate.getFullYear()}`;
   };
 
   const indexOfLastOrder = currentPage * ordersPerPage;
@@ -166,261 +401,283 @@ export default function Tracking() {
   const currentOrders = filteredBookings.slice(indexOfFirstOrder, indexOfLastOrder);
   const totalPages = Math.ceil(filteredBookings.length / ordersPerPage);
 
-  const getVisiblePages = () => {
-    const maxVisiblePages = 3;
-    let startPage = Math.max(1, currentPage - Math.floor(maxVisiblePages / 2));
-    let endPage = Math.min(totalPages, startPage + maxVisiblePages - 1);
-    if (endPage - startPage < maxVisiblePages - 1) startPage = Math.max(1, endPage - maxVisiblePages + 1);
-    return Array.from({ length: endPage - startPage + 1 }, (_, i) => startPage + i);
-  };
-
-  // ── shared UI classes ─────────────────────────────────────────────────────
-  const ic = "block w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-800 placeholder-gray-400 outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100 transition-all";
-  const sc = "block w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-800 outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100 transition-all cursor-pointer";
-  const lc = "block text-[11px] font-bold uppercase tracking-widest text-gray-400 mb-1.5";
-  const btnPrimary = "h-9 px-4 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold shadow-sm transition-colors cursor-pointer";
-  const btnGhost = "h-9 px-4 rounded-lg border border-gray-200 bg-white hover:bg-gray-50 text-gray-600 text-sm font-semibold transition-all cursor-pointer";
-  const btnRed = "h-9 px-4 rounded-lg bg-red-600 hover:bg-red-700 text-white text-sm font-semibold shadow-sm transition-colors cursor-pointer";
-  const btnGreen = "h-9 px-4 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold shadow-sm transition-colors cursor-pointer";
-
-  const renderSelect = (value, onChange, options, placeholder) => (
-    <select value={value} onChange={onChange} className={sc}>
-      <option value="">{placeholder}</option>
-      {options.map((opt) => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
-    </select>
-  );
-
-  const statusBadge = (status) => {
-    const map = { paid: 'bg-emerald-100 text-emerald-700', dispatched: 'bg-blue-100 text-blue-700', canceled: 'bg-red-100 text-red-700', booked: 'bg-amber-100 text-amber-700' };
-    return <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wide ${map[status] || 'bg-gray-100 text-gray-600'}`}>{status || 'pending'}</span>;
-  };
-
-  const modalOverlay = "fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 px-4";
-  const modalBox = "bg-white rounded-2xl shadow-2xl p-6 w-full max-w-sm";
-
   return (
-    <div className="flex min-h-screen bg-[#f5f6f8]">
+    <div className="min-h-screen bg-slate-50">
       <Sidebar />
       <Logout />
-      <div className="flex-1 onefifty:ml-0 hundred:ml-[15%] mobile:ml-0 hundred:px-8 mobile:px-4 pt-8 pb-16">
-        <div className="max-w-5xl mx-auto space-y-6">
+      <div className="hundred:ml-64 mobile:ml-0 mobile:px-3 w-auto">
+        <div className="mx-auto px-6 py-8 w-full">
 
-          {/* Header */}
-          <div className="pb-3 border-b border-gray-200">
-            <p className="text-[11px] font-bold uppercase tracking-[0.12em] text-blue-500 mb-0.5">Orders</p>
-            <h1 className="text-2xl font-extrabold text-gray-900 tracking-tight">Tracking</h1>
+          <div className="mb-8 text-center">
+            <h1 className="text-3xl font-extrabold text-slate-800 tracking-tight">Tracking</h1>
+            <p className="text-slate-400 mt-1.5 text-sm">Monitor and manage all bookings</p>
           </div>
 
-          {error && <div className="px-4 py-3 rounded-lg border bg-red-50 border-red-200 text-red-700 text-sm">{error}</div>}
+          {error && (
+            <div className="bg-red-50 border border-red-200 border-l-4 border-l-red-500 text-red-700 px-4 py-3.5 rounded-xl mb-5 text-sm font-medium">
+              ⚠️ {error}
+            </div>
+          )}
 
-          {pageLoading ? <PageLoader /> : (
-            <>
-              {/* Filters */}
-              <div className="flex flex-col sm:flex-row gap-4 flex-wrap">
-                <div className="w-52">
-                  <label className={lc}>Status</label>
-                  {renderSelect(filterStatus, (e) => setFilterStatus(e.target.value), [
-                    { value: 'booked', label: 'Booked' }, { value: 'paid', label: 'Paid' }
-                  ], 'All Statuses')}
-                </div>
-                <div className="w-64">
-                  <label className={lc}>Customer Type</label>
-                  {renderSelect(filterCustomerType, (e) => setFilterCustomerType(e.target.value), [
-                    { value: 'Customer', label: 'Customer' }, { value: 'Agent', label: 'Agent' },
-                    { value: 'Customer of Selected Agent', label: 'Customer of Selected Agent' }, { value: 'User', label: 'User' }
-                  ], 'All Customer Types')}
-                </div>
-                <div className="flex-1 min-w-[200px]">
-                  <label className={lc}>Search</label>
-                  <input type="text" placeholder="Name, order ID, total, type..." value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)} className={ic} />
+          <div className="bg-white rounded-2xl border border-slate-200 shadow-sm px-6 py-5 mb-6">
+            <div className="flex flex-wrap gap-3 items-end">
+              <div className="flex-1 min-w-48">
+                <label className="block text-xs font-semibold text-indigo-500 uppercase tracking-widest mb-1.5">Status</label>
+                <select value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)} className={selectStyles}>
+                  <option value="">All Statuses</option>
+                  <option value="booked">Booked</option>
+                  <option value="paid">Paid</option>
+                </select>
+              </div>
+              <div className="flex-1 min-w-48">
+                <label className="block text-xs font-semibold text-indigo-500 uppercase tracking-widest mb-1.5">Customer Type</label>
+                <select value={filterCustomerType} onChange={(e) => setFilterCustomerType(e.target.value)} className={selectStyles}>
+                  <option value="">All Customer Types</option>
+                  <option value="Customer">Customer</option>
+                  <option value="Agent">Agent</option>
+                  <option value="Customer of Selected Agent">Customer of Selected Agent</option>
+                  <option value="User">User</option>
+                </select>
+              </div>
+              <div className="flex-1 min-w-48">
+                <label className="block text-xs font-semibold text-indigo-500 uppercase tracking-widest mb-1.5">Date</label>
+                <input
+                  type="date"
+                  value={filterDate}
+                  onChange={(e) => setFilterDate(e.target.value)}
+                  className={selectStyles}
+                />
+              </div>
+              <div className="flex-1 min-w-64">
+                <label className="block text-xs font-semibold text-indigo-500 uppercase tracking-widest mb-1.5">Search</label>
+                <div className="relative">
+                  <FaSearch className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-xs" />
+                  <input
+                    type="text"
+                    placeholder="Name, order ID, total, type..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="w-full pl-9 pr-3.5 py-2.5 rounded-xl border border-slate-200 text-sm bg-slate-50 outline-none focus:border-indigo-400 transition-colors box-border"
+                  />
                 </div>
               </div>
+            </div>
+          </div>
 
-              {/* Cards */}
-              {currentOrders.length === 0 ? (
-                <div className="bg-white border-2 border-dashed border-gray-200 rounded-xl py-16 text-center">
-                  <p className="text-sm text-gray-400 font-medium">No bookings found</p>
-                </div>
-              ) : (
-                <div className="grid mobile:grid-cols-1 onefifty:grid-cols-2 hundred:grid-cols-3 gap-5">
-                  {currentOrders.map((booking, index) => (
-                    <div key={booking.id} className="bg-white border border-gray-200 rounded-xl shadow-sm p-5 hover:shadow-md transition-shadow">
-                      <div className="flex items-start justify-between mb-3">
-                        <div>
-                          <p className="text-xs text-gray-400 font-medium">#{indexOfFirstOrder + index + 1}</p>
-                          <h3 className="text-sm font-bold text-gray-800 mt-0.5">{booking.customer_name}</h3>
-                        </div>
-                        {statusBadge(booking.status)}
-                      </div>
-
-                      <div className="space-y-1.5 text-xs mb-4">
-                        {[
-                          ['Contact', <a href={`tel:${booking.mobile_number}`} className="text-blue-600 hover:underline">{booking.mobile_number}</a>],
-                          ['Order ID', booking.order_id],
-                          ['Date', formatDate(booking.created_at)],
-                          ['Total', <span className="font-bold text-emerald-600">{booking.total}</span>],
-                          ['Type', booking.customer_type],
-                          ['District', booking.district],
-                          ['State', booking.state],
-                        ].map(([label, value]) => (
-                          <div key={label} className="flex justify-between gap-2">
-                            <span className="text-gray-400 font-semibold">{label}</span>
-                            <span className="text-gray-700 font-medium text-right">{value}</span>
-                          </div>
-                        ))}
-                        {booking.amount_paid && (
-                          <div className="flex justify-between gap-2">
-                            <span className="text-gray-400 font-semibold">Amount Paid</span>
-                            <span className="text-gray-700 font-medium">Rs.{booking.amount_paid}</span>
-                          </div>
-                        )}
-                        {booking.payment_method && (
-                          <div className="flex justify-between gap-2">
-                            <span className="text-gray-400 font-semibold">Payment</span>
-                            <span className="text-gray-700 font-medium">{booking.payment_method}</span>
-                          </div>
-                        )}
-                        {booking.transaction_id && (
-                          <div className="flex justify-between gap-2">
-                            <span className="text-gray-400 font-semibold">Txn ID</span>
-                            <span className="text-gray-700 font-medium truncate max-w-[140px]">{booking.transaction_id}</span>
-                          </div>
-                        )}
-                      </div>
-
-                      <div className="flex gap-2 mb-3">
-                        <button onClick={() => generatePDF(booking)} disabled={downloadingId === booking.id}
-                          className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-lg text-xs font-semibold transition-colors cursor-pointer ${downloadingId === booking.id ? 'bg-gray-100 text-gray-400 cursor-not-allowed' : 'bg-blue-50 hover:bg-blue-100 text-blue-600'}`}>
-                          {downloadingId === booking.id ? <><Spinner color="text-gray-400" />…</> : <><FaDownload className="h-3 w-3" /> Download</>}
-                        </button>
-                        <button onClick={() => { setSelectedOrderId(booking.order_id); setShowDeleteModal(true); }}
-                          className="flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-lg bg-red-50 hover:bg-red-100 text-red-600 text-xs font-semibold transition-colors cursor-pointer">
-                          <FaTrash className="h-3 w-3" /> Delete
-                        </button>
-                      </div>
-
-                      <div className="relative">
-                        {updatingStatusId === booking.id && (
-                          <div className="absolute inset-0 flex items-center justify-center bg-white/70 rounded-lg z-10">
-                            <Spinner color="text-blue-500" />
-                          </div>
-                        )}
-                        <label className={lc}>Update Status</label>
-                        {renderSelect(booking.status, (e) => handleStatusChange(booking.id, e.target.value), [
-                          { value: 'booked', label: 'Booked' }, { value: 'paid', label: 'Paid' }
-                        ], 'Update Status')}
-                      </div>
+          {currentOrders.length > 0 ? (
+            <div className="grid grid-cols-[repeat(auto-fill,minmax(320px,1fr))] gap-4 mb-6">
+              {currentOrders.map((booking) => (
+                <div key={booking.id} className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm hover:shadow-lg hover:-translate-y-0.5 transition-all duration-200">
+                  <div className="flex justify-between items-start mb-3">
+                    <div>
+                      <div className="text-xs font-extrabold text-indigo-500 tracking-wide">{booking.order_id}</div>
+                      <div className="text-base font-bold text-slate-800 mt-0.5">{booking.customer_name}</div>
                     </div>
-                  ))}
-                </div>
-              )}
+                    <StatusBadge status={booking.status} />
+                  </div>
 
-              {/* Pagination */}
-              {totalPages > 1 && (
-                <div className="flex justify-center items-center gap-2 flex-wrap">
-                  {[
-                    { label: 'First', action: () => setCurrentPage(1), disabled: currentPage === 1 },
-                    { label: 'Previous', action: () => setCurrentPage(p => Math.max(p - 1, 1)), disabled: currentPage === 1 },
-                  ].map(({ label, action, disabled }) => (
-                    <button key={label} onClick={action} disabled={disabled}
-                      className={`h-9 px-3 rounded-lg text-sm font-semibold transition-all ${disabled ? 'bg-gray-100 text-gray-300 cursor-not-allowed' : 'bg-white border border-gray-200 text-gray-600 hover:bg-gray-50'}`}>
-                      {label}
+                  <div className="bg-emerald-50 border border-emerald-100 rounded-xl px-4 py-3 mb-4">
+                    <p className="text-xs font-semibold text-emerald-600 uppercase tracking-widest">Total Amount</p>
+                    <p className="text-2xl font-bold text-emerald-700">₹{parseFloat(booking.total || 0).toFixed(2)}</p>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-2 mb-4">
+                    {[
+                      ["📍 District", booking.district || "N/A"],
+                      ["🏛️ State", booking.state || "N/A"],
+                      ["👤 Type", booking.customer_type],
+                      ["📅 Date", formatDate(booking.created_at)],
+                    ].map(([label, value]) => (
+                      <div key={label} className="bg-slate-50 rounded-lg px-2.5 py-2">
+                        <div className="text-xs font-bold text-slate-400 uppercase tracking-widest">{label}</div>
+                        <div className="text-xs font-semibold text-slate-700 mt-0.5">{value}</div>
+                      </div>
+                    ))}
+                  </div>
+
+                  {(booking.amount_paid || booking.payment_method || booking.transaction_id) && (
+                    <div className="bg-amber-50 border border-amber-100 rounded-xl px-3 py-2.5 mb-4 space-y-1">
+                      {booking.amount_paid && <p className="text-xs text-slate-700"><span className="font-bold text-amber-600">Amount Paid:</span> ₹{booking.amount_paid}</p>}
+                      {booking.payment_method && <p className="text-xs text-slate-700"><span className="font-bold text-amber-600">Method:</span> {booking.payment_method}</p>}
+                      {booking.transaction_id && <p className="text-xs text-slate-700"><span className="font-bold text-amber-600">Txn ID:</span> {booking.transaction_id}</p>}
+                    </div>
+                  )}
+
+                  {booking.mobile_number && (
+                    <a href={`tel:${booking.mobile_number}`} className="block text-xs font-semibold text-indigo-500 hover:text-indigo-700 mb-4 transition-colors">
+                      📞 {booking.mobile_number}
+                    </a>
+                  )}
+
+                  {booking.status?.toLowerCase() === 'booked' && (
+                    <div className="mb-3">
+                      <label className="block text-xs font-semibold text-slate-400 uppercase tracking-widest mb-1.5">Update Status</label>
+                      <select
+                        value={booking.status}
+                        onChange={(e) => handleStatusChange(booking.id, e.target.value, booking.total)}
+                        className={selectStyles}
+                      >
+                        <option value="">— Change Status —</option>
+                        <option value="booked">Booked</option>
+                        <option value="paid">Paid</option>
+                      </select>
+                    </div>
+                  )}
+
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => handleDownloadClick(booking)}
+                      className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-xs font-bold bg-indigo-50 text-indigo-600 border border-indigo-200 hover:bg-indigo-500 hover:text-white hover:border-indigo-500 transition-all duration-200"
+                    >
+                      <FaDownload className="text-xs" /> Download
                     </button>
-                  ))}
-                  {getVisiblePages().map((page) => (
-                    <button key={page} onClick={() => setCurrentPage(page)}
-                      className={`h-9 w-9 rounded-lg text-sm font-semibold transition-all ${currentPage === page ? 'bg-blue-600 text-white' : 'bg-white border border-gray-200 text-gray-600 hover:bg-gray-50'}`}>
-                      {page}
+                    <button
+                      onClick={() => { setSelectedOrderId(booking.order_id); setShowDeleteModal(true); }}
+                      className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-xs font-bold bg-red-50 text-red-500 border border-red-200 hover:bg-red-500 hover:text-white hover:border-red-500 transition-all duration-200"
+                    >
+                      <FaTrash className="text-xs" /> Delete
                     </button>
-                  ))}
-                  {[
-                    { label: 'Next', action: () => setCurrentPage(p => Math.min(p + 1, totalPages)), disabled: currentPage === totalPages },
-                    { label: 'Last', action: () => setCurrentPage(totalPages), disabled: currentPage === totalPages },
-                  ].map(({ label, action, disabled }) => (
-                    <button key={label} onClick={action} disabled={disabled}
-                      className={`h-9 px-3 rounded-lg text-sm font-semibold transition-all ${disabled ? 'bg-gray-100 text-gray-300 cursor-not-allowed' : 'bg-white border border-gray-200 text-gray-600 hover:bg-gray-50'}`}>
-                      {label}
-                    </button>
-                  ))}
+                  </div>
                 </div>
-              )}
-            </>
+              ))}
+            </div>
+          ) : (
+            <div className="text-center py-12 text-slate-400 font-medium bg-white border border-slate-200 rounded-2xl mb-6">
+              No bookings found
+            </div>
+          )}
+
+          {totalPages > 1 && (
+            <div className="flex justify-center gap-1.5 flex-wrap">
+              <PaginBtn label="← Prev" onClick={() => setCurrentPage((p) => Math.max(p - 1, 1))} disabled={currentPage === 1} />
+              {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
+                <PaginBtn key={page} label={page} onClick={() => setCurrentPage(page)} active={currentPage === page} />
+              ))}
+              <PaginBtn label="Next →" onClick={() => setCurrentPage((p) => Math.min(p + 1, totalPages))} disabled={currentPage === totalPages} />
+            </div>
           )}
         </div>
       </div>
 
-      {/* Paid Confirm Modal */}
       {showPaidModal && (
-        <div className={modalOverlay}>
-          <div className={modalBox}>
-            <h2 className="text-base font-bold text-gray-800 mb-2">Update Status to Paid</h2>
-            <p className="text-sm text-gray-500 mb-5">Please fill in the payment details.</p>
-            <div className="flex gap-3">
-              <button onClick={handleFillDetails} className={`flex-1 ${btnGreen}`}>Fill Details</button>
-              <button onClick={() => setShowPaidModal(false)} className={`flex-1 ${btnGhost}`}>Cancel</button>
-            </div>
+        <ModalWrapper>
+          <div className="text-5xl mb-4 text-center">💰</div>
+          <h2 className="text-xl font-extrabold text-slate-800 mb-2 text-center">Update to Paid?</h2>
+          <p className="text-slate-500 text-sm mb-6 text-center">Please fill in the payment details to proceed.</p>
+          <div className="flex gap-2.5 justify-center">
+            <button onClick={() => setShowPaidModal(false)} className="px-5 py-2.5 rounded-xl border border-slate-200 bg-white text-slate-500 font-semibold text-sm hover:bg-slate-50 transition-colors">Cancel</button>
+            <button onClick={handleFillDetails} className="px-6 py-2.5 rounded-xl font-bold text-sm text-white bg-gradient-to-br from-emerald-500 to-emerald-400 shadow-lg shadow-emerald-200 hover:from-emerald-600 hover:to-emerald-500 transition-all duration-200">Fill Details</button>
           </div>
-        </div>
+        </ModalWrapper>
       )}
 
-      {/* Payment Details Modal */}
       {showDetailsModal && (
-        <div className={modalOverlay}>
-          <div className={modalBox}>
-            <h2 className="text-base font-bold text-gray-800 mb-4">Payment Details</h2>
-            <div className="space-y-4">
-              <div>
-                <label className={lc}>Payment Method</label>
-                {renderSelect(paymentMethod, (e) => setPaymentMethod(e.target.value), [
-                  { value: 'cash', label: 'Cash' }, { value: 'bank', label: 'Bank Transaction' }
-                ], 'Select Payment Method')}
-              </div>
-              <div>
-                <label className={lc}>Amount Paid</label>
-                <input type="number" value={amountPaid} onChange={(e) => setAmountPaid(e.target.value)}
-                  placeholder="Enter amount paid" className={ic} />
-              </div>
-              {paymentMethod === 'bank' && (
-                <div>
-                  <label className={lc}>Transaction ID</label>
-                  <input type="text" value={transactionId} onChange={(e) => setTransactionId(e.target.value)}
-                    placeholder="Enter transaction ID" className={ic} />
-                </div>
-              )}
-              {error && <p className="text-xs text-red-500">{error}</p>}
-              <div className="flex gap-3 pt-1">
-                <button onClick={handleDetailsSubmit} disabled={detailsSubmitLoading}
-                  className={`flex-1 h-9 px-4 rounded-lg text-sm font-semibold text-white shadow-sm transition-colors cursor-pointer flex items-center justify-center gap-2 ${detailsSubmitLoading ? 'bg-blue-400 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700'}`}>
-                  {detailsSubmitLoading ? <><Spinner />Submitting…</> : 'Submit'}
-                </button>
-                <button onClick={() => setShowDetailsModal(false)} className={`flex-1 ${btnGhost}`}>Cancel</button>
-              </div>
+        <ModalWrapper>
+          <h2 className="text-xl font-extrabold text-slate-800 mb-6 text-center">💳 Payment Details</h2>
+
+          <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-4 mb-6 text-center">
+            <p className="text-sm font-medium text-emerald-600">Total Amount</p>
+            <p className="text-3xl font-bold text-emerald-700">₹{parseFloat(selectedTotal).toFixed(2)}</p>
+          </div>
+
+          <div className="space-y-4">
+            <div>
+              <label className="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-1.5">Payment Method</label>
+              <select
+                value={paymentMethod}
+                onChange={(e) => {
+                  setPaymentMethod(e.target.value);
+                  if (e.target.value === 'bank') {
+                    setTimeout(() => transactionIdRef.current?.focus(), 0);
+                  }
+                }}
+                className={selectStyles}
+              >
+                <option value="cash">Cash</option>
+                <option value="bank">Bank Transaction</option>
+              </select>
             </div>
+
+            <div>
+              <label className="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-1.5">
+                Amount Paid <span className="text-red-500">*</span>
+              </label>
+              <input
+                ref={amountPaidRef}
+                type="text"
+                inputMode="numeric"
+                value={amountPaid ?? ""}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  if (/^\d*\.?\d{0,2}$/.test(val)) setAmountPaid(val);
+                }}
+                placeholder="Enter amount paid"
+                className="w-full px-3 py-2.5 rounded-lg border border-slate-200 text-sm font-medium text-slate-800 bg-slate-50 outline-none focus:border-indigo-400 transition-colors box-border"
+              />
+            </div>
+
+            {paymentMethod === 'bank' && (
+              <div>
+                <label className="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-1.5">
+                  Transaction ID <span className="text-red-500">*</span>
+                </label>
+                <input
+                  ref={transactionIdRef}
+                  type="text"
+                  value={transactionId ?? ""}
+                  onChange={(e) => setTransactionId(e.target.value)}
+                  placeholder="Enter transaction ID"
+                  className="w-full px-3 py-2.5 rounded-lg border border-slate-200 text-sm font-medium text-slate-800 bg-slate-50 outline-none focus:border-indigo-400 transition-colors box-border"
+                />
+              </div>
+            )}
+          </div>
+
+          <div className="flex gap-2.5 justify-end mt-6">
+            <button
+              onClick={() => {
+                setShowDetailsModal(false);
+                fetchBookings(false);
+              }}
+              className="px-5 py-2.5 rounded-xl border border-slate-200 bg-white text-slate-500 font-semibold text-sm hover:bg-slate-50 transition-colors"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={handleDetailsSubmit}
+              className="px-6 py-2.5 rounded-xl font-bold text-sm text-white bg-gradient-to-br from-indigo-500 to-indigo-400 shadow-lg shadow-indigo-200 hover:from-indigo-600 hover:to-indigo-500 transition-all duration-200"
+            >
+              Submit
+            </button>
+          </div>
+        </ModalWrapper>
+      )}
+
+      {showDownloadModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl p-8 max-w-sm w-full shadow-2xl text-center">
+            <div className="text-4xl mb-4">📄</div>
+            <h2 className="text-xl font-extrabold text-slate-800 mb-2">Download PDF</h2>
+            <p className="text-slate-400 text-sm mb-7">Choose the type of PDF to download</p>
+            <div className="flex gap-3">
+              <button onClick={() => handleDownloadChoice('bill')} className="flex-1 py-3 rounded-xl font-bold text-sm text-white bg-gradient-to-br from-indigo-500 to-indigo-400 hover:from-indigo-600">🧾 Bill</button>
+              <button onClick={() => handleDownloadChoice('packing')} className="flex-1 py-3 rounded-xl font-bold text-sm text-white bg-gradient-to-br from-orange-500 to-orange-400 hover:from-orange-600">📦 Packing</button>
+            </div>
+            <button onClick={() => { setShowDownloadModal(false); setDownloadTarget(null); }} className="mt-4 w-full py-2.5 rounded-xl border border-slate-200 text-slate-500 font-semibold text-sm hover:bg-slate-50">Cancel</button>
           </div>
         </div>
       )}
 
-      {/* Delete Modal */}
       {showDeleteModal && (
-        <div className={modalOverlay}>
-          <div className={modalBox}>
-            <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
-              <FaTrash className="h-5 w-5 text-red-500" />
-            </div>
-            <h2 className="text-base font-bold text-gray-800 mb-2 text-center">Confirm Delete</h2>
-            <p className="text-sm text-gray-500 mb-5 text-center">
-              Are you sure you want to delete this booking and its associated quotation (if any)?
-            </p>
-            <div className="flex gap-3">
-              <button onClick={handleDeleteBooking} disabled={deletingLoading}
-                className={`flex-1 h-9 px-4 rounded-lg text-sm font-semibold text-white shadow-sm transition-colors cursor-pointer flex items-center justify-center gap-2 ${deletingLoading ? 'bg-red-400 cursor-not-allowed' : 'bg-red-600 hover:bg-red-700'}`}>
-                {deletingLoading ? <><Spinner />Deleting…</> : 'Delete'}
-              </button>
-              <button onClick={() => setShowDeleteModal(false)} className={`flex-1 ${btnGhost}`}>Cancel</button>
-            </div>
+        <ModalWrapper>
+          <div className="text-5xl mb-4 text-center">⚠️</div>
+          <h2 className="text-lg font-extrabold text-slate-800 mb-2.5 text-center">Delete Booking?</h2>
+          <p className="text-slate-500 text-sm mb-6 text-center">Are you sure you want to delete this booking? This cannot be undone.</p>
+          <div className="flex gap-2.5 justify-center">
+            <button onClick={() => setShowDeleteModal(false)} className="px-5 py-2.5 rounded-xl border border-slate-200 bg-white text-slate-500 font-semibold text-sm hover:bg-slate-50">Keep It</button>
+            <button onClick={handleDeleteBooking} className="px-6 py-2.5 rounded-xl font-bold text-sm text-white bg-gradient-to-br from-red-500 to-red-400 hover:from-red-600">Yes, Delete</button>
           </div>
-        </div>
+        </ModalWrapper>
       )}
     </div>
   );
