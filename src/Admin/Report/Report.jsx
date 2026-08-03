@@ -25,12 +25,12 @@ const PageLoader = () => (
 );
 
 export default function Report() {
-  const [data, setData] = useState([]);           // renamed from bookings → more accurate
+  const [data, setData] = useState([]);
   const [filteredData, setFilteredData] = useState([]);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
-  const [statusFilter, setStatusFilter] = useState(''); // optional client-side filter
+  const [statusFilter, setStatusFilter] = useState('');
   const [downloadingId, setDownloadingId] = useState(null);
   const [exporting, setExporting] = useState(false);
 
@@ -53,11 +53,10 @@ export default function Report() {
     };
 
     fetchReport();
-    const interval = setInterval(fetchReport, 15000); // slightly longer interval
+    const interval = setInterval(fetchReport, 15000);
     return () => clearInterval(interval);
   }, []);
 
-  // Apply client-side status filter
   useEffect(() => {
     if (!statusFilter) {
       setFilteredData(data);
@@ -153,7 +152,6 @@ export default function Report() {
     }
   };
 
-  // Pagination
   const totalItems = filteredData.length;
   const totalPages = Math.ceil(totalItems / itemsPerPage);
   const startIndex = (currentPage - 1) * itemsPerPage;
@@ -186,7 +184,6 @@ export default function Report() {
       <main className="flex-1 ml-0 md:ml-64 p-4 md:p-8 pb-16">
         <div className="max-w-7xl mx-auto space-y-6">
 
-          {/* Header + Export */}
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pb-4 border-b">
             <div>
               <p className="text-xs font-bold uppercase tracking-wide text-blue-600">Finance / Tracking</p>
@@ -210,7 +207,6 @@ export default function Report() {
 
           {loading ? <PageLoader /> : (
             <>
-              {/* Quick stats + filter */}
               <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-5 gap-4">
                 <div className="bg-white p-4 rounded-xl border shadow-sm">
                   <p className="text-xs font-semibold text-gray-500 uppercase">Total Entries</p>
@@ -250,7 +246,6 @@ export default function Report() {
                 </div>
               </div>
 
-              {/* Cards / Items */}
               {currentItems.length === 0 ? (
                 <div className="bg-white border-2 border-dashed border-gray-300 rounded-xl py-16 text-center">
                   <p className="text-gray-500 font-medium">
@@ -325,7 +320,6 @@ export default function Report() {
                 </div>
               )}
 
-              {/* Pagination */}
               {totalPages > 1 && (
                 <div className="flex flex-wrap justify-center items-center gap-2 mt-8">
                   <button

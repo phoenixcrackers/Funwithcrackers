@@ -304,7 +304,7 @@ export default function List() {
       doc.setFontSize(12); doc.setFont("helvetica", "normal");
       doc.text("Sivakasi", pageWidth / 2, yOffset, { align: "center" }); yOffset += 8;
       doc.text("Website: www.funwithcrackers.com", pageWidth / 2, yOffset, { align: "center" }); yOffset += 8;
-      doc.text("Pricelist 2025", pageWidth / 2, yOffset, { align: "center" }); yOffset += 20;
+      doc.text(`Retail Pricelist - ${new Date().getFullYear()}`, pageWidth / 2, yOffset, { align: "center" });
       const tableData = [];
       let serialNumber = 1;
       let hasProducts = false;

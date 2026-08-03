@@ -80,6 +80,19 @@ class QuotationTableErrorBoundary extends React.Component {
 const getEffectivePrice = (item) => Math.round(Number(item.price) || 0);
 const styles = { input: {}, button: {}, card: {} };
 
+// Returns true when a product_type is present (case-insensitively) in the excluded list
+const isTypeExcluded = (productType, excludedTypes = []) =>
+  Array.isArray(excludedTypes) && excludedTypes.some(
+    (t) => t && productType && t.trim().toLowerCase() === String(productType).trim().toLowerCase()
+  );
+
+// Applies the bulk discount value to every cart line EXCEPT lines whose product_type
+// is in excludedTypes. Excluded lines keep whatever discount they currently have.
+const applyBulkDiscount = (cartArr = [], discountValue = 0, excludedTypes = []) =>
+  cartArr.map((item) =>
+    isTypeExcluded(item.product_type, excludedTypes) ? item : { ...item, discount: discountValue }
+  );
+
 // ─── Micro-components ─────────────────────────────────────────────────────────
 const FieldLabel = ({ children, accent }) => (
   <label className={`block text-[11px] font-bold uppercase tracking-[0.08em] mb-1.5 ${accent || "text-gray-500"}`}>
@@ -182,9 +195,14 @@ const QuotationTable = ({
   isModal = false, additionalDiscount, setAdditionalDiscount,
   changeDiscount, setChangeDiscount, openNewProductModal,
   lastAddedProduct, setLastAddedProduct, setCart, setModalCart,
+  excludedTypes = [], setExcludedTypes,
 }) => {
   const quantityInputRefs = useRef({});
   const productSelectRef = useRef(null);
+  const searchWrapperRef = useRef(null);
+  const [productQuery, setProductQuery] = useState("");
+  const [showDropdown, setShowDropdown] = useState(false);
+  const [excludedTypesInput, setExcludedTypesInput] = useState((excludedTypes || []).join(", "));
 
   useEffect(() => {
     if (lastAddedProduct) {
@@ -194,50 +212,98 @@ const QuotationTable = ({
     }
   }, [lastAddedProduct, setLastAddedProduct]);
 
+  // Close the product dropdown when the user clicks outside of it
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (searchWrapperRef.current && !searchWrapperRef.current.contains(e.target)) {
+        setShowDropdown(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
   const handleQuantityKeyDown = (e) => {
     if (e.key === 'Enter') { e.preventDefault(); productSelectRef.current?.focus(); }
   };
 
+  // Applies the current bulk-discount value to every cart line, honoring excluded categories.
   const handleChangeDiscount = (value) => {
     const newDiscount = Math.max(0, Math.min(100, parseFloat(value) || 0));
     setChangeDiscount(newDiscount);
-    const updatedCart = cart.map(item => ({ ...item, discount: item.initialDiscount === 0 ? 0 : newDiscount }));
+    const updatedCart = applyBulkDiscount(cart, newDiscount, excludedTypes);
+    if (isModal) setModalCart(updatedCart); else setCart(updatedCart);
+  };
+
+  // Updates which product categories are exempt from the bulk discount, and immediately
+  // re-applies the bulk discount to the rest of the cart (existing + future items).
+  const handleExcludedTypesChange = (text) => {
+    setExcludedTypesInput(text);
+    const parsed = text.split(',').map((s) => s.trim()).filter(Boolean);
+    setExcludedTypes(parsed);
+    const updatedCart = applyBulkDiscount(cart, changeDiscount, parsed);
     if (isModal) setModalCart(updatedCart); else setCart(updatedCart);
   };
 
   const total = parseFloat(calculateTotal(cart, additionalDiscount));
 
+  // Products matching the current search text. Empty query -> show full list (dropdown mode).
+  const filteredProducts = productQuery.trim()
+    ? products.filter((p) => {
+        const q = productQuery.toLowerCase();
+        return (
+          (p.productname || '').toLowerCase().includes(q) ||
+          (p.product_type || '').toLowerCase().includes(q) ||
+          (p.serial_number || '').toLowerCase().includes(q)
+        );
+      }).slice(0, 8)
+    : products.slice(0, 50);
+
+  const handleProductClick = (product) => {
+    addToCart(isModal, null, product);
+    setProductQuery("");
+    setShowDropdown(false);
+  };
+
   return (
     <div className="space-y-4">
-      {/* Product search + buttons */}
-      <div className="flex flex-wrap gap-2 items-end">
-        <div className="flex-1">
-          <FieldLabel>Search & Add Product</FieldLabel>
-          <Select
-            ref={productSelectRef}
-            value={selectedProduct}
-            onChange={setSelectedProduct}
-            options={products.map((p) => ({
-              value: `${p.id}-${p.product_type}`,
-              label: `${p.serial_number ? `[${p.serial_number}] ` : ''}${p.productname} · ${p.product_type} · ₹${getEffectivePrice(p)}`,
-            }))}
-            placeholder="Search products…"
-            isClearable
-            isSearchable
-            styles={selectStyles}
-          />
-        </div>
-        <button
-          onClick={() => addToCart(isModal)}
-          disabled={!selectedProduct}
-          className={`h-[42px] px-4 rounded-lg text-sm font-semibold flex items-center gap-1.5 border transition-all duration-150 whitespace-nowrap
-            ${selectedProduct
-              ? "bg-blue-600 border-blue-600 text-white hover:bg-blue-700 shadow-sm"
-              : "bg-gray-100 border-gray-200 text-gray-400 cursor-not-allowed"}`}
-        >
-          <svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>
-          Add to Cart
-        </button>
+      {/* Product search / dropdown — click to browse the full list, type to filter it */}
+      <div ref={searchWrapperRef} className="relative">
+        <FieldLabel>Search & Add Product</FieldLabel>
+        <input
+          type="text"
+          ref={productSelectRef}
+          value={productQuery}
+          onChange={(e) => { setProductQuery(e.target.value); setShowDropdown(true); }}
+          onFocus={() => setShowDropdown(true)}
+          placeholder="Click to browse all products, or type to search…"
+          className="w-full h-11 px-3 rounded-lg border border-gray-200 text-sm font-medium text-gray-800 bg-white outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100 transition-all duration-150"
+        />
+        {showDropdown && (
+          <div className="mt-2 border border-gray-200 rounded-lg divide-y divide-gray-100 max-h-72 overflow-y-auto bg-white shadow-sm absolute z-20 w-full">
+            {filteredProducts.length ? filteredProducts.map((p) => (
+              <button
+                key={`${p.id}-${p.product_type}`}
+                type="button"
+                onClick={() => handleProductClick(p)}
+                className="w-full text-left px-3 py-2.5 flex items-center justify-between gap-3 hover:bg-blue-50 transition-colors duration-100"
+              >
+                <div className="min-w-0">
+                  <div className="text-sm font-semibold text-gray-800 truncate">
+                    {p.serial_number ? `[${p.serial_number}] ` : ''}{p.productname}
+                  </div>
+                  <div className="text-[11px] text-gray-400 truncate">{p.product_type}</div>
+                </div>
+                <span className="text-sm font-bold text-blue-600 whitespace-nowrap tabular-nums">₹{getEffectivePrice(p)}</span>
+              </button>
+            )) : (
+              <div className="px-3 py-3 text-sm text-gray-400 text-center">No matching products</div>
+            )}
+          </div>
+        )}
+      </div>
+
+      <div className="flex justify-end">
         <button
           onClick={() => openNewProductModal(isModal)}
           className="h-[42px] px-4 rounded-lg text-sm font-semibold flex items-center gap-1.5 border border-emerald-300 bg-white text-emerald-700 hover:bg-emerald-600 hover:text-white hover:border-emerald-600 transition-all duration-150 whitespace-nowrap"
@@ -248,26 +314,48 @@ const QuotationTable = ({
       </div>
 
       {/* Discount controls */}
-      <div className="grid grid-cols-2 gap-3">
-        {[
-          { label: "Additional Discount", accent: "text-amber-500", value: additionalDiscount, onChange: (v) => setAdditionalDiscount(Math.max(0, Math.min(100, parseFloat(v) || 0))), focusCls: "focus:border-amber-400 focus:ring-2 focus:ring-amber-100" },
-          { label: "Bulk Change Discount", accent: "text-blue-500", value: changeDiscount, onChange: handleChangeDiscount, focusCls: "focus:border-blue-400 focus:ring-2 focus:ring-blue-100" },
-        ].map(({ label, accent, value, onChange, focusCls }) => (
-          <div key={label} className="bg-white border border-gray-200 rounded-lg p-3">
-            <FieldLabel accent={accent}>{label} (%)</FieldLabel>
-            <div className="relative">
-              <input
-                type="number"
-                value={value || ''}
-                onChange={(e) => onChange(e.target.value)}
-                placeholder="0"
-                min="0" max="100" step="1"
-                className={`w-full h-9 pl-3 pr-8 rounded-md border border-gray-200 text-sm font-semibold text-gray-800 bg-gray-50 outline-none transition-all duration-150 ${focusCls} [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none`}
-              />
-              <span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-xs font-bold text-gray-400 pointer-events-none">%</span>
-            </div>
+      <div className="grid grid-cols-3 gap-3">
+        <div className="bg-white border border-gray-200 rounded-lg p-3">
+          <FieldLabel accent="text-amber-500">Additional Discount (%)</FieldLabel>
+          <div className="relative">
+            <input
+              type="number"
+              value={additionalDiscount || ''}
+              onChange={(e) => setAdditionalDiscount(Math.max(0, Math.min(100, parseFloat(e.target.value) || 0)))}
+              placeholder="0"
+              min="0" max="100" step="1"
+              className="w-full h-9 pl-3 pr-8 rounded-md border border-gray-200 text-sm font-semibold text-gray-800 bg-gray-50 outline-none transition-all duration-150 focus:border-amber-400 focus:ring-2 focus:ring-amber-100 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+            />
+            <span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-xs font-bold text-gray-400 pointer-events-none">%</span>
           </div>
-        ))}
+        </div>
+
+        <div className="bg-white border border-gray-200 rounded-lg p-3">
+          <FieldLabel accent="text-blue-500">Bulk Change Discount (%)</FieldLabel>
+          <div className="relative">
+            <input
+              type="number"
+              value={changeDiscount || ''}
+              onChange={(e) => handleChangeDiscount(e.target.value)}
+              placeholder="0"
+              min="0" max="100" step="1"
+              className="w-full h-9 pl-3 pr-8 rounded-md border border-gray-200 text-sm font-semibold text-gray-800 bg-gray-50 outline-none transition-all duration-150 focus:border-blue-400 focus:ring-2 focus:ring-blue-100 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+            />
+            <span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-xs font-bold text-gray-400 pointer-events-none">%</span>
+          </div>
+        </div>
+
+        <div className="bg-white border border-gray-200 rounded-lg p-3">
+          <FieldLabel accent="text-red-500">Exclude Categories (comma sep.)</FieldLabel>
+          <input
+            type="text"
+            value={excludedTypesInput}
+            onChange={(e) => handleExcludedTypesChange(e.target.value)}
+            placeholder="e.g. Sparklers, Rockets"
+            className="w-full h-9 px-3 rounded-md border border-gray-200 text-sm font-semibold text-gray-800 bg-gray-50 outline-none transition-all duration-150 focus:border-red-400 focus:ring-2 focus:ring-red-100"
+          />
+          <p className="text-[10px] text-gray-400 mt-1">Products of these types keep their own discount.</p>
+        </div>
       </div>
 
       {/* Cart table */}
@@ -292,12 +380,16 @@ const QuotationTable = ({
               <tbody className="divide-y divide-gray-100">
                 {cart.map((item, index) => {
                   const lineTotal = Math.round(getEffectivePrice(item) * (1 - item.discount / 100) * item.quantity);
+                  const excluded = isTypeExcluded(item.product_type, excludedTypes);
                   return (
                     <tr key={`${item.id}-${item.product_type}`} className="hover:bg-blue-50/40 transition-colors duration-100 group">
                       <td className="px-3 py-2.5 text-center text-xs font-bold text-gray-300 tabular-nums">{index + 1}</td>
                       <td className="px-3 py-2.5 max-w-[180px]">
                         <div className="font-semibold text-gray-800 text-sm leading-tight truncate">{item.productname}</div>
-                        <div className="text-[11px] text-gray-400 mt-0.5 truncate">{item.product_type}{item.serial_number ? ` · ${item.serial_number}` : ""}</div>
+                        <div className="text-[11px] text-gray-400 mt-0.5 truncate">
+                          {item.product_type}{item.serial_number ? ` · ${item.serial_number}` : ""}
+                          {excluded && <span className="ml-1 text-red-400 font-semibold">· excluded</span>}
+                        </div>
                       </td>
                       <td className="px-3 py-2.5">
                         <CartInput
@@ -370,6 +462,7 @@ const FormFields = ({
   handleSubmit, closeModal, modalAdditionalDiscount, setModalAdditionalDiscount,
   modalChangeDiscount, setModalChangeDiscount, openNewProductModal,
   modalLastAddedProduct, setModalLastAddedProduct,
+  modalExcludedTypes, setModalExcludedTypes,
 }) => (
   <div className="space-y-5">
     <div>
@@ -400,6 +493,7 @@ const FormFields = ({
         changeDiscount={modalChangeDiscount} setChangeDiscount={setModalChangeDiscount}
         openNewProductModal={openNewProductModal}
         lastAddedProduct={modalLastAddedProduct} setLastAddedProduct={setModalLastAddedProduct}
+        excludedTypes={modalExcludedTypes} setExcludedTypes={setModalExcludedTypes}
       />
     </QuotationTableErrorBoundary>
     <div className="flex justify-end gap-2 pt-1">
@@ -591,6 +685,8 @@ export default function Direct() {
   const [lastAddedProduct, setLastAddedProduct] = useState(null);
   const [modalLastAddedProduct, setModalLastAddedProduct] = useState(null);
   const [changeDiscount, setChangeDiscount] = useState(0);
+  const [excludedTypes, setExcludedTypes] = useState([]);
+  const [modalExcludedTypes, setModalExcludedTypes] = useState([]);
   const [createLoading, setCreateLoading] = useState(false);
   const [modalSubmitLoading, setModalSubmitLoading] = useState(false);
   const [cancelConfirmOpen, setCancelConfirmOpen] = useState(false);
@@ -709,18 +805,28 @@ export default function Direct() {
     const targetSelectedProduct = isModal ? modalSelectedProduct : selectedProduct;
     const setTargetSelectedProduct = isModal ? setModalSelectedProduct : setSelectedProduct;
     const targetDiscount = isModal ? modalChangeDiscount : changeDiscount;
+    const targetExcludedTypes = isModal ? modalExcludedTypes : excludedTypes;
     const setTargetLastAddedProduct = isModal ? setModalLastAddedProduct : setLastAddedProduct;
     if (!customProduct && !targetSelectedProduct && !directProduct) { setError("Please select a product"); return; }
     let product;
     if (customProduct) {
-      product = { ...customProduct, id: `custom-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`, product_type: customProduct.product_type || 'custom', price: Math.round(Number(customProduct.price) || 0), quantity: parseInt(customProduct.quantity) || 1, discount: parseFloat(customProduct.discount) || targetDiscount, initialDiscount: parseFloat(customProduct.discount) || targetDiscount, per: customProduct.per || 'Unit' };
+      // Custom products: honor an explicitly typed discount; otherwise fall back to the
+      // bulk discount, unless this product's type is excluded from bulk discounting.
+      const excluded = isTypeExcluded(customProduct.product_type, targetExcludedTypes);
+      const hasExplicitDiscount = customProduct.discount !== undefined && customProduct.discount !== '' && customProduct.discount !== null;
+      const resolvedDiscount = hasExplicitDiscount ? parseFloat(customProduct.discount) : (excluded ? 0 : targetDiscount);
+      product = { ...customProduct, id: `custom-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`, product_type: customProduct.product_type || 'custom', price: Math.round(Number(customProduct.price) || 0), quantity: parseInt(customProduct.quantity) || 1, discount: resolvedDiscount, initialDiscount: resolvedDiscount, per: customProduct.per || 'Unit' };
     } else if (directProduct) {
-      product = { ...directProduct, id: directProduct.id, price: Math.round(Number(directProduct.price) || 0), quantity: 1, discount: parseFloat(directProduct.discount) || targetDiscount, initialDiscount: parseFloat(directProduct.discount) || 0, per: directProduct.per || 'Unit' };
+      const excluded = isTypeExcluded(directProduct.product_type, targetExcludedTypes);
+      const resolvedDiscount = excluded ? (parseFloat(directProduct.discount) || 0) : targetDiscount;
+      product = { ...directProduct, id: directProduct.id, price: Math.round(Number(directProduct.price) || 0), quantity: 1, discount: resolvedDiscount, initialDiscount: parseFloat(directProduct.discount) || 0, per: directProduct.per || 'Unit' };
     } else {
       const [id, type] = targetSelectedProduct.value.split("-");
       product = products.find(p => p.id.toString() === id && p.product_type === type);
       if (!product) { setError("Product not found"); return; }
-      product = { ...product, id: product.id, price: Math.round(Number(product.price) || 0), quantity: 1, discount: parseFloat(product.discount) || targetDiscount, initialDiscount: parseFloat(product.discount) || 0, per: product.per || 'Unit' };
+      const excluded = isTypeExcluded(product.product_type, targetExcludedTypes);
+      const resolvedDiscount = excluded ? (parseFloat(product.discount) || 0) : targetDiscount;
+      product = { ...product, id: product.id, price: Math.round(Number(product.price) || 0), quantity: 1, discount: resolvedDiscount, initialDiscount: parseFloat(product.discount) || 0, per: product.per || 'Unit' };
     }
     setTargetCart(prev => {
       const exists = prev.find(item => item.id === product.id && item.product_type === product.product_type);
@@ -752,24 +858,23 @@ export default function Direct() {
     setCreateLoading(true); setError("");
     const customer = customers.find(c => c.id.toString() === selectedCustomer.value);
     if (!customer) { setCreateLoading(false); return setError("Invalid customer"); }
-    const quotation_id = `QUO-${Date.now()}`;
     try {
       const subtotal = parseFloat(calculateNetRate(cart)) - parseFloat(calculateYouSave(cart));
       const discountedSubtotal = subtotal * (1 - additionalDiscount / 100);
       const processingFee = discountedSubtotal * 0.03;
-      const payload = { customer_id: Number(selectedCustomer.value), quotation_id, products: cart.map(item => ({ id: item.id, product_type: item.product_type, productname: item.productname, price: getEffectivePrice(item), discount: parseFloat(item.discount) || 0, quantity: parseInt(item.quantity) || 0, per: item.per || 'Unit', serial_number: item.serial_number || undefined })), net_rate: parseFloat(calculateNetRate(cart)), you_save: parseFloat(calculateYouSave(cart)), processing_fee: processingFee, total: parseFloat(calculateTotal(cart, additionalDiscount)), promo_discount: 0, additional_discount: parseFloat(additionalDiscount.toFixed(2)), customer_type: customer.customer_type || "User", customer_name: customer.name, address: customer.address, mobile_number: customer.mobile_number, email: customer.email, district: customer.district, state: customer.state, status: "pending" };
+      const payload = { customer_id: Number(selectedCustomer.value), products: cart.map(item => ({ id: item.id, product_type: item.product_type, productname: item.productname, price: getEffectivePrice(item), discount: parseFloat(item.discount) || 0, quantity: parseInt(item.quantity) || 0, per: item.per || 'Unit', serial_number: item.serial_number || undefined })), net_rate: parseFloat(calculateNetRate(cart)), you_save: parseFloat(calculateYouSave(cart)), processing_fee: processingFee, total: parseFloat(calculateTotal(cart, additionalDiscount)), promo_discount: 0, additional_discount: parseFloat(additionalDiscount.toFixed(2)), customer_type: customer.customer_type || "User", customer_name: customer.name, address: customer.address, mobile_number: customer.mobile_number, email: customer.email, district: customer.district, state: customer.state, status: "pending" };
       const response = await axios.post(`${API_BASE_URL}/api/direct/quotations`, payload);
       const newQuotationId = response.data.quotation_id;
       if (!newQuotationId || newQuotationId === "undefined" || !/^[a-zA-Z0-9-_]+$/.test(newQuotationId)) throw new Error("Invalid quotation ID returned from server");
       setQuotationId(newQuotationId); setIsQuotationCreated(true);
       setSuccessMessage("Quotation created successfully!"); setShowSuccess(true); setTimeout(() => setShowSuccess(false), 3000);
-      setQuotations(prev => [{ ...payload, created_at: new Date().toISOString(), customer_name: customer.name, total: payload.total }, ...prev]);
-      setFilteredQuotations(prev => [{ ...payload, created_at: new Date().toISOString(), customer_name: customer.name, total: payload.total }, ...prev]);
+      setQuotations(prev => [{ ...payload, quotation_id: newQuotationId, created_at: new Date().toISOString(), customer_name: customer.name, total: payload.total }, ...prev]);
+      setFilteredQuotations(prev => [{ ...payload, quotation_id: newQuotationId, created_at: new Date().toISOString(), customer_name: customer.name, total: payload.total }, ...prev]);
       const pdfRes = await axios.get(`${API_BASE_URL}/api/direct/quotation/${newQuotationId}`, { responseType: "blob" });
       const blobUrl = window.URL.createObjectURL(new Blob([pdfRes.data]));
       const safeName = (customer.name || "unknown").toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "");
       setPdfUrl(blobUrl); setPdfFileName(`${safeName}-${newQuotationId}-quotation.pdf`); setPdfConfirmOpen(true);
-      setCart([]); setSelectedCustomer(null); setSelectedProduct(null); setAdditionalDiscount(0); setChangeDiscount(0); setLastAddedProduct(null); setQuotationId(null); setIsQuotationCreated(false);
+      setCart([]); setSelectedCustomer(null); setSelectedProduct(null); setAdditionalDiscount(0); setChangeDiscount(0); setExcludedTypes([]); setLastAddedProduct(null); setQuotationId(null); setIsQuotationCreated(false);
     } catch (err) { console.error("Create quotation error:", err); setError(`Failed to create quotation: ${err.message}`); }
     finally { setCreateLoading(false); }
   };
@@ -779,7 +884,7 @@ export default function Direct() {
       if (!quotation.quotation_id || quotation.quotation_id === "undefined" || !/^[a-zA-Z0-9-_]+$/.test(quotation.quotation_id)) { setError("Invalid or missing quotation ID"); return; }
       setModalMode("edit");
       setModalSelectedCustomer({ value: quotation.customer_id?.toString(), label: `${quotation.customer_name} (${quotation.customer_type === "Customer of Selected Agent" ? "Customer - Agent" : quotation.customer_type || "User"} - ${quotation.district || "N/A"})` });
-      setQuotationId(quotation.quotation_id); setModalAdditionalDiscount(parseFloat(quotation.additional_discount) || 0); setModalChangeDiscount(0);
+      setQuotationId(quotation.quotation_id); setModalAdditionalDiscount(parseFloat(quotation.additional_discount) || 0); setModalChangeDiscount(0); setModalExcludedTypes([]);
       try {
         const products = typeof quotation.products === "string" ? JSON.parse(quotation.products) : quotation.products;
         setModalCart(Array.isArray(products) ? products.map(p => ({ ...p, id: p.id || `custom-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`, price: parseFloat(p.price) || 0, discount: parseFloat(p.discount) || 0, initialDiscount: parseFloat(p.discount) || 0, quantity: parseInt(p.quantity) || 0, per: p.per || 'Unit', product_type: p.product_type || 'custom' })) : []);
@@ -817,14 +922,14 @@ export default function Direct() {
       if (!quotation.quotation_id || quotation.quotation_id === "undefined" || !/^[a-zA-Z0-9-_]+$/.test(quotation.quotation_id)) { setError("Invalid or missing quotation ID"); return; }
       setModalMode("book");
       setModalSelectedCustomer({ value: quotation.customer_id?.toString(), label: `${quotation.customer_name} (${quotation.customer_type === "Customer of Selected Agent" ? "Customer - Agent" : quotation.customer_type || "User"} - ${quotation.district || "N/A"})` });
-      setQuotationId(quotation.quotation_id); setOrderId(`ORD-${Date.now()}`); setModalAdditionalDiscount(parseFloat(quotation.additional_discount) || 0); setModalChangeDiscount(0);
+      setQuotationId(quotation.quotation_id); setModalAdditionalDiscount(parseFloat(quotation.additional_discount) || 0); setModalChangeDiscount(0); setModalExcludedTypes([]);
       try {
         const products = typeof quotation.products === "string" ? JSON.parse(quotation.products) : quotation.products;
         setModalCart(Array.isArray(products) ? products.map(p => ({ ...p, id: p.id || `custom-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`, price: parseFloat(p.price) || 0, discount: parseFloat(p.discount) || 0, initialDiscount: parseFloat(p.discount) || 0, quantity: parseInt(p.quantity) || 0, per: p.per || 'Unit', product_type: p.product_type || 'custom' })) : []);
       } catch (e) { setModalCart([]); setError("Failed to parse quotation products"); return; }
       setModalIsOpen(true); return;
     }
-    if (!modalSelectedCustomer || !modalCart.length || !orderId) return setError("Customer, products, and order ID are required");
+    if (!modalSelectedCustomer || !modalCart.length) return setError("Customer, products, and order ID are required");
     if (modalCart.some(item => item.quantity === 0)) return setError("Please remove products with zero quantity");
     if (!quotationId || quotationId === "undefined" || !/^[a-zA-Z0-9-_]+$/.test(quotationId)) { setError("Invalid or missing quotation ID"); return; }
     setModalSubmitLoading(true);
@@ -834,7 +939,7 @@ export default function Direct() {
       const subtotal = parseFloat(calculateNetRate(modalCart)) - parseFloat(calculateYouSave(modalCart));
       const discountedSubtotal = subtotal * (1 - modalAdditionalDiscount / 100);
       const processingFee = discountedSubtotal * 0.03;
-      const payload = { customer_id: Number(modalSelectedCustomer.value), order_id: orderId, quotation_id: quotationId, products: modalCart.map(item => ({ id: item.id, product_type: item.product_type, productname: item.productname, price: getEffectivePrice(item), discount: parseFloat(item.discount) || 0, quantity: parseInt(item.quantity) || 0, per: item.per || 'Unit', serial_number: item.serial_number || undefined })), net_rate: parseFloat(calculateNetRate(modalCart)), you_save: parseFloat(calculateYouSave(modalCart)), processing_fee: processingFee, total: parseFloat(calculateTotal(modalCart, modalAdditionalDiscount)), promo_discount: 0, additional_discount: parseFloat(modalAdditionalDiscount.toFixed(2)), customer_type: customer.customer_type || "User", customer_name: customer.name, address: customer.address, mobile_number: customer.mobile_number, email: customer.email, district: customer.district, state: customer.state };
+      const payload = { customer_id: Number(modalSelectedCustomer.value), quotation_id: quotationId, products: modalCart.map(item => ({ id: item.id, product_type: item.product_type, productname: item.productname, price: getEffectivePrice(item), discount: parseFloat(item.discount) || 0, quantity: parseInt(item.quantity) || 0, per: item.per || 'Unit', serial_number: item.serial_number || undefined })), net_rate: parseFloat(calculateNetRate(modalCart)), you_save: parseFloat(calculateYouSave(modalCart)), processing_fee: processingFee, total: parseFloat(calculateTotal(modalCart, modalAdditionalDiscount)), promo_discount: 0, additional_discount: parseFloat(modalAdditionalDiscount.toFixed(2)), customer_type: customer.customer_type || "User", customer_name: customer.name, address: customer.address, mobile_number: customer.mobile_number, email: customer.email, district: customer.district, state: customer.state };
       const response = await axios.post(`${API_BASE_URL}/api/direct/bookings`, payload);
       setSuccessMessage("Booking created successfully!"); setShowSuccess(true); setTimeout(() => setShowSuccess(false), 3000);
       setQuotations(prev => prev.map(q => q.quotation_id === quotationId ? { ...q, status: "booked" } : q));
@@ -856,7 +961,7 @@ export default function Direct() {
       setSuccessMessage("Quotation cancelled successfully!"); setShowSuccess(true); setTimeout(() => setShowSuccess(false), 3000);
       setQuotations(prev => prev.map(q => q.quotation_id === target ? { ...q, status: "cancelled" } : q));
       setFilteredQuotations(prev => prev.map(q => q.quotation_id === target ? { ...q, status: "cancelled" } : q));
-      if (!quotationToCancel) { setCart([]); setSelectedCustomer(null); setSelectedProduct(null); setQuotationId(null); setIsQuotationCreated(false); setAdditionalDiscount(0); setChangeDiscount(0); setLastAddedProduct(null); }
+      if (!quotationToCancel) { setCart([]); setSelectedCustomer(null); setSelectedProduct(null); setQuotationId(null); setIsQuotationCreated(false); setAdditionalDiscount(0); setChangeDiscount(0); setExcludedTypes([]); setLastAddedProduct(null); }
     } catch (err) { setError(`Failed to cancel: ${err.response?.data?.message || err.message}`); }
     finally { setCancelConfirmOpen(false); setQuotationToCancel(null); }
   };
@@ -872,7 +977,7 @@ export default function Direct() {
     if (!productData.product_type) return setError("Product type is required");
     addToCart(newProductIsForModal, productData); closeNewProductModal();
   };
-  const closeModal = () => { setModalIsOpen(false); setModalMode(null); setModalCart([]); setModalSelectedCustomer(null); setModalSelectedProduct(null); setOrderId(""); setModalAdditionalDiscount(0); setModalChangeDiscount(0); setModalLastAddedProduct(null); setError(""); setSuccessMessage(""); };
+  const closeModal = () => { setModalIsOpen(false); setModalMode(null); setModalCart([]); setModalSelectedCustomer(null); setModalSelectedProduct(null); setOrderId(""); setModalAdditionalDiscount(0); setModalChangeDiscount(0); setModalExcludedTypes([]); setModalLastAddedProduct(null); setError(""); setSuccessMessage(""); };
 
   return (
     <DirectErrorBoundary>
@@ -956,6 +1061,7 @@ export default function Direct() {
                     changeDiscount={changeDiscount} setChangeDiscount={setChangeDiscount}
                     openNewProductModal={openNewProductModal}
                     lastAddedProduct={lastAddedProduct} setLastAddedProduct={setLastAddedProduct}
+                    excludedTypes={excludedTypes} setExcludedTypes={setExcludedTypes}
                     className="overflow-x-auto"
                   />
                 </QuotationTableErrorBoundary>
@@ -1118,9 +1224,10 @@ export default function Direct() {
                 <div className="mb-5">
                   <FieldLabel>Order ID</FieldLabel>
                   <input
-                    type="text" value={orderId} onChange={e => setOrderId(e.target.value)} placeholder="Enter Order ID"
-                    className="w-full h-10 px-3 rounded-lg border border-gray-200 text-sm font-medium text-gray-800 bg-gray-50 outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100 transition-all"
+                    type="text" value={orderId} disabled placeholder="Assigned automatically on booking"
+                    className="w-full h-10 px-3 rounded-lg border border-gray-200 text-sm font-medium text-gray-400 bg-gray-100 outline-none cursor-not-allowed"
                   />
+                  <p className="text-[11px] text-gray-400 mt-1">Order ID is generated automatically (e.g. 2026ord1) when you confirm booking.</p>
                 </div>
               )}
               <FormFields
@@ -1137,6 +1244,7 @@ export default function Direct() {
                 modalChangeDiscount={modalChangeDiscount} setModalChangeDiscount={setModalChangeDiscount}
                 openNewProductModal={openNewProductModal}
                 modalLastAddedProduct={modalLastAddedProduct} setModalLastAddedProduct={setModalLastAddedProduct}
+                modalExcludedTypes={modalExcludedTypes} setModalExcludedTypes={setModalExcludedTypes}
               />
             </div>
           </div>
