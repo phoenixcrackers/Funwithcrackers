@@ -900,7 +900,8 @@ export default function Home() {
         },
       });
 
-      doc.save("FWC_Pricelist_2025.pdf");
+      const currentYear = new Date().getFullYear();
+      doc.save(`FWC_Pricelist_${currentYear}.pdf`);
     } catch (err) {
       showError("Failed to generate PDF: " + err.message);
     }

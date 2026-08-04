@@ -337,7 +337,8 @@ export default function List() {
         columnStyles: { 0: { cellWidth: 15 }, 1: { cellWidth: 15 }, 2: { cellWidth: 50 }, 3: { cellWidth: 30 }, 4: { cellWidth: 30 }, 5: { cellWidth: 20 }, 6: { cellWidth: 25 } },
         didDrawCell: (data) => { if (data.row.section === "body" && data.cell.raw && data.cell.raw.colSpan === 8) { data.cell.styles.cellPadding = 5; data.cell.styles.fontSize = 12; } },
       });
-      doc.save("Pricelist_2025.pdf");
+      const currentYear = new Date().getFullYear();
+      doc.save(`FWC_Pricelist_${currentYear}.pdf`);
       closeModal();
     } catch (err) {
       setError("Failed to generate PDF: " + err.message);
