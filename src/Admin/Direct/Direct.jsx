@@ -14,7 +14,6 @@ import Webcam from 'react-webcam';
 
 Modal.setAppElement("#root");
 
-// ─── react-select styles (kept as JS object — required by react-select API) ──
 const selectStyles = {
   control: (base, { isFocused }) => ({
     ...base,
@@ -45,7 +44,6 @@ const selectStyles = {
   indicatorSeparator: (base) => ({ ...base, background: "#e5e7eb" }),
 };
 
-// ─── Error Boundaries ─────────────────────────────────────────────────────────
 class DirectErrorBoundary extends React.Component {
   state = { hasError: false, error: null };
   static getDerivedStateFromError(error) { return { hasError: true, error }; }
@@ -76,24 +74,20 @@ class QuotationTableErrorBoundary extends React.Component {
   }
 }
 
-// ─── Utilities ────────────────────────────────────────────────────────────────
 const getEffectivePrice = (item) => Math.round(Number(item.price) || 0);
 const styles = { input: {}, button: {}, card: {} };
 
-// Returns true when a product_type is present (case-insensitively) in the excluded list
-const isTypeExcluded = (productType, excludedTypes = []) =>
-  Array.isArray(excludedTypes) && excludedTypes.some(
-    (t) => t && productType && t.trim().toLowerCase() === String(productType).trim().toLowerCase()
-  );
+const isExcludedFromBulk = (item = {}) => {
+  const type = (item.product_type || '').trim().toLowerCase();
+  const discount = parseFloat(item.discount);
+  return type === 'net_rate' || isNaN(discount) || discount === 0;
+};
 
-// Applies the bulk discount value to every cart line EXCEPT lines whose product_type
-// is in excludedTypes. Excluded lines keep whatever discount they currently have.
-const applyBulkDiscount = (cartArr = [], discountValue = 0, excludedTypes = []) =>
+const applyBulkDiscount = (cartArr = [], discountValue = 0) =>
   cartArr.map((item) =>
-    isTypeExcluded(item.product_type, excludedTypes) ? item : { ...item, discount: discountValue }
+    isExcludedFromBulk(item) ? item : { ...item, discount: discountValue }
   );
 
-// ─── Micro-components ─────────────────────────────────────────────────────────
 const FieldLabel = ({ children, accent }) => (
   <label className={`block text-[11px] font-bold uppercase tracking-[0.08em] mb-1.5 ${accent || "text-gray-500"}`}>
     {children}
@@ -170,7 +164,6 @@ const PaginBtn = ({ label, onClick, disabled, active }) => (
 
 const Divider = () => <div className="h-px bg-gray-100 w-full" />;
 
-// ─── Cart input — fixed width, clean ─────────────────────────────────────────
 const CartInput = ({ value, onChange, onKeyDown, inputRef, accentCls, suffix }) => (
   <div className="relative inline-flex items-center">
     <input
@@ -195,14 +188,12 @@ const QuotationTable = ({
   isModal = false, additionalDiscount, setAdditionalDiscount,
   changeDiscount, setChangeDiscount, openNewProductModal,
   lastAddedProduct, setLastAddedProduct, setCart, setModalCart,
-  excludedTypes = [], setExcludedTypes,
 }) => {
   const quantityInputRefs = useRef({});
   const productSelectRef = useRef(null);
   const searchWrapperRef = useRef(null);
   const [productQuery, setProductQuery] = useState("");
   const [showDropdown, setShowDropdown] = useState(false);
-  const [excludedTypesInput, setExcludedTypesInput] = useState((excludedTypes || []).join(", "));
 
   useEffect(() => {
     if (lastAddedProduct) {
@@ -212,7 +203,6 @@ const QuotationTable = ({
     }
   }, [lastAddedProduct, setLastAddedProduct]);
 
-  // Close the product dropdown when the user clicks outside of it
   useEffect(() => {
     const handleClickOutside = (e) => {
       if (searchWrapperRef.current && !searchWrapperRef.current.contains(e.target)) {
@@ -227,27 +217,15 @@ const QuotationTable = ({
     if (e.key === 'Enter') { e.preventDefault(); productSelectRef.current?.focus(); }
   };
 
-  // Applies the current bulk-discount value to every cart line, honoring excluded categories.
   const handleChangeDiscount = (value) => {
     const newDiscount = Math.max(0, Math.min(100, parseFloat(value) || 0));
     setChangeDiscount(newDiscount);
-    const updatedCart = applyBulkDiscount(cart, newDiscount, excludedTypes);
-    if (isModal) setModalCart(updatedCart); else setCart(updatedCart);
-  };
-
-  // Updates which product categories are exempt from the bulk discount, and immediately
-  // re-applies the bulk discount to the rest of the cart (existing + future items).
-  const handleExcludedTypesChange = (text) => {
-    setExcludedTypesInput(text);
-    const parsed = text.split(',').map((s) => s.trim()).filter(Boolean);
-    setExcludedTypes(parsed);
-    const updatedCart = applyBulkDiscount(cart, changeDiscount, parsed);
+    const updatedCart = applyBulkDiscount(cart, newDiscount);
     if (isModal) setModalCart(updatedCart); else setCart(updatedCart);
   };
 
   const total = parseFloat(calculateTotal(cart, additionalDiscount));
 
-  // Products matching the current search text. Empty query -> show full list (dropdown mode).
   const filteredProducts = productQuery.trim()
     ? products.filter((p) => {
         const q = productQuery.toLowerCase();
@@ -267,7 +245,6 @@ const QuotationTable = ({
 
   return (
     <div className="space-y-4">
-      {/* Product search / dropdown — click to browse the full list, type to filter it */}
       <div ref={searchWrapperRef} className="relative">
         <FieldLabel>Search & Add Product</FieldLabel>
         <input
@@ -313,8 +290,7 @@ const QuotationTable = ({
         </button>
       </div>
 
-      {/* Discount controls */}
-      <div className="grid grid-cols-3 gap-3">
+      <div className="grid grid-cols-2 gap-3">
         <div className="bg-white border border-gray-200 rounded-lg p-3">
           <FieldLabel accent="text-amber-500">Additional Discount (%)</FieldLabel>
           <div className="relative">
@@ -344,21 +320,8 @@ const QuotationTable = ({
             <span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-xs font-bold text-gray-400 pointer-events-none">%</span>
           </div>
         </div>
-
-        <div className="bg-white border border-gray-200 rounded-lg p-3">
-          <FieldLabel accent="text-red-500">Exclude Categories (comma sep.)</FieldLabel>
-          <input
-            type="text"
-            value={excludedTypesInput}
-            onChange={(e) => handleExcludedTypesChange(e.target.value)}
-            placeholder="e.g. Sparklers, Rockets"
-            className="w-full h-9 px-3 rounded-md border border-gray-200 text-sm font-semibold text-gray-800 bg-gray-50 outline-none transition-all duration-150 focus:border-red-400 focus:ring-2 focus:ring-red-100"
-          />
-          <p className="text-[10px] text-gray-400 mt-1">Products of these types keep their own discount.</p>
-        </div>
       </div>
 
-      {/* Cart table */}
       {cart.length === 0 ? (
         <div className="flex flex-col items-center justify-center gap-2 border-2 border-dashed border-gray-200 rounded-xl py-14 bg-gray-50">
           <span className="text-3xl opacity-40">🛒</span>
@@ -380,7 +343,7 @@ const QuotationTable = ({
               <tbody className="divide-y divide-gray-100">
                 {cart.map((item, index) => {
                   const lineTotal = Math.round(getEffectivePrice(item) * (1 - item.discount / 100) * item.quantity);
-                  const excluded = isTypeExcluded(item.product_type, excludedTypes);
+                  const excluded = isExcludedFromBulk(item);
                   return (
                     <tr key={`${item.id}-${item.product_type}`} className="hover:bg-blue-50/40 transition-colors duration-100 group">
                       <td className="px-3 py-2.5 text-center text-xs font-bold text-gray-300 tabular-nums">{index + 1}</td>
@@ -433,7 +396,6 @@ const QuotationTable = ({
             </table>
           </div>
 
-          {/* Updated summary – no Processing Fee */}
           <div className="bg-gray-50 border-t border-gray-200 px-4 py-3">
             <div className="flex justify-end items-end flex-wrap gap-5">
               <SummaryChip label="Net Rate" value={`₹${parseFloat(calculateNetRate(cart)).toLocaleString('en-IN', { minimumFractionDigits: 2 })}`} color="#64748b" />
@@ -453,7 +415,6 @@ const QuotationTable = ({
   );
 };
 
-// ─── FormFields ───────────────────────────────────────────────────────────────
 const FormFields = ({
   isEdit, customers, modalSelectedCustomer, setModalSelectedCustomer,
   modalCart, setModalCart, products, modalSelectedProduct, setModalSelectedProduct,
@@ -462,7 +423,6 @@ const FormFields = ({
   handleSubmit, closeModal, modalAdditionalDiscount, setModalAdditionalDiscount,
   modalChangeDiscount, setModalChangeDiscount, openNewProductModal,
   modalLastAddedProduct, setModalLastAddedProduct,
-  modalExcludedTypes, setModalExcludedTypes,
 }) => (
   <div className="space-y-5">
     <div>
@@ -493,7 +453,6 @@ const FormFields = ({
         changeDiscount={modalChangeDiscount} setChangeDiscount={setModalChangeDiscount}
         openNewProductModal={openNewProductModal}
         lastAddedProduct={modalLastAddedProduct} setLastAddedProduct={setModalLastAddedProduct}
-        excludedTypes={modalExcludedTypes} setExcludedTypes={setModalExcludedTypes}
       />
     </QuotationTableErrorBoundary>
     <div className="flex justify-end gap-2 pt-1">
@@ -519,7 +478,6 @@ const FormFields = ({
   </div>
 );
 
-// ─── NewProductModal ──────────────────────────────────────────────────────────
 const NewProductModal = ({ isOpen, onClose, onSubmit, newProductData, setNewProductData }) => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [localProductData, setLocalProductData] = useState(newProductData);
@@ -594,7 +552,6 @@ const NewProductModal = ({ isOpen, onClose, onSubmit, newProductData, setNewProd
   );
 };
 
-// ─── CancelConfirmModal ───────────────────────────────────────────────────────
 const CancelConfirmModal = ({ isOpen, onClose, onConfirm, quotationId }) => (
   <Modal isOpen={isOpen} onRequestClose={onClose} className="fixed inset-0 flex items-center justify-center p-4 z-50" overlayClassName="fixed inset-0 bg-black/40 backdrop-blur-sm z-40">
     <div className="bg-white rounded-xl shadow-2xl max-w-sm w-full overflow-hidden">
@@ -619,7 +576,6 @@ const CancelConfirmModal = ({ isOpen, onClose, onConfirm, quotationId }) => (
   </Modal>
 );
 
-// ─── PDFDownloadConfirmModal ──────────────────────────────────────────────────
 const PDFDownloadConfirmModal = ({ isOpen, onClose, onYes, fileName }) => (
   <Modal isOpen={isOpen} onRequestClose={onClose} className="fixed inset-0 flex items-center justify-center p-4 z-50" overlayClassName="fixed inset-0 bg-black/40 backdrop-blur-sm z-40">
     <div className="bg-white rounded-xl shadow-2xl max-w-sm w-full overflow-hidden">
@@ -642,7 +598,6 @@ const PDFDownloadConfirmModal = ({ isOpen, onClose, onYes, fileName }) => (
   </Modal>
 );
 
-// ─── Main Export ──────────────────────────────────────────────────────────────
 export default function Direct() {
   const [state, setState] = useState({
     customers: [], products: [], quotations: [], selectedCustomer: "", cart: [], selectedProduct: null,
@@ -685,8 +640,6 @@ export default function Direct() {
   const [lastAddedProduct, setLastAddedProduct] = useState(null);
   const [modalLastAddedProduct, setModalLastAddedProduct] = useState(null);
   const [changeDiscount, setChangeDiscount] = useState(0);
-  const [excludedTypes, setExcludedTypes] = useState([]);
-  const [modalExcludedTypes, setModalExcludedTypes] = useState([]);
   const [createLoading, setCreateLoading] = useState(false);
   const [modalSubmitLoading, setModalSubmitLoading] = useState(false);
   const [cancelConfirmOpen, setCancelConfirmOpen] = useState(false);
@@ -805,26 +758,23 @@ export default function Direct() {
     const targetSelectedProduct = isModal ? modalSelectedProduct : selectedProduct;
     const setTargetSelectedProduct = isModal ? setModalSelectedProduct : setSelectedProduct;
     const targetDiscount = isModal ? modalChangeDiscount : changeDiscount;
-    const targetExcludedTypes = isModal ? modalExcludedTypes : excludedTypes;
     const setTargetLastAddedProduct = isModal ? setModalLastAddedProduct : setLastAddedProduct;
     if (!customProduct && !targetSelectedProduct && !directProduct) { setError("Please select a product"); return; }
     let product;
     if (customProduct) {
-      // Custom products: honor an explicitly typed discount; otherwise fall back to the
-      // bulk discount, unless this product's type is excluded from bulk discounting.
-      const excluded = isTypeExcluded(customProduct.product_type, targetExcludedTypes);
+      const excluded = isExcludedFromBulk({ product_type: customProduct.product_type, discount: customProduct.discount });
       const hasExplicitDiscount = customProduct.discount !== undefined && customProduct.discount !== '' && customProduct.discount !== null;
       const resolvedDiscount = hasExplicitDiscount ? parseFloat(customProduct.discount) : (excluded ? 0 : targetDiscount);
       product = { ...customProduct, id: `custom-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`, product_type: customProduct.product_type || 'custom', price: Math.round(Number(customProduct.price) || 0), quantity: parseInt(customProduct.quantity) || 1, discount: resolvedDiscount, initialDiscount: resolvedDiscount, per: customProduct.per || 'Unit' };
     } else if (directProduct) {
-      const excluded = isTypeExcluded(directProduct.product_type, targetExcludedTypes);
+      const excluded = isExcludedFromBulk({ product_type: directProduct.product_type, discount: directProduct.discount });
       const resolvedDiscount = excluded ? (parseFloat(directProduct.discount) || 0) : targetDiscount;
       product = { ...directProduct, id: directProduct.id, price: Math.round(Number(directProduct.price) || 0), quantity: 1, discount: resolvedDiscount, initialDiscount: parseFloat(directProduct.discount) || 0, per: directProduct.per || 'Unit' };
     } else {
       const [id, type] = targetSelectedProduct.value.split("-");
       product = products.find(p => p.id.toString() === id && p.product_type === type);
       if (!product) { setError("Product not found"); return; }
-      const excluded = isTypeExcluded(product.product_type, targetExcludedTypes);
+      const excluded = isExcludedFromBulk({ product_type: product.product_type, discount: product.discount });
       const resolvedDiscount = excluded ? (parseFloat(product.discount) || 0) : targetDiscount;
       product = { ...product, id: product.id, price: Math.round(Number(product.price) || 0), quantity: 1, discount: resolvedDiscount, initialDiscount: parseFloat(product.discount) || 0, per: product.per || 'Unit' };
     }
@@ -845,11 +795,13 @@ export default function Direct() {
   const calculateNetRate = (targetCart = []) => targetCart.reduce((total, item) => total + getEffectivePrice(item) * item.quantity, 0).toFixed(2);
   const calculateYouSave = (targetCart = []) => targetCart.reduce((total, item) => total + getEffectivePrice(item) * (item.discount / 100) * item.quantity, 0).toFixed(2);
 
-  // Updated calculateTotal – no processing fee
   const calculateTotal = (targetCart = [], additionalDiscount = 0) => {
-    const subtotal = targetCart.reduce((total, item) => total + getEffectivePrice(item) * (1 - item.discount / 100) * item.quantity, 0);
-    const discountedSubtotal = subtotal * (1 - additionalDiscount / 100);
-    return discountedSubtotal.toFixed(2);   // ← only discounted subtotal, no extra fees
+    const total = targetCart.reduce((sum, item) => {
+      const lineAfterDiscount = getEffectivePrice(item) * (1 - item.discount / 100) * item.quantity;
+      const lineTotal = isExcludedFromBulk(item) ? lineAfterDiscount : lineAfterDiscount * (1 - additionalDiscount / 100);
+      return sum + lineTotal;
+    }, 0);
+    return total.toFixed(2);
   };
 
   const createQuotation = async () => {
@@ -874,7 +826,7 @@ export default function Direct() {
       const blobUrl = window.URL.createObjectURL(new Blob([pdfRes.data]));
       const safeName = (customer.name || "unknown").toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "");
       setPdfUrl(blobUrl); setPdfFileName(`${safeName}-${newQuotationId}-quotation.pdf`); setPdfConfirmOpen(true);
-      setCart([]); setSelectedCustomer(null); setSelectedProduct(null); setAdditionalDiscount(0); setChangeDiscount(0); setExcludedTypes([]); setLastAddedProduct(null); setQuotationId(null); setIsQuotationCreated(false);
+      setCart([]); setSelectedCustomer(null); setSelectedProduct(null); setAdditionalDiscount(0); setChangeDiscount(0); setLastAddedProduct(null); setQuotationId(null); setIsQuotationCreated(false);
     } catch (err) { console.error("Create quotation error:", err); setError(`Failed to create quotation: ${err.message}`); }
     finally { setCreateLoading(false); }
   };
@@ -884,7 +836,7 @@ export default function Direct() {
       if (!quotation.quotation_id || quotation.quotation_id === "undefined" || !/^[a-zA-Z0-9-_]+$/.test(quotation.quotation_id)) { setError("Invalid or missing quotation ID"); return; }
       setModalMode("edit");
       setModalSelectedCustomer({ value: quotation.customer_id?.toString(), label: `${quotation.customer_name} (${quotation.customer_type === "Customer of Selected Agent" ? "Customer - Agent" : quotation.customer_type || "User"} - ${quotation.district || "N/A"})` });
-      setQuotationId(quotation.quotation_id); setModalAdditionalDiscount(parseFloat(quotation.additional_discount) || 0); setModalChangeDiscount(0); setModalExcludedTypes([]);
+      setQuotationId(quotation.quotation_id); setModalAdditionalDiscount(parseFloat(quotation.additional_discount) || 0); setModalChangeDiscount(0);
       try {
         const products = typeof quotation.products === "string" ? JSON.parse(quotation.products) : quotation.products;
         setModalCart(Array.isArray(products) ? products.map(p => ({ ...p, id: p.id || `custom-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`, price: parseFloat(p.price) || 0, discount: parseFloat(p.discount) || 0, initialDiscount: parseFloat(p.discount) || 0, quantity: parseInt(p.quantity) || 0, per: p.per || 'Unit', product_type: p.product_type || 'custom' })) : []);
@@ -922,7 +874,7 @@ export default function Direct() {
       if (!quotation.quotation_id || quotation.quotation_id === "undefined" || !/^[a-zA-Z0-9-_]+$/.test(quotation.quotation_id)) { setError("Invalid or missing quotation ID"); return; }
       setModalMode("book");
       setModalSelectedCustomer({ value: quotation.customer_id?.toString(), label: `${quotation.customer_name} (${quotation.customer_type === "Customer of Selected Agent" ? "Customer - Agent" : quotation.customer_type || "User"} - ${quotation.district || "N/A"})` });
-      setQuotationId(quotation.quotation_id); setModalAdditionalDiscount(parseFloat(quotation.additional_discount) || 0); setModalChangeDiscount(0); setModalExcludedTypes([]);
+      setQuotationId(quotation.quotation_id); setModalAdditionalDiscount(parseFloat(quotation.additional_discount) || 0); setModalChangeDiscount(0);
       try {
         const products = typeof quotation.products === "string" ? JSON.parse(quotation.products) : quotation.products;
         setModalCart(Array.isArray(products) ? products.map(p => ({ ...p, id: p.id || `custom-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`, price: parseFloat(p.price) || 0, discount: parseFloat(p.discount) || 0, initialDiscount: parseFloat(p.discount) || 0, quantity: parseInt(p.quantity) || 0, per: p.per || 'Unit', product_type: p.product_type || 'custom' })) : []);
@@ -961,7 +913,7 @@ export default function Direct() {
       setSuccessMessage("Quotation cancelled successfully!"); setShowSuccess(true); setTimeout(() => setShowSuccess(false), 3000);
       setQuotations(prev => prev.map(q => q.quotation_id === target ? { ...q, status: "cancelled" } : q));
       setFilteredQuotations(prev => prev.map(q => q.quotation_id === target ? { ...q, status: "cancelled" } : q));
-      if (!quotationToCancel) { setCart([]); setSelectedCustomer(null); setSelectedProduct(null); setQuotationId(null); setIsQuotationCreated(false); setAdditionalDiscount(0); setChangeDiscount(0); setExcludedTypes([]); setLastAddedProduct(null); }
+      if (!quotationToCancel) { setCart([]); setSelectedCustomer(null); setSelectedProduct(null); setQuotationId(null); setIsQuotationCreated(false); setAdditionalDiscount(0); setChangeDiscount(0); setLastAddedProduct(null); }
     } catch (err) { setError(`Failed to cancel: ${err.response?.data?.message || err.message}`); }
     finally { setCancelConfirmOpen(false); setQuotationToCancel(null); }
   };
@@ -977,7 +929,7 @@ export default function Direct() {
     if (!productData.product_type) return setError("Product type is required");
     addToCart(newProductIsForModal, productData); closeNewProductModal();
   };
-  const closeModal = () => { setModalIsOpen(false); setModalMode(null); setModalCart([]); setModalSelectedCustomer(null); setModalSelectedProduct(null); setOrderId(""); setModalAdditionalDiscount(0); setModalChangeDiscount(0); setModalExcludedTypes([]); setModalLastAddedProduct(null); setError(""); setSuccessMessage(""); };
+  const closeModal = () => { setModalIsOpen(false); setModalMode(null); setModalCart([]); setModalSelectedCustomer(null); setModalSelectedProduct(null); setOrderId(""); setModalAdditionalDiscount(0); setModalChangeDiscount(0); setModalLastAddedProduct(null); setError(""); setSuccessMessage(""); };
 
   return (
     <DirectErrorBoundary>
@@ -985,11 +937,9 @@ export default function Direct() {
         <Sidebar />
         <Logout />
 
-        {/* ── Page content ── */}
         <div className="hundred:ml-64 mobile:ml-0 flex-1 hundred:px-8 mobile:px-4 pt-8 pb-16">
           <div className="max-w-5xl mx-auto space-y-6">
 
-            {/* ── Page header ── */}
             <div className="flex items-end justify-between pb-2 border-b border-gray-200">
               <div>
                 <p className="text-[11px] font-bold uppercase tracking-[0.12em] text-blue-500 mb-0.5">Operations</p>
@@ -998,7 +948,6 @@ export default function Direct() {
               <p className="text-xs text-gray-400 mb-0.5">Create quotations · Convert to bookings</p>
             </div>
 
-            {/* ── Status banners ── */}
             {loading && (
               <div className="flex items-center gap-2.5 text-sm text-blue-600 font-medium">
                 <svg className="animate-spin w-4 h-4 text-blue-500" fill="none" viewBox="0 0 24 24">
@@ -1021,9 +970,7 @@ export default function Direct() {
               </div>
             )}
 
-            {/* ── New quotation card ── */}
             <div className="bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden">
-              {/* Card header */}
               <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 bg-gray-50">
                 <div className="flex items-center gap-2">
                   <span className="w-6 h-6 rounded-md bg-blue-100 flex items-center justify-center">
@@ -1033,9 +980,7 @@ export default function Direct() {
                 </div>
               </div>
 
-              {/* Card body */}
               <div className="p-6 space-y-5">
-                {/* Customer select */}
                 <div>
                   <FieldLabel>Select Customer</FieldLabel>
                   <Select
@@ -1061,13 +1006,11 @@ export default function Direct() {
                     changeDiscount={changeDiscount} setChangeDiscount={setChangeDiscount}
                     openNewProductModal={openNewProductModal}
                     lastAddedProduct={lastAddedProduct} setLastAddedProduct={setLastAddedProduct}
-                    excludedTypes={excludedTypes} setExcludedTypes={setExcludedTypes}
                     className="overflow-x-auto"
                   />
                 </QuotationTableErrorBoundary>
               </div>
 
-              {/* Card footer */}
               <div className="flex items-center justify-between px-6 py-4 bg-gray-50 border-t border-gray-100">
                 <span className="text-xs text-gray-400">
                   {cart.length > 0 ? `${cart.length} item${cart.length > 1 ? 's' : ''} in cart` : "No items in cart"}
@@ -1098,7 +1041,6 @@ export default function Direct() {
               </div>
             </div>
 
-            {/* ── Quotations list ── */}
             <div>
               <div className="flex items-center justify-between mb-4 gap-4 flex-wrap">
                 <div>
@@ -1153,7 +1095,6 @@ export default function Direct() {
                     ))}
                   </div>
 
-                  {/* Pagination */}
                   {totalPages > 1 && (
                     <div className="flex justify-center items-center gap-1.5 mt-5">
                       <PaginBtn label="←" onClick={() => paginate(currentPage - 1)} disabled={currentPage === 1} />
@@ -1180,7 +1121,6 @@ export default function Direct() {
               )}
             </div>
 
-            {/* ── Export actions ── */}
             <div className="flex flex-wrap gap-2 pt-2 border-t border-gray-200">
               <button onClick={exportToExcel} className="flex items-center gap-2 h-9 px-4 rounded-lg border border-gray-200 bg-white text-xs font-semibold text-gray-600 hover:bg-gray-50 hover:border-gray-300 transition-all">
                 <FaDownload className="text-emerald-500" /> Export Customers
@@ -1193,10 +1133,8 @@ export default function Direct() {
           </div>
         </div>
 
-        {/* ── Main Edit/Book Modal ── */}
         <Modal isOpen={modalIsOpen} onRequestClose={closeModal} className="fixed inset-0 flex items-center justify-center p-4 z-50" overlayClassName="fixed inset-0 bg-black/40 backdrop-blur-sm z-40" key="quotation-modal">
           <div className="bg-white rounded-xl shadow-2xl max-w-4xl w-full max-h-[92vh] overflow-y-auto">
-            {/* Modal header */}
             <div className="sticky top-0 z-10 flex items-center justify-between px-6 py-4 bg-white border-b border-gray-100">
               <div className="flex items-center gap-2">
                 <span className={`w-2 h-2 rounded-full ${modalMode === "edit" ? "bg-amber-400" : "bg-emerald-400"}`} />
@@ -1213,7 +1151,6 @@ export default function Direct() {
               </button>
             </div>
 
-            {/* Modal body */}
             <div className="p-6">
               {error && (
                 <div className="flex items-start gap-2 bg-red-50 border border-red-200 rounded-lg px-4 py-3 mb-5 text-sm text-red-700">
@@ -1244,7 +1181,6 @@ export default function Direct() {
                 modalChangeDiscount={modalChangeDiscount} setModalChangeDiscount={setModalChangeDiscount}
                 openNewProductModal={openNewProductModal}
                 modalLastAddedProduct={modalLastAddedProduct} setModalLastAddedProduct={setModalLastAddedProduct}
-                modalExcludedTypes={modalExcludedTypes} setModalExcludedTypes={setModalExcludedTypes}
               />
             </div>
           </div>
