@@ -19,6 +19,7 @@ import Navbar from "../Component/Navbar";
 import "../App.css";
 import { API_BASE_URL } from "../../Config";
 import need from "../default.jpg";
+import { getTamilName, ensureTamilFont, renderTamilTextToDataURL } from "../utils/tamilTranslation";
 
 // ─────────────────────────────────────────────────────────
 // EDIT THIS: WhatsApp number the floating button opens a chat with
@@ -799,7 +800,7 @@ export default function Home() {
     if (debounceTimeout.current) clearTimeout(debounceTimeout.current);
     debounceTimeout.current = setTimeout(() => {
       if (promocode && promocode !== "custom") handleApplyPromo(promocode);
-      else if (promocode !== "custom") setAppliedPromo(null);
+else if (promocode !== "custom") setAppliedPromo(null);
     }, 500);
     return () => clearTimeout(debounceTimeout.current);
   }, [promocode, handleApplyPromo]);
@@ -822,24 +823,21 @@ export default function Home() {
     Object.keys(cart).length ? (setShowModal(true), setIsCartOpen(false)) : showError("Your cart is empty.");
   };
 
-  const downloadPDF = async () => {
+  const handleDownloadPDF = async () => {
     try {
       const productsRes = await fetch(`${API_BASE_URL}/api/products`);
       const productsData = await productsRes.json();
-
       const naturalSort = (a, b) => new Intl.Collator(undefined, { numeric: true, sensitivity: "base" }).compare(a.productname, b.productname);
       const serialSort = (a, b) => new Intl.Collator(undefined, { numeric: true, sensitivity: "base" }).compare(a.serial_number, b.serial_number);
-
       const seenSerials = new Set();
       const normalizedProducts = productsData.data
         .filter((p) => {
           if (seenSerials.has(p.serial_number)) return false;
           seenSerials.add(p.serial_number);
-          return p.status === "on";
+          return true;
         })
         .map((product) => ({
           ...product,
-          images: product.image ? (typeof product.image === "string" ? JSON.parse(product.image) : product.image) : [],
           price: parseFloat(product.price) || 0,
           discount: parseFloat(product.discount) || 0,
         }))
@@ -848,6 +846,7 @@ export default function Home() {
       if (!normalizedProducts.length) { showError("No products available to export"); return; }
 
       const doc = new jsPDF();
+      const fontName = await ensureTamilFont(doc);
       const pageWidth = doc.internal.pageSize.getWidth();
       let yOffset = 20;
 
@@ -873,12 +872,11 @@ export default function Home() {
         const typeKey = type.replace(/ /g, "_").toLowerCase();
         const typeProducts = normalizedProducts.filter((product) => product.product_type.toLowerCase() === typeKey).sort(serialSort);
         if (typeProducts.length > 0) {
-          tableData.push([{ content: type, colSpan: 6, styles: { fontStyle: "bold", halign: "left", fillColor: [200, 200, 200] } }]);
-          tableData.push(["Sl No.", "Prod No.", "Product Name", "Rate", "Discounted Rate", "Per"]);
+          tableData.push([{ content: type, colSpan: 7, styles: { fontStyle: "bold", halign: "left", fillColor: [200, 200, 200] } }]);
           typeProducts.forEach((product) => {
             const dis = product.price * (product.discount / 100);
             const discountedRate = product.price - dis;
-            tableData.push([slNo++, product.serial_number, product.productname, `Rs.${formatPrice(product.price)}`, `Rs.${formatPrice(discountedRate)}`, product.per]);
+            tableData.push([slNo++, product.serial_number, product.productname, { content: "", tamilText: getTamilName(product) }, `Rs.${formatPrice(product.price)}`, `Rs.${formatPrice(discountedRate)}`, product.per]);
           });
           tableData.push([]);
         }
@@ -886,16 +884,48 @@ export default function Home() {
 
       autoTable(doc, {
         startY: yOffset,
-        head: [["Sl No.", "Prod No.", "Product Name", "Rate", "Discounted Rate", "Per"]],
+        head: [["Sl No.", "Prod No.", "Product Name", "Tamil", "Rate", "Discounted Rate", "Per"]],
         body: tableData,
         theme: "grid",
-        styles: { fontSize: 10, cellPadding: 3 },
-        headStyles: { fillColor: [2, 132, 199], textColor: [255, 255, 255] },
-        columnStyles: { 0: { cellWidth: 15 }, 1: { cellWidth: 20 }, 2: { cellWidth: 70 }, 3: { cellWidth: 20 }, 4: { cellWidth: 30 }, 5: { cellWidth: 25 } },
+        styles: { fontSize: 9, cellPadding: 3, font: fontName || undefined, fontStyle: "normal" },
+        headStyles: { fillColor: [2, 132, 199], textColor: [255, 255, 255], font: fontName || undefined, fontStyle: "normal" },
+        columnStyles: { 0: { cellWidth: 12 }, 1: { cellWidth: 16 }, 2: { cellWidth: 48 }, 3: { cellWidth: 48, textColor: [255, 255, 255] }, 4: { cellWidth: 20 }, 5: { cellWidth: 26 }, 6: { cellWidth: 15 } },
         didDrawCell: (data) => {
-          if (data.row.section === "body" && data.cell.raw && data.cell.raw.colSpan === 6) {
+          if (fontName && data.cell) {
+            data.cell.styles.font = fontName;
+            data.cell.styles.fontStyle = "normal";
+          }
+          if (data.section === "body" && data.column.index === 3 && data.cell.raw) {
+            const rawVal = typeof data.cell.raw === "object" ? (data.cell.raw.tamilText || data.cell.raw.content) : data.cell.raw;
+            if (rawVal && typeof rawVal === "string" && rawVal.trim() !== "") {
+              const rendered = renderTamilTextToDataURL(rawVal, 10, "#111827");
+              if (rendered && rendered.dataUrl) {
+                const padding = 2;
+                const cellX = data.cell.x + padding;
+                const maxW = data.cell.width - padding * 2;
+                const maxH = data.cell.height - padding * 2;
+                
+                let imgW = rendered.width * 0.65;
+                let imgH = rendered.height * 0.65;
+                if (imgW > maxW) {
+                  const ratio = maxW / imgW;
+                  imgW = maxW;
+                  imgH = imgH * ratio;
+                }
+                if (imgH > maxH) {
+                  const ratio = maxH / imgH;
+                  imgH = maxH;
+                  imgW = imgW * ratio;
+                }
+
+                const offsetY = data.cell.y + (data.cell.height - imgH) / 2;
+                doc.addImage(rendered.dataUrl, "PNG", cellX, offsetY, imgW, imgH);
+              }
+            }
+          }
+          if (data.row.section === "body" && data.cell.raw && data.cell.raw.colSpan === 7) {
             data.cell.styles.cellPadding = 5;
-            data.cell.styles.fontSize = 12;
+            data.cell.styles.fontSize = 11;
           }
         },
       });
@@ -906,6 +936,7 @@ export default function Home() {
       showError("Failed to generate PDF: " + err.message);
     }
   };
+  const downloadPDF = handleDownloadPDF;
 
   const handleFinalCheckout = async () => {
     setIsBooking(true);
@@ -1221,8 +1252,11 @@ export default function Home() {
         <div className="fixed inset-0 bg-black/50 z-55 flex items-center justify-center details-modal">
           <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="relative rounded-3xl shadow-lg max-w-md w-full mx-4 overflow-hidden" style={styles.modal}>
             <div className="p-6">
-              <div className="flex justify-between items-center mb-4">
-                <h2 className="text-2xl font-bold text-sky-700 drop-shadow-sm">{selectedFastProduct.productname}</h2>
+              <div className="flex justify-between items-start mb-4">
+                <div>
+                  <h2 className="text-2xl font-bold text-sky-700 drop-shadow-sm">{selectedFastProduct.productname}</h2>
+                  <p className="text-md font-semibold text-amber-700 mt-1">{getTamilName(selectedFastProduct)}</p>
+                </div>
                 <button onClick={() => setShowFastDetailsModal(false)} className="text-gray-600 hover:text-red-500 text-xl cursor-pointer" aria-label="Close details modal">×</button>
               </div>
               <Carousel media={selectedFastProduct.image} />
@@ -1293,7 +1327,8 @@ export default function Home() {
                 <div className="relative z-10 flex">
                   <div className="absolute left-0 top-0 bg-red-500 text-white text-xs font-bold px-2 py-1 rounded-br-lg rounded-tl-lg mobile:text-[10px] mobile:px-1.5 mobile:py-0.5">{product.discount}% OFF</div>
                   <div className="flex-1 mt-5">
-                    <h3 className="text-lg font-bold text-slate-800 group-hover:text-slate-900 transition-colors duration-500 drop-shadow-sm line-clamp-2 mb-2 mobile:text-sm">{product.productname}</h3>
+                    <h3 className="text-lg font-bold text-slate-800 group-hover:text-slate-900 transition-colors duration-500 drop-shadow-sm line-clamp-2 mb-0.5 mobile:text-sm">{product.productname}</h3>
+                    <p className="text-sm font-semibold text-amber-700 drop-shadow-sm line-clamp-1 mb-2 mobile:text-xs">{getTamilName(product)}</p>
                     <div className="space-y-1 mb-4">
                       <p className="text-sm text-slate-600 line-through mobile:text-xs">MRP: ₹{originalPrice}</p>
                       <p className="text-xl font-bold text-sky-700 group-hover:text-sky-800 transition-colors duration-500 mobile:text-base">₹{finalPrice} / {product.per}</p>
@@ -1362,8 +1397,11 @@ export default function Home() {
           <div className="fixed inset-0 bg-black/50 z-55 flex items-center justify-center details-modal">
             <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="relative rounded-3xl shadow-lg max-w-md w-full mx-4 overflow-hidden" style={styles.modal}>
               <div className="p-6">
-                <div className="flex justify-between items-center mb-4">
-                  <h2 className="text-2xl font-bold text-sky-700 drop-shadow-sm">{selectedProduct.productname}</h2>
+                <div className="flex justify-between items-start mb-4">
+                  <div>
+                    <h2 className="text-2xl font-bold text-sky-700 drop-shadow-sm">{selectedProduct.productname}</h2>
+                    <p className="text-md font-semibold text-amber-700 mt-1">{getTamilName(selectedProduct)}</p>
+                  </div>
                   <button onClick={handleCloseDetails} className="text-gray-600 hover:text-red-500 text-xl cursor-pointer" aria-label="Close details modal">×</button>
                 </div>
                 <Carousel media={selectedProduct.image} onImageClick={() => handleShowImage(selectedProduct)} />
@@ -1407,7 +1445,7 @@ export default function Home() {
         </div>
 
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className={`flex hundred:justify-center hundred:gap-8 mobile:gap-0 mobile:justify-around mb-8 transition-all duration-300 ${isCartOpen ? "mr-80" : ""}`}>
-          <motion.button whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }} onClick={downloadPDF} className="px-8 py-3 text-sm font-semibold rounded-xl text-white transition-all duration-300 cursor-pointer" style={{ background: styles.button.background, boxShadow: "0 10px 25px rgba(2,132,199,0.3)" }}>
+          <motion.button whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }} onClick={handleDownloadPDF} className="px-8 py-3 text-sm font-semibold rounded-xl text-white transition-all duration-300 cursor-pointer" style={{ background: styles.button.background, boxShadow: "0 10px 25px rgba(2,132,199,0.3)" }}>
             Download Pricelist
           </motion.button>
 
@@ -1455,7 +1493,8 @@ export default function Home() {
                       </motion.button>
                       <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-700 z-10" style={{ background: "linear-gradient(135deg, rgba(2,132,199,0.3), transparent 50%, rgba(14,165,233,0.2))" }} />
                       <div className="relative z-10 mobile:mt-2">
-                        <p className="text-lg mobile:text-sm font-bold text-slate-800 group-hover:text-slate-900 transition-colors duration-500 drop-shadow-sm line-clamp-2 mb-2">{product.productname}</p>
+                        <p className="text-lg mobile:text-sm font-bold text-slate-800 group-hover:text-slate-900 transition-colors duration-500 drop-shadow-sm line-clamp-2 mb-0.5">{product.productname}</p>
+                        <p className="text-md mobile:text-xs font-semibold text-amber-700 drop-shadow-sm line-clamp-1 mb-2">{getTamilName(product)}</p>
                         <div className="space-y-1 mb-4">
                           {product.discount > 0 ? (
                             <>
@@ -1782,6 +1821,7 @@ export default function Home() {
                   </div>
                   <div className="flex-1">
                     <p className="text-sm font-semibold text-slate-800">{product.productname}</p>
+                    <p className="text-xs font-medium text-amber-700">{getTamilName(product)}</p>
                     <p className="text-sm text-sky-700 font-bold">₹{priceAfterDiscount} x {qty}</p>
                     <div className="flex items-center gap-2 mt-2">
                       <button onClick={() => removeFromCart(product)} className="w-7 h-7 text-sm text-white cursor-pointer rounded-full flex items-center justify-center transition-all duration-300" style={styles.button}>

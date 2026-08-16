@@ -7,6 +7,7 @@ import { FaEye, FaEdit, FaTrash, FaArrowLeft, FaArrowRight, FaExclamationTriangl
 import Logout from "../Logout";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
+import { getTamilName, ensureTamilFont, renderTamilTextToDataURL } from "../../utils/tamilTranslation";
 
 Modal.setAppElement("#root");
 
@@ -294,9 +295,10 @@ export default function List() {
     setConfirmRateChangeModalIsOpen(true);
   };
 
-  const generatePDF = () => {
+  const generatePDF = async () => {
     try {
       const doc = new jsPDF();
+      const fontName = await ensureTamilFont(doc);
       const pageWidth = doc.internal.pageSize.getWidth();
       let yOffset = 20;
       doc.setFontSize(16); doc.setFont("helvetica", "bold");
@@ -313,7 +315,7 @@ export default function List() {
         if (typeProducts.length > 0) {
           hasProducts = true;
           tableData.push([{ content: capitalize(type), colSpan: 8, styles: { fontStyle: "bold", halign: "left", fillColor: [200, 200, 200] } }]);
-          tableData.push(["S.No", "Code", "Product", "Net Rate", "Direct Price", "Per", "Quantity"]);
+          tableData.push(["S.No", "Code", "Product", "Tamil", "Net Rate", "Direct Price", "Per", "Quantity"]);
           typeProducts.forEach((product) => {
             const productKey = `${product.product_type}-${product.id}`;
             let rate = editedRates[productKey]?.price ? Number.parseFloat(editedRates[productKey].price) : Number.parseFloat(product.net_rate || product.price || 0);
@@ -321,7 +323,8 @@ export default function List() {
             if (editedRates[productKey] && (product.productname.toLowerCase() === "10*10" || product.productname.toLowerCase().endsWith("setout"))) {
               rate *= 5; dprice *= 5;
             }
-            tableData.push([serialNumber++, product.serial_number, product.productname, `Rs.${Math.floor(rate)}`, `Rs.${Math.floor(dprice)}`, product.per, "", ""]);
+            const tamilName = getTamilName(product);
+            tableData.push([serialNumber++, product.serial_number, product.productname, { content: "", tamilText: tamilName }, `Rs.${Math.floor(rate)}`, `Rs.${Math.floor(dprice)}`, product.per, ""]);
           });
           tableData.push([]);
         }
@@ -329,13 +332,50 @@ export default function List() {
       if (!hasProducts) { setError("No products available to export"); return; }
       autoTable(doc, {
         startY: yOffset,
-        head: [["S.No", "Code", "Product", "Net Rate", "Direct Price", "Per", "Quantity"]],
+        head: [["S.No", "Code", "Product", "Tamil", "Net Rate", "Direct Price", "Per", "Quantity"]],
         body: tableData,
         theme: "grid",
-        styles: { fontSize: 10, cellPadding: 3 },
-        headStyles: { fillColor: [100, 100, 100], textColor: [255, 255, 255] },
-        columnStyles: { 0: { cellWidth: 15 }, 1: { cellWidth: 15 }, 2: { cellWidth: 50 }, 3: { cellWidth: 30 }, 4: { cellWidth: 30 }, 5: { cellWidth: 20 }, 6: { cellWidth: 25 } },
-        didDrawCell: (data) => { if (data.row.section === "body" && data.cell.raw && data.cell.raw.colSpan === 8) { data.cell.styles.cellPadding = 5; data.cell.styles.fontSize = 12; } },
+        styles: { fontSize: 9, cellPadding: 3, font: fontName || undefined, fontStyle: "normal" },
+        headStyles: { fillColor: [100, 100, 100], textColor: [255, 255, 255], font: fontName || undefined, fontStyle: "normal" },
+        columnStyles: { 0: { cellWidth: 12 }, 1: { cellWidth: 15 }, 2: { cellWidth: 42 }, 3: { cellWidth: 42, textColor: [255, 255, 255] }, 4: { cellWidth: 25 }, 5: { cellWidth: 25 }, 6: { cellWidth: 15 }, 7: { cellWidth: 16 } },
+        didDrawCell: (data) => {
+          if (fontName && data.cell) {
+            data.cell.styles.font = fontName;
+            data.cell.styles.fontStyle = "normal";
+          }
+          if (data.section === "body" && data.column.index === 3 && data.cell.raw) {
+            const rawVal = typeof data.cell.raw === "object" ? (data.cell.raw.tamilText || data.cell.raw.content) : data.cell.raw;
+            if (rawVal && typeof rawVal === "string" && rawVal.trim() !== "") {
+              const rendered = renderTamilTextToDataURL(rawVal, 10, "#111827");
+              if (rendered && rendered.dataUrl) {
+                const padding = 2;
+                const cellX = data.cell.x + padding;
+                const maxW = data.cell.width - padding * 2;
+                const maxH = data.cell.height - padding * 2;
+                
+                let imgW = rendered.width * 0.65;
+                let imgH = rendered.height * 0.65;
+                if (imgW > maxW) {
+                  const ratio = maxW / imgW;
+                  imgW = maxW;
+                  imgH = imgH * ratio;
+                }
+                if (imgH > maxH) {
+                  const ratio = maxH / imgH;
+                  imgH = maxH;
+                  imgW = imgW * ratio;
+                }
+
+                const offsetY = data.cell.y + (data.cell.height - imgH) / 2;
+                doc.addImage(rendered.dataUrl, "PNG", cellX, offsetY, imgW, imgH);
+              }
+            }
+          }
+          if (data.row.section === "body" && data.cell.raw && data.cell.raw.colSpan === 8) {
+            data.cell.styles.cellPadding = 5;
+            data.cell.styles.fontSize = 11;
+          }
+        },
       });
       const currentYear = new Date().getFullYear();
       doc.save(`FWC_Pricelist_${currentYear}.pdf`);
