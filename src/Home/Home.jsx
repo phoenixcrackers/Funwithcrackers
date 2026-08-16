@@ -823,12 +823,45 @@ else if (promocode !== "custom") setAppliedPromo(null);
     Object.keys(cart).length ? (setShowModal(true), setIsCartOpen(false)) : showError("Your cart is empty.");
   };
 
+  const renderTamilTextToDataURL = (text, fontSize = 10, color = "#111827") => {
+    if (!text) return null;
+    const canvas = document.createElement("canvas");
+    const ctx = canvas.getContext("2d");
+
+    // 3x scale for crisp rendering in PDF
+    const scale = 3;
+    const font = `${fontSize * scale}px "Mukta Malar", "Latha", "Nirmala UI", "Vijaya", sans-serif`;
+    ctx.font = font;
+
+    const metrics = ctx.measureText(text);
+    const textWidth = metrics.width;
+    const textHeight = fontSize * scale * 1.35;
+
+    canvas.width = Math.ceil(textWidth + 8 * scale);
+    canvas.height = Math.ceil(textHeight);
+
+    // Re-apply font properties after canvas dimension change
+    ctx.font = font;
+    ctx.fillStyle = color;
+    ctx.textBaseline = "middle";
+    ctx.textAlign = "left";
+    ctx.fillText(text, 2 * scale, canvas.height / 2);
+
+    return {
+      dataUrl: canvas.toDataURL("image/png"),
+      width: canvas.width / scale,
+      height: canvas.height / scale,
+    };
+  };
+
   const handleDownloadPDF = async () => {
     try {
       const productsRes = await fetch(`${API_BASE_URL}/api/products`);
       const productsData = await productsRes.json();
-      const naturalSort = (a, b) => new Intl.Collator(undefined, { numeric: true, sensitivity: "base" }).compare(a.productname, b.productname);
-      const serialSort = (a, b) => new Intl.Collator(undefined, { numeric: true, sensitivity: "base" }).compare(a.serial_number, b.serial_number);
+      const naturalSort = (a, b) =>
+        new Intl.Collator(undefined, { numeric: true, sensitivity: "base" }).compare(a.productname, b.productname);
+      const serialSort = (a, b) =>
+        new Intl.Collator(undefined, { numeric: true, sensitivity: "base" }).compare(a.serial_number, b.serial_number);
       const seenSerials = new Set();
       const normalizedProducts = productsData.data
         .filter((p) => {
@@ -843,17 +876,22 @@ else if (promocode !== "custom") setAppliedPromo(null);
         }))
         .sort(naturalSort);
 
-      if (!normalizedProducts.length) { showError("No products available to export"); return; }
+      if (!normalizedProducts.length) {
+        showError("No products available to export");
+        return;
+      }
 
       const doc = new jsPDF();
       const fontName = await ensureTamilFont(doc);
       const pageWidth = doc.internal.pageSize.getWidth();
       let yOffset = 20;
 
-      doc.setFontSize(16); doc.setFont("helvetica", "bold");
+      doc.setFontSize(16);
+      doc.setFont("helvetica", "bold");
       doc.text("FUN WITH CRACKERS", pageWidth / 2, yOffset, { align: "center" });
       yOffset += 10;
-      doc.setFontSize(12); doc.setFont("helvetica", "normal");
+      doc.setFontSize(12);
+      doc.setFont("helvetica", "normal");
       doc.text("Website - www.funwithcrackers.com", pageWidth / 2, yOffset, { align: "center" });
       yOffset += 10;
       doc.text(`Retail Pricelist - ${new Date().getFullYear()}`, pageWidth / 2, yOffset, { align: "center" });
@@ -862,21 +900,51 @@ else if (promocode !== "custom") setAppliedPromo(null);
       const tableData = [];
       let slNo = 1;
       const orderedTypes = [
-        "One sound crackers", "Ground Chakkar", "Flower Pots", "Twinkling Star",
-        "Rockets", "Bombs", "Repeating Shots", "Comets Sky Shots",
-        "Fancy pencil varieties", "Fountain and Fancy Novelties", "Matches",
-        "Guns and Caps", "Sparklers","Sony comets", "Gift Boxes", "Combo Pack", "New Arrivals",
+        "One sound crackers",
+        "Ground Chakkar",
+        "Flower Pots",
+        "Twinkling Star",
+        "Rockets",
+        "Bombs",
+        "Repeating Shots",
+        "Comets Sky Shots",
+        "Fancy pencil varieties",
+        "Fountain and Fancy Novelties",
+        "Matches",
+        "Guns and Caps",
+        "Sparklers",
+        "Sony comets",
+        "Gift Boxes",
+        "Combo Pack",
+        "New Arrivals",
       ];
 
       orderedTypes.forEach((type) => {
         const typeKey = type.replace(/ /g, "_").toLowerCase();
-        const typeProducts = normalizedProducts.filter((product) => product.product_type.toLowerCase() === typeKey).sort(serialSort);
+        const typeProducts = normalizedProducts
+          .filter((product) => product.product_type.toLowerCase() === typeKey)
+          .sort(serialSort);
+
         if (typeProducts.length > 0) {
-          tableData.push([{ content: type, colSpan: 7, styles: { fontStyle: "bold", halign: "left", fillColor: [200, 200, 200] } }]);
+          tableData.push([
+            {
+              content: type,
+              colSpan: 7,
+              styles: { fontStyle: "bold", halign: "left", fillColor: [200, 200, 200] },
+            },
+          ]);
           typeProducts.forEach((product) => {
             const dis = product.price * (product.discount / 100);
             const discountedRate = product.price - dis;
-            tableData.push([slNo++, product.serial_number, product.productname, { content: "", tamilText: getTamilName(product) }, `Rs.${formatPrice(product.price)}`, `Rs.${formatPrice(discountedRate)}`, product.per]);
+            tableData.push([
+              slNo++,
+              product.serial_number,
+              product.productname,
+              { content: "", tamilText: getTamilName(product) },
+              `Rs.${formatPrice(product.price)}`,
+              `Rs.${formatPrice(discountedRate)}`,
+              product.per,
+            ]);
           });
           tableData.push([]);
         }
@@ -884,45 +952,75 @@ else if (promocode !== "custom") setAppliedPromo(null);
 
       autoTable(doc, {
         startY: yOffset,
-        head: [["Sl No.", "Prod No.", "Product Name", "Tamil", "Rate", "Discounted Rate", "Per"]],
+        head: [["Sl No.", "Prod No.", "Product Name", "", "Rate", "Discounted Rate", "Per"]],
         body: tableData,
         theme: "grid",
         styles: { fontSize: 9, cellPadding: 3, font: fontName || undefined, fontStyle: "normal" },
-        headStyles: { fillColor: [2, 132, 199], textColor: [255, 255, 255], font: fontName || undefined, fontStyle: "normal" },
-        columnStyles: { 0: { cellWidth: 12 }, 1: { cellWidth: 16 }, 2: { cellWidth: 48 }, 3: { cellWidth: 48, textColor: [255, 255, 255] }, 4: { cellWidth: 20 }, 5: { cellWidth: 26 }, 6: { cellWidth: 15 } },
+        headStyles: {
+          fillColor: [2, 132, 199],
+          textColor: [255, 255, 255],
+          font: fontName || undefined,
+          fontStyle: "normal",
+        },
+        columnStyles: {
+          0: { cellWidth: 12 },
+          1: { cellWidth: 16 },
+          2: { cellWidth: 48 },
+          3: { cellWidth: 48 },
+          4: { cellWidth: 20 },
+          5: { cellWidth: 26 },
+          6: { cellWidth: 15 },
+        },
         didDrawCell: (data) => {
           if (fontName && data.cell) {
             data.cell.styles.font = fontName;
             data.cell.styles.fontStyle = "normal";
           }
+
+          // Header Tamil Text: "விவரம்"
+          if (data.section === "head" && data.column.index === 3) {
+            const renderedHeader = renderTamilTextToDataURL("விவரம்", 9, "#FFFFFF");
+            if (renderedHeader && renderedHeader.dataUrl) {
+              const padding = 2;
+              const maxW = data.cell.width - padding * 2;
+              const maxH = data.cell.height - padding * 2;
+
+              const scale = Math.min(1, maxW / renderedHeader.width, maxH / renderedHeader.height);
+              const imgW = renderedHeader.width * scale;
+              const imgH = renderedHeader.height * scale;
+
+              const cellX = data.cell.x + (data.cell.width - imgW) / 2;
+              const cellY = data.cell.y + (data.cell.height - imgH) / 2;
+              doc.addImage(renderedHeader.dataUrl, "PNG", cellX, cellY, imgW, imgH);
+            }
+          }
+
+          // Body Tamil Text
           if (data.section === "body" && data.column.index === 3 && data.cell.raw) {
-            const rawVal = typeof data.cell.raw === "object" ? (data.cell.raw.tamilText || data.cell.raw.content) : data.cell.raw;
+            const rawVal =
+              typeof data.cell.raw === "object"
+                ? data.cell.raw.tamilText || data.cell.raw.content
+                : data.cell.raw;
+
             if (rawVal && typeof rawVal === "string" && rawVal.trim() !== "") {
-              const rendered = renderTamilTextToDataURL(rawVal, 10, "#111827");
+              const rendered = renderTamilTextToDataURL(rawVal, 9, "#111827");
               if (rendered && rendered.dataUrl) {
                 const padding = 2;
-                const cellX = data.cell.x + padding;
                 const maxW = data.cell.width - padding * 2;
                 const maxH = data.cell.height - padding * 2;
-                
-                let imgW = rendered.width * 0.65;
-                let imgH = rendered.height * 0.65;
-                if (imgW > maxW) {
-                  const ratio = maxW / imgW;
-                  imgW = maxW;
-                  imgH = imgH * ratio;
-                }
-                if (imgH > maxH) {
-                  const ratio = maxH / imgH;
-                  imgH = maxH;
-                  imgW = imgW * ratio;
-                }
 
-                const offsetY = data.cell.y + (data.cell.height - imgH) / 2;
-                doc.addImage(rendered.dataUrl, "PNG", cellX, offsetY, imgW, imgH);
+                const scale = Math.min(1, maxW / rendered.width, maxH / rendered.height);
+                const imgW = rendered.width * scale;
+                const imgH = rendered.height * scale;
+
+                const cellX = data.cell.x + padding;
+                const cellY = data.cell.y + (data.cell.height - imgH) / 2;
+                doc.addImage(rendered.dataUrl, "PNG", cellX, cellY, imgW, imgH);
               }
             }
           }
+
+          // Category Subheader row height
           if (data.row.section === "body" && data.cell.raw && data.cell.raw.colSpan === 7) {
             data.cell.styles.cellPadding = 5;
             data.cell.styles.fontSize = 11;
@@ -936,6 +1034,7 @@ else if (promocode !== "custom") setAppliedPromo(null);
       showError("Failed to generate PDF: " + err.message);
     }
   };
+
   const downloadPDF = handleDownloadPDF;
 
   const handleFinalCheckout = async () => {
