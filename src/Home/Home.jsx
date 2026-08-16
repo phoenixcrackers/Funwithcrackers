@@ -70,6 +70,12 @@ const styles = {
     backdropFilter: "blur(10px)",
     border: "1px solid rgba(2,132,199,0.3)",
   },
+  // NEW: dedicated style for product image frames — solid white so the
+  // product sits on a clean background and is easier to see
+  imageFrame: {
+    background: "#ffffff",
+    border: "1px solid rgba(2,132,199,0.15)",
+  },
 };
 
 // ─────────────────────────────────────────────────────────
@@ -172,7 +178,7 @@ const Carousel = ({ media, onImageClick }) => {
           muted
           loop
           playsInline
-          className="w-full h-full object-contain p-2"
+          className="w-full h-full object-contain"
           onError={(e) => console.error("Video load error:", e)}
         />
       );
@@ -182,7 +188,7 @@ const Carousel = ({ media, onImageClick }) => {
         key={idx}
         src={src || need}
         alt={`media-${idx}`}
-        className="w-full h-full object-contain p-2 cursor-pointer"
+        className="w-full h-full object-contain p-1 scale-110 cursor-pointer"
         onClick={onImageClick}
         onError={(e) => { e.target.src = need; }}
       />
@@ -212,8 +218,8 @@ const Carousel = ({ media, onImageClick }) => {
 
   if (!mediaItems || mediaItems.length === 0) {
     return (
-      <div className="w-full h-30 rounded-2xl mb-4 overflow-hidden bg-sky-300 flex items-center justify-center">
-        <img src={need} alt="Default product" />
+      <div className="w-full h-30 rounded-2xl mb-4 overflow-hidden bg-white flex items-center justify-center" style={styles.imageFrame}>
+        <img src={need} alt="Default product" className="object-contain scale-110" />
       </div>
     );
   }
@@ -221,7 +227,7 @@ const Carousel = ({ media, onImageClick }) => {
   return (
     <div
       className="relative w-full h-40 rounded-2xl mb-4 overflow-hidden select-none"
-      style={{ background: "linear-gradient(135deg, rgba(255,255,255,0.6), rgba(240,249,255,0.4))", backdropFilter: "blur(10px)", border: "1px solid rgba(2,132,199,0.2)" }}
+      style={styles.imageFrame}
       onTouchStart={handleTouchStart}
       onTouchMove={handleTouchMove}
       onTouchEnd={handleTouchEnd}
@@ -268,7 +274,7 @@ const ImageModal = ({ media, onClose }) => {
         <video key={idx} ref={videoRef} src={src} controls autoPlay muted loop playsInline className="w-full h-full object-contain rounded-xl" />
       );
     }
-    return <img key={idx} src={src || need} alt={`media-${idx}`} className="w-full h-full object-contain rounded-xl" onError={(e) => { e.target.src = need; }} />;
+    return <img key={idx} src={src || need} alt={`media-${idx}`} className="w-full h-full object-contain rounded-xl scale-105" onError={(e) => { e.target.src = need; }} />;
   };
 
   const handlePrev = () => setCurrentIndex((prev) => (prev === 0 ? mediaItems.length - 1 : prev - 1));
@@ -285,8 +291,8 @@ const ImageModal = ({ media, onClose }) => {
 
   return (
     <div className="fixed inset-0 bg-black/80 z-60 flex items-center justify-center" onClick={onClose}>
-      <motion.div initial={{ scale: 0.8, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.8, opacity: 0 }} className="relative max-w-4xl w-full h-[80vh] mx-4" onClick={(e) => e.stopPropagation()}>
-        <button onClick={onClose} className="absolute top-4 right-4 text-white text-2xl z-10 hover:text-red-400" aria-label="Close image modal">
+      <motion.div initial={{ scale: 0.8, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.8, opacity: 0 }} className="relative max-w-4xl w-full h-[80vh] mx-4 bg-white rounded-xl p-4" onClick={(e) => e.stopPropagation()}>
+        <button onClick={onClose} className="absolute top-4 right-4 text-slate-700 text-2xl z-10 hover:text-red-500 bg-white/80 rounded-full w-9 h-9 flex items-center justify-center" aria-label="Close image modal">
           <FaTimes />
         </button>
         {renderMedia(mediaItems[currentIndex], currentIndex)}
@@ -1435,8 +1441,8 @@ else if (promocode !== "custom") setAppliedPromo(null);
                     {hasValidImage ? (
                       <Carousel media={product.image} />
                     ) : (
-                      <div className="w-full h-30 rounded-2xl mb-4 overflow-hidden bg-gray-200 flex items-center justify-center text-slate-600 text-sm font-medium">
-                        <img alt="image" src={need} />
+                      <div className="w-full h-30 rounded-2xl mb-4 overflow-hidden bg-white flex items-center justify-center text-slate-600 text-sm font-medium" style={styles.imageFrame}>
+                        <img alt="image" src={need} className="object-contain scale-110" />
                       </div>
                     )}
                     <div className="relative min-h-[3rem] flex items-center justify-center translate-x-3 mobile:min-h-[2rem] w-52">
@@ -1605,11 +1611,11 @@ else if (promocode !== "custom") setAppliedPromo(null);
                           )}
                         </div>
 
-                        <div className="relative w-full h-40 rounded-2xl mb-4 overflow-hidden select-none" style={{ background: "linear-gradient(135deg, rgba(255,255,255,0.6), rgba(240,249,255,0.4))", backdropFilter: "blur(10px)", border: "1px solid rgba(2,132,199,0.2)" }}>
+                        <div className="relative w-full h-40 rounded-2xl mb-4 overflow-hidden select-none" style={styles.imageFrame}>
                           {images.length > 0 ? (
-                            <img src={images[0]} alt={product.productname} className="w-full h-full object-contain p-2 cursor-pointer" onClick={() => handleShowImage(product)} onError={(e) => { e.target.src = need; }} />
+                            <img src={images[0]} alt={product.productname} className="w-full h-full object-contain p-1 scale-110 cursor-pointer" onClick={() => handleShowImage(product)} onError={(e) => { e.target.src = need; }} />
                           ) : (
-                            <img src={need} alt="Default" className="w-full h-full object-contain p-2" />
+                            <img src={need} alt="Default" className="w-full h-full object-contain p-1 scale-110" />
                           )}
                         </div>
 
@@ -1839,7 +1845,7 @@ else if (promocode !== "custom") setAppliedPromo(null);
                           return (
                             <div key={serial} className="flex gap-4 p-4 bg-sky-50/60 rounded-2xl border border-sky-100">
                               <div className="w-20 h-20 rounded-xl overflow-hidden bg-white border border-sky-200 flex-shrink-0">
-                                <img src={images[0] || need} alt={p.productname} className="w-full h-full object-contain p-1" onError={(e) => { e.target.src = need; }} />
+                                <img src={images[0] || need} alt={p.productname} className="w-full h-full object-contain p-1 scale-110" onError={(e) => { e.target.src = need; }} />
                               </div>
                               <div className="flex-1 min-w-0">
                                 <p className="font-medium text-slate-800 line-clamp-2">{p.productname}</p>
@@ -1915,8 +1921,8 @@ else if (promocode !== "custom") setAppliedPromo(null);
 
               return (
                 <motion.div key={serial} initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} className="flex items-center gap-3 border-b pb-3 border-sky-100">
-                  <div className="w-16 h-16">
-                    <img src={images[0] || need} alt={product.productname} className="w-full h-full object-contain rounded-lg p-1" onError={(e) => { e.target.src = need; }} />
+                  <div className="w-16 h-16 rounded-lg overflow-hidden bg-white border border-sky-100">
+                    <img src={images[0] || need} alt={product.productname} className="w-full h-full object-contain p-1 scale-110" onError={(e) => { e.target.src = need; }} />
                   </div>
                   <div className="flex-1">
                     <p className="text-sm font-semibold text-slate-800">{product.productname}</p>
