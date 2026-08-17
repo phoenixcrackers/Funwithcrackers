@@ -732,11 +732,25 @@ export default function Direct() {
     setError(""); setSuccessMessage("");
     try {
       const response = await axios.get(`${API_BASE_URL}/api/direct/export-quotations-excel`, { responseType: "blob", timeout: 300000 });
+
       const contentDisposition = response.headers["content-disposition"];
-      const filename = contentDisposition?.split("filename=")[1]?.replace(/["']/g, "") || `MadhunishaCrackers_Quotations_${new Date().toISOString().slice(0, 10)}.xlsx`;
+      // Match filename="x.xlsx" or filename=x.xlsx, whichever the server sent.
+      const match = contentDisposition?.match(/filename\*?=(?:UTF-8'')?"?([^";]+)"?/i);
+      const filename = match?.[1]
+        || `PhoenixCrackers_Export_${new Date().toISOString().slice(0, 10)}.xlsx`;
+
       const url = window.URL.createObjectURL(new Blob([response.data]));
-      const link = document.createElement("a"); link.href = url; link.setAttribute("download", filename); document.body.appendChild(link); link.click(); document.body.removeChild(link); window.URL.revokeObjectURL(url);
-      setSuccessMessage("Quotations exported successfully!"); setShowSuccess(true); setTimeout(() => setShowSuccess(false), 4000);
+      const link = document.createElement("a");
+      link.href = url;
+      link.setAttribute("download", filename);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+
+      setSuccessMessage("Quotations exported successfully!");
+      setShowSuccess(true);
+      setTimeout(() => setShowSuccess(false), 4000);
     } catch (err) {
       console.error("Export quotations failed:", err);
       let message = "Failed to export quotations. Please try again.";
