@@ -428,14 +428,18 @@ const Pricelist = () => {
       };
 
       const seenSerials = new Set();
-      const normalizedProducts = productsData.data
+      const normalizedProducts = (productsData.data || productsData || [])
         .filter((p) => {
+          // 1. Remove duplicates
           if (seenSerials.has(p.serial_number)) {
             console.warn(`Duplicate serial_number found: ${p.serial_number}`);
             return false;
           }
           seenSerials.add(p.serial_number);
-          return p.status === "on";
+
+          // 2. Only keep products that are explicitly "on" (case-insensitive + trim)
+          const status = String(p.status ?? "").toLowerCase().trim();
+          return status === "on";
         })
         .map((product) => ({
           ...product,
@@ -491,6 +495,7 @@ const Pricelist = () => {
           tableData.push([{ content: type, colSpan: 7, styles: { fontStyle: 'bold', halign: 'left', fillColor: [200, 200, 200] } }]);
           tableData.push(['Sl No.', 'Prod No.', 'Product Name', 'Tamil', 'Rate', 'Discounted Rate', 'Per']);
           typeProducts.forEach(product => {
+            if (String(product.status ?? "").toLowerCase().trim() !== "on") return;
             const dis = product.price * (product.discount / 100);
             const discountedRate = product.price - dis;
             tableData.push([

@@ -70,11 +70,10 @@ const styles = {
     backdropFilter: "blur(10px)",
     border: "1px solid rgba(2,132,199,0.3)",
   },
-  // NEW: dedicated style for product image frames — solid white so the
-  // product sits on a clean background and is easier to see
   imageFrame: {
-    background: "#ffffff",
-    border: "1px solid rgba(2,132,199,0.15)",
+    background: "linear-gradient(135deg, #ffffff 0%, #f0f9ff 100%)",
+    border: "1px solid rgba(2,132,199,0.2)",
+    boxShadow: "inset 0 0 12px rgba(2,132,199,0.06)",
   },
 };
 
@@ -188,7 +187,7 @@ const Carousel = ({ media, onImageClick }) => {
         key={idx}
         src={src || need}
         alt={`media-${idx}`}
-        className="w-full h-full object-contain p-1 scale-110 cursor-pointer"
+        className="w-full h-full object-contain p-1 scale-120 hover:scale-125 transition-transform duration-300 cursor-pointer"
         onClick={onImageClick}
         onError={(e) => { e.target.src = need; }}
       />
@@ -199,7 +198,7 @@ const Carousel = ({ media, onImageClick }) => {
   const handleNext = () => setCurrentIndex((prev) => (prev === mediaItems.length - 1 ? 0 : prev + 1));
 
   const handleTouchStart = (e) => { setIsDragging(true); setStartX(e.touches[0].clientX); };
-  const handleTouchMove = () => {};
+  const handleTouchMove = () => { };
   const handleTouchEnd = (e) => {
     if (!isDragging) return;
     setIsDragging(false);
@@ -212,21 +211,21 @@ const Carousel = ({ media, onImageClick }) => {
   useEffect(() => {
     if (videoRef.current && isVideoMedia(mediaItems[currentIndex])) {
       videoRef.current.load();
-      videoRef.current.play().catch(() => {});
+      videoRef.current.play().catch(() => { });
     }
   }, [currentIndex, mediaItems]);
 
   if (!mediaItems || mediaItems.length === 0) {
     return (
-      <div className="w-full h-30 rounded-2xl mb-4 overflow-hidden bg-white flex items-center justify-center" style={styles.imageFrame}>
-        <img src={need} alt="Default product" className="object-contain scale-110" />
+      <div className="w-full h-52 sm:h-60 rounded-2xl mb-4 overflow-hidden bg-white flex items-center justify-center" style={styles.imageFrame}>
+        <img src={need} alt="Default product" className="object-contain scale-120" />
       </div>
     );
   }
 
   return (
     <div
-      className="relative w-full h-40 rounded-2xl mb-4 overflow-hidden select-none"
+      className="relative w-full h-52 sm:h-60 rounded-2xl mb-4 overflow-hidden select-none"
       style={styles.imageFrame}
       onTouchStart={handleTouchStart}
       onTouchMove={handleTouchMove}
@@ -283,7 +282,7 @@ const ImageModal = ({ media, onClose }) => {
   useEffect(() => {
     if (videoRef.current && isVideoMedia(mediaItems[currentIndex])) {
       videoRef.current.load();
-      videoRef.current.play().catch(() => {});
+      videoRef.current.play().catch(() => { });
     }
   }, [currentIndex, mediaItems]);
 
@@ -593,7 +592,7 @@ export default function Home() {
       const parsed = JSON.parse(str);
       if (Array.isArray(parsed)) return parsed.filter((url) => typeof url === "string" && url.trim());
       if (typeof parsed === "string" && parsed.trim()) return [parsed.trim()];
-    } catch {}
+    } catch { }
     if (str.startsWith("http") || str.startsWith("//") || str.startsWith("/")) return [str];
     return [];
   }, []);
@@ -806,7 +805,7 @@ export default function Home() {
     if (debounceTimeout.current) clearTimeout(debounceTimeout.current);
     debounceTimeout.current = setTimeout(() => {
       if (promocode && promocode !== "custom") handleApplyPromo(promocode);
-else if (promocode !== "custom") setAppliedPromo(null);
+      else if (promocode !== "custom") setAppliedPromo(null);
     }, 500);
     return () => clearTimeout(debounceTimeout.current);
   }, [promocode, handleApplyPromo]);
@@ -869,11 +868,17 @@ else if (promocode !== "custom") setAppliedPromo(null);
       const serialSort = (a, b) =>
         new Intl.Collator(undefined, { numeric: true, sensitivity: "base" }).compare(a.serial_number, b.serial_number);
       const seenSerials = new Set();
-      const normalizedProducts = productsData.data
+      const rawProducts = Array.isArray(productsData.data)
+        ? productsData.data
+        : Array.isArray(productsData)
+          ? productsData
+          : [];
+      const normalizedProducts = rawProducts
         .filter((p) => {
           if (seenSerials.has(p.serial_number)) return false;
           seenSerials.add(p.serial_number);
-          return true;
+          const status = String(p.status ?? "").toLowerCase().trim();
+          return status === "on";
         })
         .map((product) => ({
           ...product,
@@ -940,6 +945,7 @@ else if (promocode !== "custom") setAppliedPromo(null);
             },
           ]);
           typeProducts.forEach((product) => {
+            if (String(product.status ?? "").toLowerCase().trim() !== "on") return;
             const dis = product.price * (product.discount / 100);
             const discountedRate = product.price - dis;
             tableData.push([
@@ -1313,7 +1319,7 @@ else if (promocode !== "custom") setAppliedPromo(null);
     const orderedTypes = [
       "One sound crackers", "Ground Chakkar", "Flower Pots", "Twinkling Star", "Rockets", "Bombs",
       "Repeating Shots", "Comets Sky Shots", "Fancy pencil varieties", "Fountain and Fancy Novelties",
-      "Matches", "Guns and Caps", "Sparklers","Sony comets", "Gift Boxes", "Combo Pack", "New Arrivals",
+      "Matches", "Guns and Caps", "Sparklers", "Sony comets", "Gift Boxes", "Combo Pack", "New Arrivals",
     ];
     const availableTypes = [...new Set(products.filter((p) => p.product_type !== "gift_box_dealers").map((p) => p.product_type || "Others"))];
     const filteredOrderedTypes = orderedTypes.filter((type) => availableTypes.includes(type.replace(/ /g, "_").toLowerCase()));
@@ -1324,7 +1330,7 @@ else if (promocode !== "custom") setAppliedPromo(null);
     const orderedTypes = [
       "One sound crackers", "Ground Chakkar", "Flower Pots", "Twinkling Star", "Rockets", "Bombs",
       "Repeating Shots", "Comets Sky Shots", "Fancy pencil varieties", "Fountain and Fancy Novelties",
-      "Matches", "Guns and Caps", "Sparklers","Sony comets", "Gift Boxes", "Combo Pack", "New Arrivals",
+      "Matches", "Guns and Caps", "Sparklers", "Sony comets", "Gift Boxes", "Combo Pack", "New Arrivals",
     ];
     const result = products
       .filter((p) => p.product_type !== "gift_box_dealers" &&
@@ -1528,11 +1534,11 @@ else if (promocode !== "custom") setAppliedPromo(null);
           </AnimatePresence>
         )}
 
-        <section className={`rounded-xl px-4 py-3 shadow-inner flex justify-between flex-wrap gap-4 text-sm sm:text-base border border-sky-300 from-sky-400/80 to-sky-600/90 text-white font-semibold transition-all duration-300 ${isCartOpen ? "mr-80" : ""}`}>
+        <section className={`rounded-xl px-4 py-3 shadow-sm flex justify-between flex-wrap gap-4 text-sm sm:text-base border border-sky-300 bg-gradient-to-r from-sky-100/90 via-blue-50/90 to-sky-100/90 text-sky-900 font-semibold transition-all duration-300 ${isCartOpen ? "mr-80" : ""}`}>
           <div>Net Rate: ₹{totals.net}</div>
           <div>You Save: ₹{totals.save}</div>
           {appliedPromo && <div>Promocode ({appliedPromo.code}): -₹{totals.promo_discount}</div>}
-          <div className="font-bold">Total: ₹{totals.total}</div>
+          <div className="font-bold text-sky-950">Total: ₹{totals.total}</div>
         </section>
 
         <div className={`flex justify-center gap-4 mb-8 mt-8 transition-all duration-300 ${isCartOpen ? "mr-80" : ""}`}>
@@ -1611,13 +1617,7 @@ else if (promocode !== "custom") setAppliedPromo(null);
                           )}
                         </div>
 
-                        <div className="relative w-full h-40 rounded-2xl mb-4 overflow-hidden select-none" style={styles.imageFrame}>
-                          {images.length > 0 ? (
-                            <img src={images[0]} alt={product.productname} className="w-full h-full object-contain p-1 scale-110 cursor-pointer" onClick={() => handleShowImage(product)} onError={(e) => { e.target.src = need; }} />
-                          ) : (
-                            <img src={need} alt="Default" className="w-full h-full object-contain p-1 scale-110" />
-                          )}
-                        </div>
+                        <Carousel media={product.image} onImageClick={() => handleShowImage(product)} />
 
                         <div className="relative flex items-end justify-end">
                           <AnimatePresence mode="wait">
