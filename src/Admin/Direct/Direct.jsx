@@ -74,19 +74,23 @@ class QuotationTableErrorBoundary extends React.Component {
   }
 }
 
-const getEffectivePrice = (item) => Math.round(Number(item.price) || 0);
+const getEffectivePrice = (item) => Math.round(Number(item?.price) || 0);
 const styles = { input: {}, button: {}, card: {} };
 
+// Check against the item's original base discount so items with discounts (e.g. 20%, 80%) are NOT marked excluded
 const isExcludedFromBulk = (item = {}) => {
   const type = (item.product_type || '').trim().toLowerCase();
-  const discount = parseFloat(item.discount);
-  return type === 'net_rate' || isNaN(discount) || discount === 0;
+  const initDisc = parseFloat(item.initialDiscount !== undefined ? item.initialDiscount : item.discount);
+  return type === 'net_rate' || type === 'netrate' || isNaN(initDisc) || initDisc <= 0;
 };
 
+// Applies bulk discount to cart items, reverting to initial discount if bulk discount is 0
 const applyBulkDiscount = (cartArr = [], discountValue = 0) =>
-  cartArr.map((item) =>
-    isExcludedFromBulk(item) ? item : { ...item, discount: discountValue }
-  );
+  cartArr.map((item) => {
+    if (isExcludedFromBulk(item)) return item;
+    const resolvedDiscount = discountValue > 0 ? discountValue : (parseFloat(item.initialDiscount) || 0);
+    return { ...item, discount: resolvedDiscount };
+  });
 
 const FieldLabel = ({ children, accent }) => (
   <label className={`block text-[11px] font-bold uppercase tracking-[0.08em] mb-1.5 ${accent || "text-gray-500"}`}>
@@ -218,9 +222,9 @@ const QuotationTable = ({
   };
 
   const handleChangeDiscount = (value) => {
-    const newDiscount = Math.max(0, Math.min(100, parseFloat(value) || 0));
-    setChangeDiscount(newDiscount);
-    const updatedCart = applyBulkDiscount(cart, newDiscount);
+    const val = value === '' ? 0 : Math.max(0, Math.min(100, parseFloat(value) || 0));
+    setChangeDiscount(val);
+    const updatedCart = applyBulkDiscount(cart, val);
     if (isModal) setModalCart(updatedCart); else setCart(updatedCart);
   };
 
@@ -234,8 +238,8 @@ const QuotationTable = ({
           (p.product_type || '').toLowerCase().includes(q) ||
           (p.serial_number || '').toLowerCase().includes(q)
         );
-      }).slice(0, 8)
-    : products.slice(0, 50);
+      })
+    : products;
 
   const handleProductClick = (product) => {
     addToCart(isModal, null, product);
@@ -246,35 +250,54 @@ const QuotationTable = ({
   return (
     <div className="space-y-4">
       <div ref={searchWrapperRef} className="relative">
-        <FieldLabel>Search & Add Product</FieldLabel>
+        <FieldLabel>Search & Add Products</FieldLabel>
         <input
           type="text"
           ref={productSelectRef}
           value={productQuery}
           onChange={(e) => { setProductQuery(e.target.value); setShowDropdown(true); }}
           onFocus={() => setShowDropdown(true)}
-          placeholder="Click to browse all products, or type to search…"
+          placeholder="Click to browse products, or type name / code / category to filter…"
           className="w-full h-11 px-3 rounded-lg border border-gray-200 text-sm font-medium text-gray-800 bg-white outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100 transition-all duration-150"
         />
         {showDropdown && (
-          <div className="mt-2 border border-gray-200 rounded-lg divide-y divide-gray-100 max-h-72 overflow-y-auto bg-white shadow-sm absolute z-20 w-full">
-            {filteredProducts.length ? filteredProducts.map((p) => (
-              <button
-                key={`${p.id}-${p.product_type}`}
-                type="button"
-                onClick={() => handleProductClick(p)}
-                className="w-full text-left px-3 py-2.5 flex items-center justify-between gap-3 hover:bg-blue-50 transition-colors duration-100"
-              >
-                <div className="min-w-0">
-                  <div className="text-sm font-semibold text-gray-800 truncate">
-                    {p.serial_number ? `[${p.serial_number}] ` : ''}{p.productname}
-                  </div>
-                  <div className="text-[11px] text-gray-400 truncate">{p.product_type}</div>
-                </div>
-                <span className="text-sm font-bold text-blue-600 whitespace-nowrap tabular-nums">₹{getEffectivePrice(p)}</span>
-              </button>
-            )) : (
-              <div className="px-3 py-3 text-sm text-gray-400 text-center">No matching products</div>
+          <div className="mt-2 border border-gray-200 rounded-xl max-h-80 overflow-y-auto bg-white shadow-2xl absolute z-30 w-full p-3">
+            {filteredProducts.length ? (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-2">
+                {filteredProducts.map((p) => {
+                  const initDisc = parseFloat(p.discount) || 0;
+                  return (
+                    <button
+                      key={`${p.id}-${p.product_type}`}
+                      type="button"
+                      onClick={() => handleProductClick(p)}
+                      className="text-left p-2.5 rounded-lg border border-gray-100 hover:border-blue-300 hover:bg-blue-50/70 transition-all duration-150 flex flex-col justify-between group bg-white shadow-xs"
+                    >
+                      <div className="w-full">
+                        <div className="flex items-start justify-between gap-1 mb-1">
+                          <span className="text-xs font-bold text-gray-800 line-clamp-1 group-hover:text-blue-700" title={p.productname}>
+                            {p.serial_number ? `[${p.serial_number}] ` : ''}{p.productname}
+                          </span>
+                          {initDisc > 0 && (
+                            <span className="text-[10px] font-bold bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded flex-shrink-0">
+                              {initDisc}%
+                            </span>
+                          )}
+                        </div>
+                        <div className="text-[10px] text-gray-400 capitalize truncate">
+                          {(p.product_type || '').replace(/_/g, ' ')}
+                        </div>
+                      </div>
+                      <div className="mt-2 flex items-center justify-between pt-1.5 border-t border-gray-50 w-full">
+                        <span className="text-xs font-bold text-blue-600">₹{getEffectivePrice(p)}</span>
+                        <span className="text-[10px] font-semibold text-gray-400">/ {p.per || 'Unit'}</span>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            ) : (
+              <div className="px-3 py-6 text-sm text-gray-400 text-center">No matching products found</div>
             )}
           </div>
         )}
@@ -384,7 +407,7 @@ const QuotationTable = ({
                       <td className="px-3 py-2.5 text-center">
                         <button
                           onClick={() => removeFromCart(item.id, item.product_type, isModal)}
-                          className="w-7 h-7 rounded-md border border-red-200 bg-red-50 text-red-400 text-xs font-bold hover:bg-red-500 hover:text-white hover:border-red-500 transition-all duration-150 opacity-0 group-hover:opacity-100"
+                          className="w-7 h-7 rounded-md border text-white text-xs font-bold bg-red-500 border-red-500 transition-all duration-150"
                         >
                           ✕
                         </button>
@@ -506,7 +529,7 @@ const NewProductModal = ({ isOpen, onClose, onSubmit, newProductData, setNewProd
     { name: "price",       label: "Price (₹)",    type: "number", placeholder: "0", min: 0, step: 1, required: true },
     { name: "discount",    label: "Discount (%)",  type: "number", placeholder: "0", min: 0, max: 100, step: 0.01 },
     { name: "quantity",    label: "Quantity",      type: "number", placeholder: "1", min: 1, step: 1, required: true },
-    { name: "per",         label: "Unit",          type: "text",   placeholder: "Box / Piece" },
+    { name: "per",          label: "Unit",          type: "text",   placeholder: "Box / Piece" },
     { name: "product_type",label: "Product Type",  type: "text",   placeholder: "custom", required: true },
   ];
 
@@ -599,16 +622,6 @@ const PDFDownloadConfirmModal = ({ isOpen, onClose, onYes, fileName }) => (
 );
 
 export default function Direct() {
-  const [state, setState] = useState({
-    customers: [], products: [], quotations: [], selectedCustomer: "", cart: [], selectedProduct: null,
-    error: "", loading: true, successMessage: "", showSuccess: false, quotationId: null,
-    isQuotationCreated: false, modalIsOpen: false, modalMode: null, modalCart: [], modalSelectedProduct: null,
-    modalSelectedCustomer: "", orderId: "", additionalDiscount: 0, modalAdditionalDiscount: 0,
-    changeDiscount: 0, modalChangeDiscount: 0, newProductModalIsOpen: false,
-    newProductData: { productname: "", price: "", discount: 0, quantity: 1, per: "" }, isModalNewProduct: false,
-    lastAddedProduct: null, modalLastAddedProduct: null, userType: "", modalUserType: "",
-    currentPage: 1, searchQuery: "", customerTypeFilter: "",
-  });
   const [customers, setCustomers] = useState([]);
   const [products, setProducts] = useState([]);
   const [quotations, setQuotations] = useState([]);
@@ -676,7 +689,15 @@ export default function Direct() {
           axios.get(`${API_BASE_URL}/api/direct/quotations`),
         ]);
         const sortedCustomers = Array.isArray(customersResponse.data) ? customersResponse.data.sort((a, b) => (b.id || 0) - (a.id || 0)) : [];
-        const validProducts = Array.isArray(productsResponse.data) ? productsResponse.data.filter(p => p != null && typeof p === 'object' && typeof p.id !== 'undefined' && typeof p.product_type === 'string' && typeof p.productname === 'string') : [];
+        const validProducts = Array.isArray(productsResponse.data)
+          ? productsResponse.data
+              .filter(p => p != null && typeof p === 'object' && typeof p.id !== 'undefined' && typeof p.product_type === 'string' && typeof p.productname === 'string')
+              .map(p => ({
+                ...p,
+                price: Number(p.price) || 0,
+                discount: p.discount !== undefined && p.discount !== null ? parseFloat(p.discount) || 0 : 0
+              }))
+          : [];
         setCustomers(sortedCustomers); setProducts(validProducts);
         const data = Array.isArray(quotationsResponse.data) ? quotationsResponse.data : [];
         const validQuotations = data.filter(q => q.quotation_id && q.quotation_id !== "undefined" && /^[a-zA-Z0-9-_]+$/.test(q.quotation_id));
@@ -696,20 +717,6 @@ export default function Direct() {
   }, 300), [quotations]);
 
   const handleSearchChange = (e) => { const query = e.target.value; setSearchQuery(query); handleSearch(query); };
-
-  const downloadCustomersExcel = () => {
-    try {
-      const workbook = XLSX.utils.book_new();
-      const customerGroups = { Customer: customers.filter(c => c.customer_type === 'Customer'), Agent: customers.filter(c => c.customer_type === 'Agent'), 'Customer of Agent': customers.filter(c => c.customer_type === 'Customer of Selected Agent') };
-      for (const [type, group] of Object.entries(customerGroups)) {
-        if (group.length === 0) continue;
-        const data = group.map(customer => ({ ID: customer.id || 'N/A', Name: customer.name || 'N/A', 'Customer Type': customer.customer_type || 'User', ...(type === 'Customer of Agent' ? { 'Agent Name': customer.agent_name || 'N/A' } : {}), 'Mobile Number': customer.mobile_number || 'N/A', Email: customer.email || 'N/A', Address: customer.address || 'N/A', District: customer.district || 'N/A', State: customer.state || 'N/A' }));
-        const worksheet = XLSX.utils.json_to_sheet(data);
-        XLSX.utils.book_append_sheet(workbook, worksheet, type);
-      }
-      XLSX.writeFile(workbook, 'customers_export.xlsx');
-    } catch (err) { console.error('Failed to download customers Excel:', err); setError(`Failed to download customers Excel: ${err.message}`); }
-  };
 
   const exportToExcel = () => {
     try {
@@ -732,12 +739,9 @@ export default function Direct() {
     setError(""); setSuccessMessage("");
     try {
       const response = await axios.get(`${API_BASE_URL}/api/direct/export-quotations-excel`, { responseType: "blob", timeout: 300000 });
-
       const contentDisposition = response.headers["content-disposition"];
-      // Match filename="x.xlsx" or filename=x.xlsx, whichever the server sent.
       const match = contentDisposition?.match(/filename\*?=(?:UTF-8'')?"?([^";]+)"?/i);
-      const filename = match?.[1]
-        || `PhoenixCrackers_Export_${new Date().toISOString().slice(0, 10)}.xlsx`;
+      const filename = match?.[1] || `PhoenixCrackers_Export_${new Date().toISOString().slice(0, 10)}.xlsx`;
 
       const url = window.URL.createObjectURL(new Blob([response.data]));
       const link = document.createElement("a");
@@ -771,27 +775,67 @@ export default function Direct() {
     const setTargetCart = isModal ? setModalCart : setCart;
     const targetSelectedProduct = isModal ? modalSelectedProduct : selectedProduct;
     const setTargetSelectedProduct = isModal ? setModalSelectedProduct : setSelectedProduct;
-    const targetDiscount = isModal ? modalChangeDiscount : changeDiscount;
+    const targetDiscount = parseFloat(isModal ? modalChangeDiscount : changeDiscount) || 0;
     const setTargetLastAddedProduct = isModal ? setModalLastAddedProduct : setLastAddedProduct;
+
     if (!customProduct && !targetSelectedProduct && !directProduct) { setError("Please select a product"); return; }
     let product;
+
     if (customProduct) {
-      const excluded = isExcludedFromBulk({ product_type: customProduct.product_type, discount: customProduct.discount });
-      const hasExplicitDiscount = customProduct.discount !== undefined && customProduct.discount !== '' && customProduct.discount !== null;
-      const resolvedDiscount = hasExplicitDiscount ? parseFloat(customProduct.discount) : (excluded ? 0 : targetDiscount);
-      product = { ...customProduct, id: `custom-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`, product_type: customProduct.product_type || 'custom', price: Math.round(Number(customProduct.price) || 0), quantity: parseInt(customProduct.quantity) || 1, discount: resolvedDiscount, initialDiscount: resolvedDiscount, per: customProduct.per || 'Unit' };
+      const explicitDiscount = customProduct.discount !== undefined && customProduct.discount !== '' && customProduct.discount !== null
+        ? parseFloat(customProduct.discount) : 0;
+      const baseDiscount = isNaN(explicitDiscount) ? 0 : explicitDiscount;
+      const isNet = (customProduct.product_type || '').toLowerCase() === 'net_rate' || (customProduct.product_type || '').toLowerCase() === 'netrate' || baseDiscount <= 0;
+      const resolvedDiscount = isNet ? 0 : (targetDiscount > 0 ? targetDiscount : baseDiscount);
+
+      product = {
+        ...customProduct,
+        id: `custom-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+        product_type: customProduct.product_type || 'custom',
+        price: Math.round(Number(customProduct.price) || 0),
+        quantity: parseInt(customProduct.quantity) || 1,
+        discount: resolvedDiscount,
+        initialDiscount: baseDiscount,
+        per: customProduct.per || 'Unit'
+      };
     } else if (directProduct) {
-      const excluded = isExcludedFromBulk({ product_type: directProduct.product_type, discount: directProduct.discount });
-      const resolvedDiscount = excluded ? (parseFloat(directProduct.discount) || 0) : targetDiscount;
-      product = { ...directProduct, id: directProduct.id, price: Math.round(Number(directProduct.price) || 0), quantity: 1, discount: resolvedDiscount, initialDiscount: parseFloat(directProduct.discount) || 0, per: directProduct.per || 'Unit' };
+      const baseDiscount = directProduct.discount !== undefined && directProduct.discount !== null
+        ? parseFloat(directProduct.discount) : 0;
+      const cleanBaseDiscount = isNaN(baseDiscount) ? 0 : baseDiscount;
+      const isNet = (directProduct.product_type || '').toLowerCase() === 'net_rate' || (directProduct.product_type || '').toLowerCase() === 'netrate' || cleanBaseDiscount <= 0;
+      const resolvedDiscount = isNet ? 0 : (targetDiscount > 0 ? targetDiscount : cleanBaseDiscount);
+
+      product = {
+        ...directProduct,
+        id: directProduct.id,
+        price: Math.round(Number(directProduct.price) || 0),
+        quantity: 1,
+        discount: resolvedDiscount,
+        initialDiscount: cleanBaseDiscount,
+        per: directProduct.per || 'Unit'
+      };
     } else {
       const [id, type] = targetSelectedProduct.value.split("-");
-      product = products.find(p => p.id.toString() === id && p.product_type === type);
-      if (!product) { setError("Product not found"); return; }
-      const excluded = isExcludedFromBulk({ product_type: product.product_type, discount: product.discount });
-      const resolvedDiscount = excluded ? (parseFloat(product.discount) || 0) : targetDiscount;
-      product = { ...product, id: product.id, price: Math.round(Number(product.price) || 0), quantity: 1, discount: resolvedDiscount, initialDiscount: parseFloat(product.discount) || 0, per: product.per || 'Unit' };
+      const found = products.find(p => p.id.toString() === id && p.product_type === type);
+      if (!found) { setError("Product not found"); return; }
+
+      const baseDiscount = found.discount !== undefined && found.discount !== null
+        ? parseFloat(found.discount) : 0;
+      const cleanBaseDiscount = isNaN(baseDiscount) ? 0 : baseDiscount;
+      const isNet = (found.product_type || '').toLowerCase() === 'net_rate' || (found.product_type || '').toLowerCase() === 'netrate' || cleanBaseDiscount <= 0;
+      const resolvedDiscount = isNet ? 0 : (targetDiscount > 0 ? targetDiscount : cleanBaseDiscount);
+
+      product = {
+        ...found,
+        id: found.id,
+        price: Math.round(Number(found.price) || 0),
+        quantity: 1,
+        discount: resolvedDiscount,
+        initialDiscount: cleanBaseDiscount,
+        per: found.per || 'Unit'
+      };
     }
+
     setTargetCart(prev => {
       const exists = prev.find(item => item.id === product.id && item.product_type === product.product_type);
       return exists ? prev.map(item => item.id === product.id && item.product_type === product.product_type ? { ...item, quantity: item.quantity + 1 } : item) : [product, ...prev];
@@ -809,10 +853,10 @@ export default function Direct() {
   const calculateNetRate = (targetCart = []) => targetCart.reduce((total, item) => total + getEffectivePrice(item) * item.quantity, 0).toFixed(2);
   const calculateYouSave = (targetCart = []) => targetCart.reduce((total, item) => total + getEffectivePrice(item) * (item.discount / 100) * item.quantity, 0).toFixed(2);
 
-  const calculateTotal = (targetCart = [], additionalDiscount = 0) => {
+  const calculateTotal = (targetCart = [], extraDiscount = 0) => {
     const total = targetCart.reduce((sum, item) => {
       const lineAfterDiscount = getEffectivePrice(item) * (1 - item.discount / 100) * item.quantity;
-      const lineTotal = isExcludedFromBulk(item) ? lineAfterDiscount : lineAfterDiscount * (1 - additionalDiscount / 100);
+      const lineTotal = isExcludedFromBulk(item) ? lineAfterDiscount : lineAfterDiscount * (1 - extraDiscount / 100);
       return sum + lineTotal;
     }, 0);
     return total.toFixed(2);
@@ -852,8 +896,17 @@ export default function Direct() {
       setModalSelectedCustomer({ value: quotation.customer_id?.toString(), label: `${quotation.customer_name} (${quotation.customer_type === "Customer of Selected Agent" ? "Customer - Agent" : quotation.customer_type || "User"} - ${quotation.district || "N/A"})` });
       setQuotationId(quotation.quotation_id); setModalAdditionalDiscount(parseFloat(quotation.additional_discount) || 0); setModalChangeDiscount(0);
       try {
-        const products = typeof quotation.products === "string" ? JSON.parse(quotation.products) : quotation.products;
-        setModalCart(Array.isArray(products) ? products.map(p => ({ ...p, id: p.id || `custom-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`, price: parseFloat(p.price) || 0, discount: parseFloat(p.discount) || 0, initialDiscount: parseFloat(p.discount) || 0, quantity: parseInt(p.quantity) || 0, per: p.per || 'Unit', product_type: p.product_type || 'custom' })) : []);
+        const parsedProducts = typeof quotation.products === "string" ? JSON.parse(quotation.products) : quotation.products;
+        setModalCart(Array.isArray(parsedProducts) ? parsedProducts.map(p => ({
+          ...p,
+          id: p.id || `custom-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+          price: parseFloat(p.price) || 0,
+          discount: parseFloat(p.discount) || 0,
+          initialDiscount: parseFloat(p.initialDiscount !== undefined ? p.initialDiscount : p.discount) || 0,
+          quantity: parseInt(p.quantity) || 0,
+          per: p.per || 'Unit',
+          product_type: p.product_type || 'custom'
+        })) : []);
       } catch (e) { setModalCart([]); setError("Failed to parse quotation products"); return; }
       setModalIsOpen(true); return;
     }
@@ -890,12 +943,21 @@ export default function Direct() {
       setModalSelectedCustomer({ value: quotation.customer_id?.toString(), label: `${quotation.customer_name} (${quotation.customer_type === "Customer of Selected Agent" ? "Customer - Agent" : quotation.customer_type || "User"} - ${quotation.district || "N/A"})` });
       setQuotationId(quotation.quotation_id); setModalAdditionalDiscount(parseFloat(quotation.additional_discount) || 0); setModalChangeDiscount(0);
       try {
-        const products = typeof quotation.products === "string" ? JSON.parse(quotation.products) : quotation.products;
-        setModalCart(Array.isArray(products) ? products.map(p => ({ ...p, id: p.id || `custom-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`, price: parseFloat(p.price) || 0, discount: parseFloat(p.discount) || 0, initialDiscount: parseFloat(p.discount) || 0, quantity: parseInt(p.quantity) || 0, per: p.per || 'Unit', product_type: p.product_type || 'custom' })) : []);
+        const parsedProducts = typeof quotation.products === "string" ? JSON.parse(quotation.products) : quotation.products;
+        setModalCart(Array.isArray(parsedProducts) ? parsedProducts.map(p => ({
+          ...p,
+          id: p.id || `custom-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+          price: parseFloat(p.price) || 0,
+          discount: parseFloat(p.discount) || 0,
+          initialDiscount: parseFloat(p.initialDiscount !== undefined ? p.initialDiscount : p.discount) || 0,
+          quantity: parseInt(p.quantity) || 0,
+          per: p.per || 'Unit',
+          product_type: p.product_type || 'custom'
+        })) : []);
       } catch (e) { setModalCart([]); setError("Failed to parse quotation products"); return; }
       setModalIsOpen(true); return;
     }
-    if (!modalSelectedCustomer || !modalCart.length) return setError("Customer, products, and order ID are required");
+    if (!modalSelectedCustomer || !modalCart.length) return setError("Customer and products are required");
     if (modalCart.some(item => item.quantity === 0)) return setError("Please remove products with zero quantity");
     if (!quotationId || quotationId === "undefined" || !/^[a-zA-Z0-9-_]+$/.test(quotationId)) { setError("Invalid or missing quotation ID"); return; }
     setModalSubmitLoading(true);
@@ -1015,7 +1077,7 @@ export default function Direct() {
                     products={products} selectedProduct={selectedProduct} setSelectedProduct={setSelectedProduct}
                     addToCart={addToCart} updateQuantity={updateQuantity} updateDiscount={updateDiscount}
                     updatePrice={updatePrice} removeFromCart={removeFromCart}
-                    calculateNetRate={calculateNetRate} calculateYouSave={calculateYouSave}calculateTotal={calculateTotal}
+                    calculateNetRate={calculateNetRate} calculateYouSave={calculateYouSave} calculateTotal={calculateTotal}
                     styles={styles} additionalDiscount={additionalDiscount} setAdditionalDiscount={setAdditionalDiscount}
                     changeDiscount={changeDiscount} setChangeDiscount={setChangeDiscount}
                     openNewProductModal={openNewProductModal}
