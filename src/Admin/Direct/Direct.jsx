@@ -721,12 +721,45 @@ export default function Direct() {
   const exportToExcel = () => {
     try {
       const workbook = XLSX.utils.book_new();
-      const customerGroups = { Customer: customers.filter(c => c.customer_type === "Customer"), Agent: customers.filter(c => c.customer_type === "Agent"), "Customer of Agent": customers.filter(c => c.customer_type === "Customer of Selected Agent") };
+      const customerGroups = {
+        Customer: customers.filter(c => c.customer_type === "Customer"),
+        Agent: customers.filter(c => c.customer_type === "Agent"),
+        "Customer of Agent": customers.filter(c => c.customer_type === "Customer of Selected Agent")
+      };
       let hasAnyData = false;
+
+      const formatSheet = (ws, rows) => {
+        if (!ws || !rows || rows.length === 0) return;
+        const colWidths = Object.keys(rows[0]).map((key) => {
+          let maxLen = key.length;
+          for (const row of rows) {
+            const cellLen = (row[key] || "").toString().length;
+            if (cellLen > maxLen) maxLen = cellLen;
+          }
+          return { wch: Math.min(Math.max(maxLen + 4, 12), 45) };
+        });
+        ws["!cols"] = colWidths;
+        if (ws["!ref"]) {
+          ws["!autofilter"] = { ref: ws["!ref"] };
+        }
+      };
+
       for (const [type, group] of Object.entries(customerGroups)) {
-        if (group.length === 0) continue; hasAnyData = true;
-        const data = group.map(customer => ({ ID: customer.id || "N/A", Name: customer.name || "N/A", "Customer Type": customer.customer_type || "User", ...(type === "Customer of Agent" ? { "Agent Name": customer.agent_name || "N/A" } : {}), "Mobile Number": customer.mobile_number || "N/A", Email: customer.email || "N/A", Address: customer.address || "N/A", District: customer.district || "N/A", State: customer.state || "N/A" }));
+        if (group.length === 0) continue;
+        hasAnyData = true;
+        const data = group.map(customer => ({
+          ID: customer.id || "N/A",
+          Name: customer.name || "N/A",
+          "Customer Type": customer.customer_type || "User",
+          ...(type === "Customer of Agent" ? { "Agent Name": customer.agent_name || "N/A" } : {}),
+          "Mobile Number": customer.mobile_number || "N/A",
+          Email: customer.email || "N/A",
+          Place: (customer.address || "N/A").replace(/[\r\n\t]+/g, ', ').trim(),
+          District: (customer.district || "N/A").trim(),
+          State: (customer.state || "N/A").trim()
+        }));
         const worksheet = XLSX.utils.json_to_sheet(data);
+        formatSheet(worksheet, data);
         XLSX.utils.book_append_sheet(workbook, worksheet, type);
       }
       if (!hasAnyData) { setError("No customer data available to export"); return; }
@@ -756,11 +789,60 @@ export default function Direct() {
       setShowSuccess(true);
       setTimeout(() => setShowSuccess(false), 4000);
     } catch (err) {
-      console.error("Export quotations failed:", err);
-      let message = "Failed to export quotations. Please try again.";
-      if (err.code === "ECONNABORTED") message = "Export timed out. The file may be very large.";
-      else if (err.response?.status === 500) message = "Server error during export.";
-      setError(message);
+      console.warn("Backend export failed, attempting client-side fallback:", err);
+      try {
+        if (!quotations || quotations.length === 0) {
+          throw new Error("No quotation data available to export.");
+        }
+        const formatSheet = (ws, rows) => {
+          if (!ws || !rows || rows.length === 0) return;
+          const colWidths = Object.keys(rows[0]).map((key) => {
+            let maxLen = key.length;
+            for (const row of rows) {
+              const cellLen = (row[key] || "").toString().length;
+              if (cellLen > maxLen) maxLen = cellLen;
+            }
+            return { wch: Math.min(Math.max(maxLen + 4, 12), 45) };
+          });
+          ws["!cols"] = colWidths;
+          if (ws["!ref"]) {
+            ws["!autofilter"] = { ref: ws["!ref"] };
+          }
+        };
+
+        const workbook = XLSX.utils.book_new();
+
+        const allRows = quotations.map(q => {
+          const cust = customers.find(c => c.id === q.customer_id) || {};
+          return {
+            "Quotation ID": q.quotation_id || "N/A",
+            "Customer Name": q.customer_name || cust.name || "N/A",
+            "Agent Name": cust.agent_name || (q.customer_type === "Agent" ? q.customer_name : "N/A"),
+            "Customer Type": q.customer_type || cust.customer_type || "User",
+            "Place": (q.address || cust.address || "N/A").replace(/[\r\n\t]+/g, ', ').trim(),
+            "District": (q.district || cust.district || "N/A").trim(),
+            "State": (q.state || cust.state || "N/A").trim(),
+            "Total Amount": q.total ? `₹${Math.round(Number(q.total))}` : "₹0",
+            "Date": q.created_at ? new Date(q.created_at).toLocaleDateString('en-GB') : "N/A"
+          };
+        });
+
+        const allWs = XLSX.utils.json_to_sheet(allRows);
+        formatSheet(allWs, allRows);
+        XLSX.utils.book_append_sheet(workbook, allWs, "All_Quotations");
+
+        const filename = `PhoenixCrackers_Export_${new Date().toISOString().slice(0, 10)}.xlsx`;
+        XLSX.writeFile(workbook, filename);
+        setSuccessMessage("Quotations exported successfully!");
+        setShowSuccess(true);
+        setTimeout(() => setShowSuccess(false), 4000);
+      } catch (fallbackErr) {
+        console.error("Export quotations failed completely:", fallbackErr);
+        let message = "Failed to export quotations. Please try again.";
+        if (err.code === "ECONNABORTED") message = "Export timed out. The file may be very large.";
+        else if (err.response?.status === 500) message = "Server error during export.";
+        setError(message);
+      }
     }
   };
 
