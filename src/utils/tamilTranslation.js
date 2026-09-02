@@ -622,12 +622,54 @@ export const ensureTamilFont = async (doc) => {
   return null;
 };
 
+export const splitTamilText = (text) => {
+  if (!text) return [];
+  const trimmed = String(text).trim();
+  if (!trimmed) return [];
+  if (trimmed.includes("\n")) {
+    return trimmed.split("\n").map(l => l.trim()).filter(Boolean).slice(0, 2);
+  }
+  const words = trimmed.split(/\s+/);
+  if (words.length <= 1) {
+    return [trimmed];
+  }
+  if (words.length === 2) {
+    if (trimmed.length > 18) {
+      return [words[0], words[1]];
+    }
+    return [trimmed];
+  }
+
+  // 3 or more words: large number of words -> split into 2 balanced lines
+  let bestIdx = 1;
+  let bestCost = Infinity;
+  for (let i = 1; i < words.length; i++) {
+    const l1 = words.slice(0, i).join(" ");
+    const l2 = words.slice(i).join(" ");
+    let cost = Math.abs(l1.length - l2.length);
+    if (l1.length > 22) cost += 50 + (l1.length - 22) * 5;
+    if (l2.length > 22) cost += 50 + (l2.length - 22) * 5;
+    if (cost < bestCost) {
+      bestCost = cost;
+      bestIdx = i;
+    }
+  }
+
+  return [words.slice(0, bestIdx).join(" "), words.slice(bestIdx).join(" ")];
+};
+
 const canvasCache = new Map();
+
+// Standard 96 DPI CSS px to mm conversion constant (25.4mm / 96px = ~0.264583)
+const MM_PER_CSS_PX = 0.264583;
 
 // Renders Tamil text into high-resolution PNG Data URL for PDF table cells
 export const renderTamilTextToDataURL = (text, fontSize = 10, color = "#111827") => {
   if (!text) return null;
-  const cacheKey = `${text}_${fontSize}_${color}`;
+  const lines = splitTamilText(text);
+  if (!lines || lines.length === 0) return null;
+
+  const cacheKey = `${lines.join("::")}_${fontSize}_${color}`;
   if (canvasCache.has(cacheKey)) {
     return canvasCache.get(cacheKey);
   }
@@ -635,14 +677,23 @@ export const renderTamilTextToDataURL = (text, fontSize = 10, color = "#111827")
   const canvas = document.createElement("canvas");
   const dpr = 3; // 300 DPI high resolution
 
-  const fontDecl = `${fontSize}px "Noto Sans Tamil", "Segoe UI Historic", "Latha", "Tamil Sangam MN", "Arial Unicode MS", "Catamaran", sans-serif`;
+  const fontDecl = `${fontSize}px "Noto Sans Tamil", "Nirmala UI", "Latha", "Segoe UI Historic", "Tamil Sangam MN", "Arial Unicode MS", "Catamaran", sans-serif`;
 
-  // Measure text width
   const tempCtx = canvas.getContext("2d");
   tempCtx.font = fontDecl;
-  const metrics = tempCtx.measureText(text);
-  const textWidth = Math.max(Math.ceil(metrics.width) + 10, 40);
-  const textHeight = Math.max(Math.ceil(fontSize * 1.6), 20);
+
+  // Measure all lines
+  let maxLineWidth = 0;
+  for (const line of lines) {
+    const metrics = tempCtx.measureText(line);
+    if (metrics.width > maxLineWidth) {
+      maxLineWidth = metrics.width;
+    }
+  }
+
+  const textWidth = Math.max(Math.ceil(maxLineWidth) + 6, 25);
+  const lineHeight = Math.ceil(fontSize * 1.35);
+  const textHeight = lines.length === 1 ? Math.max(Math.ceil(fontSize * 1.4), 14) : Math.max(lineHeight * 2, 28);
 
   canvas.width = textWidth * dpr;
   canvas.height = textHeight * dpr;
@@ -653,13 +704,24 @@ export const renderTamilTextToDataURL = (text, fontSize = 10, color = "#111827")
 
   ctx.font = fontDecl;
   ctx.fillStyle = color;
-  ctx.textBaseline = "middle";
-  ctx.fillText(text, 2, textHeight / 2);
+  ctx.textBaseline = "top";
+
+  if (lines.length === 1) {
+    const y = Math.max(0, (textHeight - fontSize * 1.25) / 2);
+    ctx.fillText(lines[0], 2, y);
+  } else {
+    ctx.fillText(lines[0], 2, 1);
+    ctx.fillText(lines[1], 2, 1 + lineHeight);
+  }
 
   const result = {
     dataUrl: canvas.toDataURL("image/png"),
     width: textWidth,
-    height: textHeight
+    height: textHeight,
+    widthMm: textWidth * MM_PER_CSS_PX,
+    heightMm: textHeight * MM_PER_CSS_PX,
+    lineCount: lines.length,
+    lines
   };
 
   canvasCache.set(cacheKey, result);

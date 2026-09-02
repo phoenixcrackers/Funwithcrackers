@@ -7,7 +7,7 @@ import { FaEye, FaEdit, FaTrash, FaArrowLeft, FaArrowRight, FaExclamationTriangl
 import Logout from "../Logout";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
-import { getTamilName, ensureTamilFont, renderTamilTextToDataURL } from "../../utils/tamilTranslation";
+import { getTamilName, ensureTamilFont, renderTamilTextToDataURL, splitTamilText } from "../../utils/tamilTranslation";
 
 Modal.setAppElement("#root");
 
@@ -324,7 +324,21 @@ export default function List() {
               rate *= 5; dprice *= 5;
             }
             const tamilName = getTamilName(product);
-            tableData.push([serialNumber++, product.serial_number, product.productname, { content: "", tamilText: tamilName }, `Rs.${Math.floor(rate)}`, `Rs.${Math.floor(dprice)}`, product.per, ""]);
+            const isTwoLines = tamilName && splitTamilText(tamilName).length >= 2;
+            tableData.push([
+              serialNumber++,
+              product.serial_number,
+              product.productname,
+              {
+                content: isTwoLines ? " \n " : " ",
+                tamilText: tamilName,
+                styles: { minCellHeight: isTwoLines ? 11.5 : 7.5 }
+              },
+              `Rs.${Math.floor(rate)}`,
+              `Rs.${Math.floor(dprice)}`,
+              product.per,
+              ""
+            ]);
           });
           tableData.push([]);
         }
@@ -351,10 +365,10 @@ export default function List() {
                 const padding = 2;
                 const cellX = data.cell.x + padding;
                 const maxW = data.cell.width - padding * 2;
-                const maxH = data.cell.height - padding * 2;
+                const maxH = data.cell.height - 1;
                 
-                let imgW = rendered.width * 0.65;
-                let imgH = rendered.height * 0.65;
+                let imgW = rendered.widthMm;
+                let imgH = rendered.heightMm;
                 if (imgW > maxW) {
                   const ratio = maxW / imgW;
                   imgW = maxW;

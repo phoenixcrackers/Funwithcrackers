@@ -9,7 +9,7 @@ import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import need from "../default.jpg";
 import "../App.css";
-import { getTamilName, ensureTamilFont, renderTamilTextToDataURL } from "../utils/tamilTranslation";
+import { getTamilName, ensureTamilFont, renderTamilTextToDataURL, splitTamilText } from "../utils/tamilTranslation";
 
 const BigFireworkAnimation = ({ delay = 0 }) => {
   const screenWidth = typeof window !== "undefined" ? window.innerWidth : 1920;
@@ -498,11 +498,17 @@ const Pricelist = () => {
             if (String(product.status ?? "").toLowerCase().trim() !== "on") return;
             const dis = product.price * (product.discount / 100);
             const discountedRate = product.price - dis;
+            const tamilName = getTamilName(product);
+            const isTwoLines = tamilName && splitTamilText(tamilName).length >= 2;
             tableData.push([
               slNo++,
               product.serial_number,
               product.productname,
-              { content: "", tamilText: getTamilName(product) },
+              {
+                content: isTwoLines ? " \n " : " ",
+                tamilText: tamilName,
+                styles: { minCellHeight: isTwoLines ? 11.5 : 7.5 }
+              },
               `Rs.${formatPrice(product.price)}`,
               `Rs.${formatPrice(discountedRate)}`,
               product.per
@@ -541,10 +547,10 @@ const Pricelist = () => {
                 const padding = 2;
                 const cellX = data.cell.x + padding;
                 const maxW = data.cell.width - padding * 2;
-                const maxH = data.cell.height - padding * 2;
+                const maxH = data.cell.height - 1;
                 
-                let imgW = rendered.width * 0.65;
-                let imgH = rendered.height * 0.65;
+                let imgW = rendered.widthMm;
+                let imgH = rendered.heightMm;
                 if (imgW > maxW) {
                   const ratio = maxW / imgW;
                   imgW = maxW;
@@ -568,7 +574,8 @@ const Pricelist = () => {
         },
       });
 
-      doc.save('FWC_Pricelist_2025.pdf');
+      const currentYear = new Date().getFullYear();
+      doc.save(`FWC_Pricelist_${currentYear}.pdf`);
     } catch (err) {
       showError('Failed to generate PDF: ' + err.message);
     }

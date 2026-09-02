@@ -19,7 +19,7 @@ import Navbar from "../Component/Navbar";
 import "../App.css";
 import { API_BASE_URL } from "../../Config";
 import need from "../default.jpg";
-import { getTamilName, ensureTamilFont, renderTamilTextToDataURL } from "../utils/tamilTranslation";
+import { getTamilName, ensureTamilFont, renderTamilTextToDataURL, splitTamilText } from "../utils/tamilTranslation";
 
 // ─────────────────────────────────────────────────────────
 // EDIT THIS: WhatsApp number the floating button opens a chat with
@@ -828,37 +828,6 @@ export default function Home() {
     Object.keys(cart).length ? (setShowModal(true), setIsCartOpen(false)) : showError("Your cart is empty.");
   };
 
-  const renderTamilTextToDataURL = (text, fontSize = 10, color = "#111827") => {
-    if (!text) return null;
-    const canvas = document.createElement("canvas");
-    const ctx = canvas.getContext("2d");
-
-    // 3x scale for crisp rendering in PDF
-    const scale = 3;
-    const font = `${fontSize * scale}px "Mukta Malar", "Latha", "Nirmala UI", "Vijaya", sans-serif`;
-    ctx.font = font;
-
-    const metrics = ctx.measureText(text);
-    const textWidth = metrics.width;
-    const textHeight = fontSize * scale * 1.35;
-
-    canvas.width = Math.ceil(textWidth + 8 * scale);
-    canvas.height = Math.ceil(textHeight);
-
-    // Re-apply font properties after canvas dimension change
-    ctx.font = font;
-    ctx.fillStyle = color;
-    ctx.textBaseline = "middle";
-    ctx.textAlign = "left";
-    ctx.fillText(text, 2 * scale, canvas.height / 2);
-
-    return {
-      dataUrl: canvas.toDataURL("image/png"),
-      width: canvas.width / scale,
-      height: canvas.height / scale,
-    };
-  };
-
   const handleDownloadPDF = async () => {
     try {
       const productsRes = await fetch(`${API_BASE_URL}/api/products`);
@@ -948,11 +917,17 @@ export default function Home() {
             if (String(product.status ?? "").toLowerCase().trim() !== "on") return;
             const dis = product.price * (product.discount / 100);
             const discountedRate = product.price - dis;
+            const tamilName = getTamilName(product);
+            const isTwoLines = tamilName && splitTamilText(tamilName).length >= 2;
             tableData.push([
               slNo++,
               product.serial_number,
               product.productname,
-              { content: "", tamilText: getTamilName(product) },
+              {
+                content: isTwoLines ? " \n " : " ",
+                tamilText: tamilName,
+                styles: { minCellHeight: isTwoLines ? 11.5 : 7.5 },
+              },
               `Rs.${formatPrice(product.price)}`,
               `Rs.${formatPrice(discountedRate)}`,
               product.per,
@@ -978,7 +953,7 @@ export default function Home() {
           0: { cellWidth: 12 },
           1: { cellWidth: 16 },
           2: { cellWidth: 48 },
-          3: { cellWidth: 48 },
+          3: { cellWidth: 48, textColor: [255, 255, 255] },
           4: { cellWidth: 20 },
           5: { cellWidth: 26 },
           6: { cellWidth: 15 },
@@ -991,15 +966,24 @@ export default function Home() {
 
           // Header Tamil Text: "விவரம்"
           if (data.section === "head" && data.column.index === 3) {
-            const renderedHeader = renderTamilTextToDataURL("விவரம்", 9, "#FFFFFF");
+            const renderedHeader = renderTamilTextToDataURL("விவரம்", 10, "#FFFFFF");
             if (renderedHeader && renderedHeader.dataUrl) {
               const padding = 2;
               const maxW = data.cell.width - padding * 2;
-              const maxH = data.cell.height - padding * 2;
+              const maxH = data.cell.height - 1;
 
-              const scale = Math.min(1, maxW / renderedHeader.width, maxH / renderedHeader.height);
-              const imgW = renderedHeader.width * scale;
-              const imgH = renderedHeader.height * scale;
+              let imgW = renderedHeader.widthMm;
+              let imgH = renderedHeader.heightMm;
+              if (imgW > maxW) {
+                const ratio = maxW / imgW;
+                imgW = maxW;
+                imgH = imgH * ratio;
+              }
+              if (imgH > maxH) {
+                const ratio = maxH / imgH;
+                imgH = maxH;
+                imgW = imgW * ratio;
+              }
 
               const cellX = data.cell.x + (data.cell.width - imgW) / 2;
               const cellY = data.cell.y + (data.cell.height - imgH) / 2;
@@ -1015,17 +999,26 @@ export default function Home() {
                 : data.cell.raw;
 
             if (rawVal && typeof rawVal === "string" && rawVal.trim() !== "") {
-              const rendered = renderTamilTextToDataURL(rawVal, 9, "#111827");
+              const rendered = renderTamilTextToDataURL(rawVal, 10, "#111827");
               if (rendered && rendered.dataUrl) {
                 const padding = 2;
-                const maxW = data.cell.width - padding * 2;
-                const maxH = data.cell.height - padding * 2;
-
-                const scale = Math.min(1, maxW / rendered.width, maxH / rendered.height);
-                const imgW = rendered.width * scale;
-                const imgH = rendered.height * scale;
-
                 const cellX = data.cell.x + padding;
+                const maxW = data.cell.width - padding * 2;
+                const maxH = data.cell.height - 1;
+
+                let imgW = rendered.widthMm;
+                let imgH = rendered.heightMm;
+                if (imgW > maxW) {
+                  const ratio = maxW / imgW;
+                  imgW = maxW;
+                  imgH = imgH * ratio;
+                }
+                if (imgH > maxH) {
+                  const ratio = maxH / imgH;
+                  imgH = maxH;
+                  imgW = imgW * ratio;
+                }
+
                 const cellY = data.cell.y + (data.cell.height - imgH) / 2;
                 doc.addImage(rendered.dataUrl, "PNG", cellX, cellY, imgW, imgH);
               }
