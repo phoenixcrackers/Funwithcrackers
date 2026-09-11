@@ -1561,11 +1561,13 @@ export default function Home() {
           </motion.button>
         </motion.div>
 
+        {/* ===================== PRODUCT LIST — PORTRAIT / ROW VIEW ===================== */}
         <div className={`transition-all duration-300 ${isCartOpen ? "mr-80" : ""}`}>
           {Object.entries(grouped).map(([type, items]) => (
             <div key={type} className="mt-12 mb-10">
               <h2 className="text-3xl text-sky-800 mb-5 font-semibold capitalize border-b-4 border-sky-500 pb-2">{type.replace(/_/g, " ")}</h2>
-              <div className="grid mobile:grid-cols-2 onefifty:grid-cols-3 hundred:grid-cols-4 gap-6">
+
+              <div className="flex flex-col gap-3">
                 {items.map((product) => {
                   if (!product) return null;
                   const originalPrice = Number.parseFloat(product.price);
@@ -1577,50 +1579,82 @@ export default function Home() {
                   return (
                     <motion.div
                       key={product.serial_number}
-                      initial={{ opacity: 0, y: 20 }}
+                      initial={{ opacity: 0, y: 10 }}
                       animate={{ opacity: 1, y: 0 }}
-                      whileHover={{ y: -8, scale: 1.02 }}
-                      className="group relative rounded-3xl p-6 overflow-hidden cursor-pointer transition-all duration-500"
+                      className="group relative flex items-center gap-3 sm:gap-4 rounded-2xl p-3 sm:p-4 overflow-hidden transition-all duration-300"
                       style={styles.card}
                     >
-                      {product.discount > 0 && (
-                        <div className="absolute left-2 top-2 bg-red-500 text-white text-md font-bold px-2 py-1 rounded-br-lg rounded-tl-lg mobile:text-[10px] mobile:px-1.5 mobile:py-0.5">{product.discount}%</div>
-                      )}
-                      <motion.button
-                        onClick={() => handleShowDetails(product)}
-                        className="absolute cursor-pointer right-2 top-2 bg-sky-500 text-white mobile:text-md hundred:text-2xl font-bold hundred:w-8 hundred:h-8 mobile:w-6 mobile:h-6 rounded-full flex items-center justify-center hover:bg-sky-700 transition-all duration-300 z-20 pointer-events-auto"
-                        whileHover={{ scale: 1.1 }}
-                        whileTap={{ scale: 0.9 }}
-                        aria-label="View product details"
+                      {/* Thumbnail */}
+                      <div
+                        className="relative w-20 h-20 sm:w-24 sm:h-24 flex-shrink-0 rounded-xl overflow-hidden bg-white cursor-pointer"
+                        style={styles.imageFrame}
+                        onClick={() => handleShowImage(product)}
                       >
-                        <FaInfoCircle />
-                      </motion.button>
-                      <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-700 z-10" style={{ background: "linear-gradient(135deg, rgba(2,132,199,0.3), transparent 50%, rgba(14,165,233,0.2))" }} />
-                      <div className="relative z-10 mobile:mt-2">
-                        <p className="text-lg mobile:text-sm font-bold text-slate-800 group-hover:text-slate-900 transition-colors duration-500 drop-shadow-sm line-clamp-2 mb-0.5">{product.productname}</p>
-                        <p className="text-md mobile:text-xs font-semibold text-amber-700 drop-shadow-sm line-clamp-1 mb-2">{getTamilName(product)}</p>
-                        <div className="space-y-1 mb-4">
-                          {product.discount > 0 ? (
-                            <>
-                              <p className="text-sm text-slate-500 line-through">MRP: ₹{formatPrice(originalPrice)}</p>
-                              <p className="text-xl font-bold text-sky-700 group-hover:text-sky-800 transition-colors duration-500">₹{finalPrice} / {product.per}</p>
-                            </>
-                          ) : (
-                            <p className="text-xl font-bold text-sky-700 group-hover:text-sky-800 transition-colors duration-500">₹{finalPrice} / {product.per}</p>
-                          )}
+                        <img
+                          src={images[0] || need}
+                          alt={product.productname}
+                          className="w-full h-full object-contain p-1"
+                          onError={(e) => { e.target.src = need; }}
+                        />
+                        {product.discount > 0 && (
+                          <div className="absolute top-0 left-0 bg-red-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-br-lg">
+                            {product.discount}% OFF
+                          </div>
+                        )}
+                        {images.length > 1 && (
+                          <div className="absolute bottom-0 right-0 bg-black/50 text-white text-[9px] px-1 rounded-tl-md">
+                            +{images.length - 1}
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Details */}
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="min-w-0">
+                            <p className="text-sm sm:text-base font-bold text-slate-800 line-clamp-2">{product.productname}</p>
+                            <p className="text-xs sm:text-sm font-semibold text-amber-700 line-clamp-1">{getTamilName(product)}</p>
+                            <p className="text-[11px] text-slate-500 mt-0.5">#{product.serial_number} • {product.per}</p>
+                          </div>
+                          <motion.button
+                            onClick={() => handleShowDetails(product)}
+                            whileHover={{ scale: 1.1 }}
+                            whileTap={{ scale: 0.9 }}
+                            className="text-sky-500 hover:text-sky-700 text-lg flex-shrink-0 cursor-pointer"
+                            aria-label="View product details"
+                          >
+                            <FaInfoCircle />
+                          </motion.button>
                         </div>
 
-                        <Carousel media={product.image} onImageClick={() => handleShowImage(product)} />
+                        <div className="flex items-center justify-between mt-2 gap-2">
+                          <div>
+                            {product.discount > 0 ? (
+                              <div className="flex items-center gap-2">
+                                <span className="text-xs text-slate-400 line-through">₹{formatPrice(originalPrice)}</span>
+                                <span className="text-base sm:text-lg font-bold text-sky-700">₹{finalPrice}</span>
+                              </div>
+                            ) : (
+                              <span className="text-base sm:text-lg font-bold text-sky-700">₹{finalPrice}</span>
+                            )}
+                          </div>
 
-                        <div className="relative flex items-end justify-end">
                           <AnimatePresence mode="wait">
                             {count > 0 ? (
-                              <motion.div key="quantity-controls" initial={{ scale: 0.8, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.8, opacity: 0 }} transition={{ duration: 0.3, ease: "easeOut" }} className="flex items-center justify-between w-full rounded-full p-2" style={styles.button}>
-                                <motion.button onClick={() => removeFromCart(product)} whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }} className="w-8 h-8 cursor-pointer rounded-full bg-white/20 text-white font-bold text-lg flex items-center justify-center transition-all duration-300">
+                              <motion.div
+                                key="quantity-controls"
+                                initial={{ scale: 0.8, opacity: 0 }}
+                                animate={{ scale: 1, opacity: 1 }}
+                                exit={{ scale: 0.8, opacity: 0 }}
+                                transition={{ duration: 0.3, ease: "easeOut" }}
+                                className="flex items-center gap-2 rounded-full px-1 py-1"
+                                style={styles.button}
+                              >
+                                <motion.button onClick={() => removeFromCart(product)} whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }} className="w-7 h-7 cursor-pointer rounded-full bg-white/20 text-white font-bold flex items-center justify-center text-sm">
                                   <FaMinus />
                                 </motion.button>
-                                <span className="text-white font-bold text-lg px-4 drop-shadow-lg w-16 text-center">{count}</span>
-                                <motion.button onClick={() => addToCart(product)} whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }} className="w-8 h-8 cursor-pointer rounded-full bg-white/20 text-white font-bold text-lg flex items-center justify-center transition-all duration-300">
+                                <span className="text-white font-bold text-sm w-6 text-center">{count}</span>
+                                <motion.button onClick={() => addToCart(product)} whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }} className="w-7 h-7 cursor-pointer rounded-full bg-white/20 text-white font-bold flex items-center justify-center text-sm">
                                   <FaPlus />
                                 </motion.button>
                               </motion.div>
@@ -1631,20 +1665,18 @@ export default function Home() {
                                 initial={{ scale: 0.8, opacity: 0 }}
                                 animate={{ scale: 1, opacity: 1 }}
                                 exit={{ scale: 0.8, opacity: 0 }}
-                                whileHover={{ scale: 1.1 }}
+                                whileHover={{ scale: 1.05 }}
                                 whileTap={{ scale: 0.95 }}
                                 transition={{ duration: 0.3, ease: "easeOut" }}
-                                className="w-12 h-12 cursor-pointer rounded-full text-white font-bold text-xl flex items-center justify-center shadow-lg relative overflow-hidden"
+                                className="px-5 py-1.5 cursor-pointer rounded-full text-white font-bold text-sm shadow-md"
                                 style={styles.button}
                               >
-                                <motion.div className="absolute inset-0 rounded-full" initial={{ scale: 0, opacity: 0.5 }} whileTap={{ scale: 2, opacity: 0 }} transition={{ duration: 0.4 }} style={{ background: "rgba(255,255,255,0.3)" }} />
-                                <FaPlus />
+                                Add
                               </motion.button>
                             )}
                           </AnimatePresence>
                         </div>
                       </div>
-                      <div className="absolute bottom-0 left-0 right-0 h-px opacity-60" style={{ background: "linear-gradient(90deg, transparent, rgba(2,132,199,0.6), transparent)" }} />
                     </motion.div>
                   );
                 })}
