@@ -35,12 +35,13 @@ const navLinks = ["Home", "About Us", "Price List", "Safety Tips", "Contact Us"]
 // Put logo files under public/brands/ (e.g. public/brands/liya.png)
 // or point "logo" directly to a hosted image URL.
 const brandLogos = [
-  { name: "Twin Kangaroo", logo: "kangaroo.png.webp" },
+
   { name: "Liya", logo: "Logo.png.webp" },
   { name: "Trade Mark Pyramid", logo: "pyramid.png.webp" },
   { name: "Pandyan's", logo: "Pandiyans.png.webp" },
   { name: "Sri Vijai", logo: "vijai.png.webp" },
-  { name: "Mothers", logo: "/brands/mothers.png" },
+  { name: "wow", logo: "wow.png.webp" },
+  { name:"starvell",logo:"starvell.png.webp"},
   { name: "Kangaroo Brand", logo: "kangaroo.png.webp" },
 ];
 // ==================== END ADDED: Featured Brands data ====================
