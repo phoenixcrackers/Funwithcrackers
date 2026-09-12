@@ -39,7 +39,7 @@ const brandLogos = [
   { name: "Liya", logo: "/public/Liya%20Logo.png.webp?raw=true" },
   { name: "Trade Mark Pyramid", logo: "pyramid.png.webp" },
   { name: "Pandyan's", logo: "Pandiyans.png.webp" },
-  { name: "Sri Vijai", logo: "/public/Sri%20vijai.png.webp?raw=true" },
+  { name: "Sri Vijai", logo: "/blob/main/public/Sri%20vijai.png.webp?raw=true" },
   { name: "wow", logo: "wow.png.webp" },
   { name:"starvell",logo:"starvell.png.webp"},
   { name: "Kangaroo Brand", logo: "kangaroo.png.webp" },
