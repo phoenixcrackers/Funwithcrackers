@@ -36,7 +36,7 @@ const navLinks = ["Home", "About Us", "Price List", "Safety Tips", "Contact Us"]
 // or point "logo" directly to a hosted image URL.
 const brandLogos = [
 
-  { name: "Liya", logo: "Liya%20Logo.png.webp?raw=true" },
+  { name: "Liya", logo: "/public/Liya%20Logo.png.webp?raw=true" },
   { name: "Trade Mark Pyramid", logo: "pyramid.png.webp" },
   { name: "Pandyan's", logo: "Pandiyans.png.webp" },
   { name: "Sri Vijai", logo: "vijai.png.webp" },
