@@ -368,7 +368,7 @@ const FeaturedBrands = ({ brands }) => {
             {track.map((brand, idx) => (
               <div
                 key={`${brand.name}-${idx}`}
-                className="flex items-center justify-center mx-6 sm:mx-10 w-28 h-20 sm:w-40 sm:h-24 bg-white rounded-2xl shadow-md p-3 flex-shrink-0"
+                className="flex items-center justify-center mx-4 sm:mx-6 w-16 h-12 sm:w-24 sm:h-16 bg-white rounded-xl shadow-md p-2 flex-shrink-0"
               >
                 <img
                   src={brand.logo}
