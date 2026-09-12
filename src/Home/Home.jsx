@@ -39,7 +39,7 @@ const brandLogos = [
   { name: "Sri Vijai", logo: "/Sri%20vijai.png.webp?raw=true" },
   { name: "Liya", logo: "https:/Liya%20Logo.png.webp?raw=true" },
   { name: "Rainbow", logo: "rainbow.png.webp" },
-  { name: "Sonny", logo: "sonny.png.webp" },
+  { name: "Sonny", logo: "/WhatsApp%20Image%202026-09-12%20at%2017.53.58.jpeg?raw=true" },
   { name: "INF", logo: "inf.png.webp" },
   { name: "Sudharshan", logo: "sudharshan.png.webp" },
   { name: "Maruthi", logo: "maruthi.png.webp" },
