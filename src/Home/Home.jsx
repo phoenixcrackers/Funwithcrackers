@@ -52,7 +52,7 @@ const brandLogos = [
   { name: "Radiance", logo: "radiance.png.webp" },
   { name: "Elite", logo: "elite.png.webp" },
   { name: "Rohith", logo: "rohith.png.webp" },
-  { name: "Standard", logo: "standard.png.webp" },
+  { name: "Standard", logo: "/WhatsApp%20Image%202026-09-12%20at%2017.53.25.jpeg?raw=true" },
   { name: "Vadivel", logo: "vadivel.png.webp" },
 ];
 // ==================== END ADDED: Featured Brands data ====================
