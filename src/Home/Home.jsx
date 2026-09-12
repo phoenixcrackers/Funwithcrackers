@@ -344,19 +344,156 @@ const FeaturedBrands = ({ brands }) => {
       className="py-10 px-4 sm:px-6 mt-10 mx-4 md:mx-8 rounded-3xl overflow-hidden"
       style={{ background: "linear-gradient(90deg, #7dd3fc, #38bdf8, #7dd3fc)" }}
     >
-      <h2 className="text-3xl sm:text-4xl font-bold text-white text-center mb-8 tracking-wide drop-shadow-sm">
+      <section class="featured-brands">
+
+    <div class="container">
+
+      <h2>
         FEATURED BRANDS
       </h2>
-      <div className="relative w-full overflow-hidden">
-        <div className="flex items-center gap-16 w-max animate-brand-scroll">
-          {track.map((brand, idx) => (
+
+
+      <div class="brands-slider">
+
+        <div class="brands-track">
+
+
+          <div class="brand-item">
             <img
-              key={`${brand.name}-${idx}`}
-              src={brand.logo}
-              alt={brand.name}
-              className="h-16 sm:h-20 object-contain flex-shrink-0"
-              onError={(e) => { e.target.src = need; }}
+              src="/images/pyramid.png.webp"
+              alt="Pyramid"
             />
+          </div>
+
+
+          <div class="brand-item">
+            <img
+              src="/images/Pandiyans.png.webp"
+              alt="Pandiyan"
+            />
+          </div>
+
+
+          <div class="brand-item">
+            <img
+              src="/images/Sri vijai.png.webp"
+              alt="Sri Vijai"
+            />
+          </div>
+
+
+          <div class="brand-item">
+            <img
+              src="/images/Liya Logo.png.webp"
+              alt="Liya"
+            />
+          </div>
+
+
+          <div class="brand-item">
+            <img
+              src="/images/mothers.png.webp"
+              alt="Mothers"
+            />
+          </div>
+
+
+          <div class="brand-item">
+            <img
+              src="/images/kangaroo.png.webp"
+              alt="Kangaroo"
+            />
+          </div>
+
+
+          <div class="brand-item">
+            <img
+              src="/images/starvell.png.webp"
+              alt="Star Vell"
+            />
+          </div>
+
+
+          <div class="brand-item">
+            <img
+              src="/images/wow.png.webp"
+              alt="Wow Star"
+            />
+          </div>
+
+
+          <!-- DUPLICATE FOR SLIDER -->
+
+          <div class="brand-item">
+            <img
+              src="/images/pyramid.png.webp"
+              alt="Pyramid"
+            />
+          </div>
+
+
+          <div class="brand-item">
+            <img
+              src="/images/Pandiyans.png.webp"
+              alt="Pandiyan"
+            />
+          </div>
+
+
+          <div class="brand-item">
+            <img
+              src="/images/Sri vijai.png.webp"
+              alt="Sri Vijai"
+            />
+          </div>
+
+
+          <div class="brand-item">
+            <img
+              src="/images/Liya Logo.png.webp"
+              alt="Liya"
+            />
+          </div>
+
+
+          <div class="brand-item">
+            <img
+              src="/images/mothers.png.webp"
+              alt="Mothers"
+            />
+          </div>
+
+
+          <div class="brand-item">
+            <img
+              src="/images/kangaroo.png.webp"
+              alt="Kangaroo"
+            />
+          </div>
+
+
+          <div class="brand-item">
+            <img
+              src="/images/starvell.png.webp"
+              alt="Star Vell"
+            />
+          </div>
+
+
+          <div class="brand-item">
+            <img
+              src="/images/wow.png.webp"
+              alt="Wow Star"
+            />
+          </div>
+
+        </div>
+
+      </div>
+
+    </div>
+
+  </section>
           ))}
         </div>
       </div>
