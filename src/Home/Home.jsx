@@ -48,6 +48,7 @@ const brandLogos = [
   { name: "Vanitha", logo: "vanitha.png.webp" },
   { name: "Sastha", logo: "sastha.png.webp" },
   { name: "Damo", logo: "damo.png.webp" },
+  {name: "Elepant",logo:"/WhatsApp%20Image%202026-09-12%20at%2017.53.37.jpeg?raw=true"},
   { name: "Rajkala", logo: "rajkala.png.webp" },
   { name: "Radiance", logo: "radiance.png.webp" },
   { name: "Elite", logo: "elite.png.webp" },
