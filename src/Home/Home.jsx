@@ -339,35 +339,44 @@ const StatCard = () => null; // (achievements section removed, kept as no-op stu
 // the list of brands/logos. CSS for ".animate-brand-scroll" is added at the
 // bottom of this file inside the existing <style jsx> block.
 const FeaturedBrands = ({ brands }) => {
-  const track = [...brands, ...brands]; // seamless loop
+  const [index, setIndex] = useState(0);
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setIndex((prev) => (prev + 1) % brands.length);
+    }, 2000); // 2 sec per logo, maathunga venumna
+    return () => clearInterval(timer);
+  }, [brands.length]);
 
   return (
     <section
       className="py-10 px-4 sm:px-6 mt-10 mx-4 md:mx-8 rounded-3xl overflow-hidden"
       style={{ background: "linear-gradient(90deg, #7dd3fc, #38bdf8, #7dd3fc)" }}
     >
-      <div className="container mx-auto">
+      <div className="container mx-auto flex flex-col items-center">
         <h2 className="text-center text-2xl sm:text-3xl font-bold text-white mb-8 drop-shadow-sm tracking-wide">
           FEATURED BRANDS
         </h2>
 
-        <div className="overflow-hidden">
-          <div className="flex w-max animate-brand-scroll">
-            {track.map((brand, idx) => (
-              <div
-                key={`${brand.name}-${idx}`}
-                className="flex items-center justify-center mx-6 sm:mx-8 w-28 h-20 sm:w-36 sm:h-24 bg-white/90 rounded-2xl shadow-md p-3 flex-shrink-0"
-              >
-                <img
-                  src={brand.logo}
-                  alt={brand.name}
-                  className="max-w-full max-h-full object-contain"
-                  onError={(e) => { e.target.src = need; }}
-                />
-              </div>
-            ))}
-          </div>
+        <div className="w-48 h-32 sm:w-64 sm:h-40 bg-white/90 rounded-2xl shadow-lg p-4 flex items-center justify-center relative overflow-hidden">
+          <AnimatePresence mode="wait">
+            <motion.img
+              key={brands[index].name}
+              src={brands[index].logo}
+              alt={brands[index].name}
+              initial={{ opacity: 0, x: 40 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -40 }}
+              transition={{ duration: 0.5, ease: "easeInOut" }}
+              className="max-w-full max-h-full object-contain"
+              onError={(e) => { e.target.src = need; }}
+            />
+          </AnimatePresence>
         </div>
+
+        <p className="mt-4 text-white font-semibold text-sm sm:text-base drop-shadow-sm">
+          {brands[index].name}
+        </p>
       </div>
     </section>
   );
