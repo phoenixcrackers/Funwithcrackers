@@ -338,163 +338,34 @@ const StatCard = () => null; // (achievements section removed, kept as no-op stu
 // the list of brands/logos. CSS for ".animate-brand-scroll" is added at the
 // bottom of this file inside the existing <style jsx> block.
 const FeaturedBrands = ({ brands }) => {
-  const track = [...brands, ...brands]; // duplicated so the loop has no visible seam
+  const track = [...brands, ...brands]; // seamless loop
+
   return (
     <section
       className="py-10 px-4 sm:px-6 mt-10 mx-4 md:mx-8 rounded-3xl overflow-hidden"
       style={{ background: "linear-gradient(90deg, #7dd3fc, #38bdf8, #7dd3fc)" }}
     >
-      <section class="featured-brands">
+      <div className="container mx-auto">
+        <h2 className="text-center text-2xl sm:text-3xl font-bold text-white mb-8 drop-shadow-sm tracking-wide">
+          FEATURED BRANDS
+        </h2>
 
-    <div class="container">
-
-      <h2>
-        FEATURED BRANDS
-      </h2>
-
-
-      <div class="brands-slider">
-
-        <div class="brands-track">
-
-
-          <div class="brand-item">
-            <img
-              src="/images/pyramid.png.webp"
-              alt="Pyramid"
-            />
+        <div className="overflow-hidden">
+          <div className="flex w-max animate-brand-scroll">
+            {track.map((brand, idx) => (
+              <div
+                key={`${brand.name}-${idx}`}
+                className="flex items-center justify-center mx-6 sm:mx-8 w-28 h-20 sm:w-36 sm:h-24 bg-white/90 rounded-2xl shadow-md p-3 flex-shrink-0"
+              >
+                <img
+                  src={brand.logo}
+                  alt={brand.name}
+                  className="max-w-full max-h-full object-contain"
+                  onError={(e) => { e.target.src = need; }}
+                />
+              </div>
+            ))}
           </div>
-
-
-          <div class="brand-item">
-            <img
-              src="/images/Pandiyans.png.webp"
-              alt="Pandiyan"
-            />
-          </div>
-
-
-          <div class="brand-item">
-            <img
-              src="/images/Sri vijai.png.webp"
-              alt="Sri Vijai"
-            />
-          </div>
-
-
-          <div class="brand-item">
-            <img
-              src="/images/Liya Logo.png.webp"
-              alt="Liya"
-            />
-          </div>
-
-
-          <div class="brand-item">
-            <img
-              src="/images/mothers.png.webp"
-              alt="Mothers"
-            />
-          </div>
-
-
-          <div class="brand-item">
-            <img
-              src="/images/kangaroo.png.webp"
-              alt="Kangaroo"
-            />
-          </div>
-
-
-          <div class="brand-item">
-            <img
-              src="/images/starvell.png.webp"
-              alt="Star Vell"
-            />
-          </div>
-
-
-          <div class="brand-item">
-            <img
-              src="/images/wow.png.webp"
-              alt="Wow Star"
-            />
-          </div>
-
-
-          <!-- DUPLICATE FOR SLIDER -->
-
-          <div class="brand-item">
-            <img
-              src="/images/pyramid.png.webp"
-              alt="Pyramid"
-            />
-          </div>
-
-
-          <div class="brand-item">
-            <img
-              src="/images/Pandiyans.png.webp"
-              alt="Pandiyan"
-            />
-          </div>
-
-
-          <div class="brand-item">
-            <img
-              src="/images/Sri vijai.png.webp"
-              alt="Sri Vijai"
-            />
-          </div>
-
-
-          <div class="brand-item">
-            <img
-              src="/images/Liya Logo.png.webp"
-              alt="Liya"
-            />
-          </div>
-
-
-          <div class="brand-item">
-            <img
-              src="/images/mothers.png.webp"
-              alt="Mothers"
-            />
-          </div>
-
-
-          <div class="brand-item">
-            <img
-              src="/images/kangaroo.png.webp"
-              alt="Kangaroo"
-            />
-          </div>
-
-
-          <div class="brand-item">
-            <img
-              src="/images/starvell.png.webp"
-              alt="Star Vell"
-            />
-          </div>
-
-
-          <div class="brand-item">
-            <img
-              src="/images/wow.png.webp"
-              alt="Wow Star"
-            />
-          </div>
-
-        </div>
-
-      </div>
-
-    </div>
-
-  </section>
-          ))}
         </div>
       </div>
     </section>
