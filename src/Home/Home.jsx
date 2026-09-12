@@ -30,6 +30,21 @@ const WHATSAPP_DEFAULT_MESSAGE = "Hi! I'm interested in your crackers.";
 
 const navLinks = ["Home", "About Us", "Price List", "Safety Tips", "Contact Us"];
 
+// ==================== ADDED: Featured Brands data ====================
+// Replace these logo paths with your real brand logo files/URLs.
+// Put logo files under public/brands/ (e.g. public/brands/liya.png)
+// or point "logo" directly to a hosted image URL.
+const brandLogos = [
+  { name: "Twin Kangaroo", logo: "/brands/twin-kangaroo.png" },
+  { name: "Liya", logo: "/brands/liya.png" },
+  { name: "Trade Mark Pyramid", logo: "/brands/pyramid.png" },
+  { name: "Pandyan's", logo: "/brands/pandyans.png" },
+  { name: "Sri Vijai", logo: "/brands/sri-vijai.png" },
+  { name: "Mothers", logo: "/brands/mothers.png" },
+  { name: "Kangaroo Brand", logo: "/brands/kangaroo.png" },
+];
+// ==================== END ADDED: Featured Brands data ====================
+
 const styles = {
   card: {
     background:
@@ -316,6 +331,39 @@ const ImageModal = ({ media, onClose }) => {
 };
 
 const StatCard = () => null; // (achievements section removed, kept as no-op stub in case it's referenced elsewhere)
+
+// ==================== ADDED: Featured Brands running strip ====================
+// Renders a horizontal auto-scrolling strip of brand logos (seamless loop via
+// duplicated track). See "brandLogos" array near the top of this file to edit
+// the list of brands/logos. CSS for ".animate-brand-scroll" is added at the
+// bottom of this file inside the existing <style jsx> block.
+const FeaturedBrands = ({ brands }) => {
+  const track = [...brands, ...brands]; // duplicated so the loop has no visible seam
+  return (
+    <section
+      className="py-10 px-4 sm:px-6 mt-10 mx-4 md:mx-8 rounded-3xl overflow-hidden"
+      style={{ background: "linear-gradient(90deg, #7dd3fc, #38bdf8, #7dd3fc)" }}
+    >
+      <h2 className="text-3xl sm:text-4xl font-bold text-white text-center mb-8 tracking-wide drop-shadow-sm">
+        FEATURED BRANDS
+      </h2>
+      <div className="relative w-full overflow-hidden">
+        <div className="flex items-center gap-16 w-max animate-brand-scroll">
+          {track.map((brand, idx) => (
+            <img
+              key={`${brand.name}-${idx}`}
+              src={brand.logo}
+              alt={brand.name}
+              className="h-16 sm:h-20 object-contain flex-shrink-0"
+              onError={(e) => { e.target.src = need; }}
+            />
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+};
+// ==================== END ADDED: Featured Brands running strip ====================
 
 // ─────────────────────────────────────────────────────────
 // Promo burst — rocket launch → firework → promo-code card
@@ -1469,6 +1517,10 @@ export default function Home() {
         </div>
       </section>
 
+      {/* ==================== ADDED: Featured Brands strip render ==================== */}
+      <FeaturedBrands brands={brandLogos} />
+      {/* ==================== END ADDED ==================== */}
+
       {promoCodes.length > 0 && <PromoBurst promoCodes={promoCodes} />}
 
       {/* ===================== FULL PRICE LIST (merged in) ===================== */}
@@ -2113,6 +2165,19 @@ export default function Home() {
         .animate-marquee { display: inline-block; white-space: nowrap; animation: marquee 10s linear infinite; }
         @keyframes marquee { 0% { transform: translateX(100%); } 100% { transform: translateX(-100%); } }
         .loader-spinner { border-top-color: #0284c7; }
+
+        /* ==================== ADDED: Featured Brands scroll animation ==================== */
+        @keyframes brand-scroll {
+          0% { transform: translateX(0); }
+          100% { transform: translateX(-50%); }
+        }
+        .animate-brand-scroll {
+          animation: brand-scroll 20s linear infinite;
+        }
+        .animate-brand-scroll:hover {
+          animation-play-state: paused;
+        }
+        /* ==================== END ADDED ==================== */
       `}</style>
     </div>
   );
