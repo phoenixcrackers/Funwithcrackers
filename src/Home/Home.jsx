@@ -35,14 +35,25 @@ const navLinks = ["Home", "About Us", "Price List", "Safety Tips", "Contact Us"]
 // Put logo files under public/brands/ (e.g. public/brands/liya.png)
 // or point "logo" directly to a hosted image URL.
 const brandLogos = [
-
-  { name: "Liya", logo: "https:/Liya%20Logo.png.webp?raw=true" },
-  { name: "Trade Mark Pyramid", logo: "pyramid.png.webp" },
-  { name: "Pandyan's", logo: "Pandiyans.png.webp" },
+  { name: "Suriyakala", logo: "suriyakala.png.webp" },
   { name: "Sri Vijai", logo: "/Sri%20vijai.png.webp?raw=true" },
-  { name: "wow", logo: "wow.png.webp" },
-  { name:"starvell",logo:"starvell.png.webp"},
-  { name: "Kangaroo Brand", logo: "kangaroo.png.webp" },
+  { name: "Liya", logo: "https:/Liya%20Logo.png.webp?raw=true" },
+  { name: "Rainbow", logo: "rainbow.png.webp" },
+  { name: "Sonny", logo: "sonny.png.webp" },
+  { name: "INF", logo: "inf.png.webp" },
+  { name: "Sudharshan", logo: "sudharshan.png.webp" },
+  { name: "Maruthi", logo: "maruthi.png.webp" },
+  { name: "Linga", logo: "linga.png.webp" },
+  { name: "Sunflower", logo: "sunflower.png.webp" },
+  { name: "Vanitha", logo: "vanitha.png.webp" },
+  { name: "Sastha", logo: "sastha.png.webp" },
+  { name: "Damo", logo: "damo.png.webp" },
+  { name: "Rajkala", logo: "rajkala.png.webp" },
+  { name: "Radiance", logo: "radiance.png.webp" },
+  { name: "Elite", logo: "elite.png.webp" },
+  { name: "Rohith", logo: "rohith.png.webp" },
+  { name: "Standard", logo: "standard.png.webp" },
+  { name: "Vadivel", logo: "vadivel.png.webp" },
 ];
 // ==================== END ADDED: Featured Brands data ====================
 
