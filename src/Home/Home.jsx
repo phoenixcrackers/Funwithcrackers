@@ -35,7 +35,7 @@ const navLinks = ["Home", "About Us", "Price List", "Safety Tips", "Contact Us"]
 // Put logo files under public/brands/ (e.g. public/brands/liya.png)
 // or point "logo" directly to a hosted image URL.
 const brandLogos = [
-  { name: "Suriyakala", logo: "suriyakala.png.webp" },
+  { name: "Suriyakala", logo: "/WhatsApp%20Image%202026-09-12%20at%2017.28.32.jpeg?raw=true" },
   { name: "Sri Vijai", logo: "/Sri%20vijai.png.webp?raw=true" },
   { name: "Liya", logo: "https:/Liya%20Logo.png.webp?raw=true" },
   { name: "Rainbow", logo: "rainbow.png.webp" },
