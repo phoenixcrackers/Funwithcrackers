@@ -345,6 +345,110 @@ const ImageModal = ({ media, onClose }) => {
 
 const StatCard = () => null; // (achievements section removed, kept as no-op stub in case it's referenced elsewhere)
 
+// ==================== ADDED: Combo Packs running strip ====================
+const ComboPacks = ({ products }) => {
+  const comboProducts = (Array.isArray(products) ? products : []).filter((product) => {
+    const type = String(product?.product_type || '').toLowerCase().replace(/[_-]/g, ' ');
+    const name = String(product?.productname || '').toLowerCase();
+    return type.includes('combo') || name.includes('combo');
+  });
+
+  if (!comboProducts.length) return null;
+
+  const comboTrack = [...comboProducts, ...comboProducts];
+
+  const getComboImage = (product) => {
+    const images = Array.isArray(product?.images) ? product.images : [];
+    if (images.length) {
+      const first = images[0];
+      if (typeof first === 'string' && first.trim()) {
+        return first.startsWith('http') || first.startsWith('/')
+          ? first
+          : `${API_BASE_URL}/${first.replace(/^\/+/, '')}`;
+      }
+    }
+
+    if (typeof product?.image === 'string') {
+      try {
+        const parsed = JSON.parse(product.image);
+        if (Array.isArray(parsed) && parsed[0]) return parsed[0];
+      } catch {
+        if (product.image.trim()) return product.image.trim();
+      }
+    }
+
+    return need;
+  };
+
+  return (
+    <section className="px-4 sm:px-6 mt-8 mb-4 max-w-7xl mx-auto">
+      <motion.div
+        initial={{ opacity: 0, y: 30 }}
+        whileInView={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.8 }}
+        viewport={{ once: true }}
+        className="relative rounded-3xl overflow-hidden border border-sky-200 shadow-xl p-4 sm:p-6"
+        style={{
+          background: 'linear-gradient(135deg, rgba(255,255,255,0.96), rgba(224,242,254,0.96))',
+          boxShadow: '0 18px 50px rgba(14,165,233,0.16)'
+        }}
+      >
+        <div className="flex items-center justify-between gap-3 mb-5 px-1">
+          <div>
+            <h2 className="text-2xl sm:text-3xl font-extrabold text-slate-800">Combo Packs</h2>
+            <p className="text-sm sm:text-base text-slate-600 mt-1">Special combo offers</p>
+          </div>
+          <div className="shrink-0 rounded-full bg-sky-600 text-white px-3 py-1.5 text-xs sm:text-sm font-bold shadow-md">
+            COMBOS
+          </div>
+        </div>
+
+        <div className="overflow-hidden rounded-2xl">
+          <div className="flex w-max combo-marquee">
+            {comboTrack.map((product, index) => {
+              const originalPrice = Number.parseFloat(product?.price) || 0;
+              const discount = Number.parseFloat(product?.discount) || 0;
+              const finalPrice = (originalPrice - (originalPrice * discount) / 100).toFixed(2);
+
+              return (
+                <motion.div
+                  key={`${product.serial_number || product.id || product.productname}-${index}`}
+                  whileHover={{ y: -5, scale: 1.02 }}
+                  className="w-[190px] sm:w-[230px] mx-2 shrink-0 rounded-2xl bg-white border border-sky-100 shadow-md overflow-hidden"
+                >
+                  <div className="h-[150px] sm:h-[180px] bg-slate-50 flex items-center justify-center overflow-hidden p-3">
+                    <img
+                      src={getComboImage(product)}
+                      alt={product.productname || 'Combo Pack'}
+                      className="w-full h-full object-contain"
+                      onError={(e) => { e.currentTarget.src = need; }}
+                    />
+                  </div>
+                  <div className="p-3 sm:p-4">
+                    <h3 className="font-bold text-slate-800 text-sm sm:text-base line-clamp-2 min-h-[40px]">
+                      {product.productname || 'Combo Pack'}
+                    </h3>
+                    <div className="flex items-center gap-2 mt-2">
+                      <span className="text-base sm:text-lg font-extrabold text-sky-700">₹{finalPrice}</span>
+                      {discount > 0 && (
+                        <span className="text-xs sm:text-sm text-slate-400 line-through">₹{originalPrice}</span>
+                      )}
+                    </div>
+                    {product.per && (
+                      <p className="text-xs text-slate-500 mt-1">per {product.per}</p>
+                    )}
+                  </div>
+                </motion.div>
+              );
+            })}
+          </div>
+        </div>
+      </motion.div>
+    </section>
+  );
+};
+// ==================== END ADDED: Combo Packs running strip ====================
+
 // ==================== ADDED: Featured Brands running strip ====================
 // Renders a horizontal auto-scrolling strip of brand logos (seamless loop via
 // duplicated track). See "brandLogos" array near the top of this file to edit
@@ -611,7 +715,7 @@ export default function Home() {
     { id: 1, image_url: "/ban1.webp" },
     { id: 2, image_url: "/ban2.webp" },
     { id: 3, image_url: "/ban3.webp" },
-   // { id: 4, image_url: "/ban4.webp" },
+    { id: 4, image_url: "/ban4.webp" },
   ];
   const [currentSlide, setCurrentSlide] = useState(0);
 
@@ -1547,6 +1651,10 @@ export default function Home() {
         </div>
       </section>
 
+      {/* ==================== ADDED: Combo Packs running strip ==================== */}
+      <ComboPacks products={products} />
+      {/* ==================== END ADDED: Combo Packs running strip ==================== */}
+
       {/* ==================== ADDED: Featured Brands strip render ==================== */}
       <FeaturedBrands brands={brandLogos} />
       {/* ==================== END ADDED ==================== */}
@@ -2196,6 +2304,20 @@ export default function Home() {
         @keyframes marquee { 0% { transform: translateX(100%); } 100% { transform: translateX(-100%); } }
         .loader-spinner { border-top-color: #0284c7; }
 
+
+        /* ==================== ADDED: Combo Packs marquee ==================== */
+        @keyframes combo-scroll {
+          0% { transform: translateX(0); }
+          100% { transform: translateX(-50%); }
+        }
+        .combo-marquee {
+          animation: combo-scroll 24s linear infinite;
+        }
+        .combo-marquee:hover {
+          animation-play-state: paused;
+        }
+        /* ==================== END ADDED: Combo Packs marquee ==================== */
+
         /* ==================== ADDED: Featured Brands scroll animation ==================== */
         @keyframes brand-scroll {
           0% { transform: translateX(0); }
@@ -2212,3 +2334,4 @@ export default function Home() {
     </div>
   );
 }
+
