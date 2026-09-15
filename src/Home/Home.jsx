@@ -608,9 +608,9 @@ export default function Home() {
 
   // ---------- Hero banner ----------
   const banners = [
-    { id: 1, image_url: "/ban1.webp?raw=true" },
-    { id: 2, image_url: "/ban2.webp?raw=true" },
-    { id: 3, image_url: "/WhatsApp%20Image%202026-09-12%20at%2017.28.32.jpeg?raw=true" },
+    { id: 1, image_url: "/ban1.webp" },
+    { id: 2, image_url: "/ban2.webp" },
+    { id: 3, image_url: "/ban3.webp" },
     { id: 4, image_url: "/ban4.webp" },
   ];
   const [currentSlide, setCurrentSlide] = useState(0);
@@ -1465,11 +1465,7 @@ export default function Home() {
               className="absolute inset-0 rounded-3xl overflow-hidden"
             >
               <img
-                src={
-                  banners[currentSlide]?.image_url?.startsWith("http")
-                    ? banners[currentSlide].image_url
-                    : `${API_BASE_URL}${banners[currentSlide]?.image_url}`
-                }
+                src={banners[currentSlide]?.image_url}
                 alt={`Banner ${currentSlide + 1}`}
                 className="hundred:w-full hundred:h-full object-cover rounded-3xl mobile:w-[100%] mobile:h-[100%]"
               />
