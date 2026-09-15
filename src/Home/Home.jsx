@@ -609,7 +609,7 @@ export default function Home() {
   // ---------- Hero banner ----------
   const banners = [
     { id: 1, image_url: "/ban1.webp" },
-    { id: 2, image_url: "/ban2.webp" },
+    { id: 2, image_url: "/ban2.webp?raw=true" },
     { id: 3, image_url: "/ban3.webp" },
     { id: 4, image_url: "/ban4.webp" },
   ];
