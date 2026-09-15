@@ -386,6 +386,613 @@ const FeaturedBrands = ({ brands }) => {
 };
 // ==================== END ADDED: Featured Brands running strip ====================
 
+
+
+<section
+  style={{
+    width: "100%",
+    minHeight: "100vh",
+    padding: "80px 8%",
+    boxSizing: "border-box",
+    display: "grid",
+    gridTemplateColumns: "45% 55%",
+    alignItems: "center",
+    gap: "60px",
+    background: "#FAF5EB",
+    position: "relative",
+    overflow: "hidden",
+  }}
+>
+  {/* LEFT IMAGE */}
+  <div
+    style={{
+      display: "flex",
+      justifyContent: "center",
+      alignItems: "center",
+      position: "relative",
+    }}
+  >
+    <div
+      style={{
+        width: "min(480px, 90%)",
+        padding: "10px",
+        background: "#fff",
+        borderRadius: "24px",
+        boxShadow: "0 25px 60px rgba(34,16,8,0.15)",
+        transform: "rotate(-2deg)",
+        position: "relative",
+      }}
+    >
+      <img
+        src="/assets/sai-ram-combo.jpg"
+        alt="Phoenix Crackers"
+        style={{
+          width: "100%",
+          display: "block",
+          borderRadius: "18px",
+        }}
+      />
+
+      {/* IMAGE BADGE */}
+      <div
+        style={{
+          position: "absolute",
+          right: "-25px",
+          bottom: "30px",
+          background: "#221008",
+          color: "#fff",
+          padding: "14px 20px",
+          borderRadius: "14px",
+          display: "flex",
+          alignItems: "center",
+          gap: "10px",
+          boxShadow: "0 12px 30px rgba(0,0,0,0.2)",
+        }}
+      >
+        <div
+          style={{
+            fontSize: "27px",
+          }}
+        >
+          ✦
+        </div>
+
+        <div>
+          <div
+            style={{
+              fontSize: "16px",
+              fontWeight: "700",
+              letterSpacing: "1px",
+            }}
+          >
+            CELEBRATE BIG
+          </div>
+
+          <div
+            style={{
+              fontSize: "11px",
+              color: "#D9A431",
+              marginTop: "3px",
+            }}
+          >
+            Celebrate Safe
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+
+  {/* RIGHT CONTENT */}
+  <div
+    style={{
+      maxWidth: "680px",
+    }}
+  >
+
+    {/* SMALL TITLE */}
+    <div
+      style={{
+        display: "flex",
+        alignItems: "center",
+        gap: "12px",
+        fontSize: "13px",
+        fontWeight: "600",
+        letterSpacing: "4px",
+        color: "#76675E",
+        marginBottom: "15px",
+      }}
+    >
+      <span
+        style={{
+          width: "28px",
+          height: "2px",
+          background: "#C43B26",
+          display: "inline-block",
+        }}
+      ></span>
+
+      ABOUT PHOENIX
+
+      <span
+        style={{
+          width: "28px",
+          height: "2px",
+          background: "#C43B26",
+          display: "inline-block",
+        }}
+      ></span>
+    </div>
+
+
+    {/* TITLE */}
+    <div
+      style={{
+        fontSize: "clamp(55px, 6vw, 90px)",
+        lineHeight: "0.85",
+        fontWeight: "900",
+        letterSpacing: "-2px",
+        color: "#221008",
+      }}
+    >
+      PHOENIX
+    </div>
+
+    <div
+      style={{
+        fontSize: "clamp(55px, 6vw, 90px)",
+        lineHeight: "0.85",
+        fontWeight: "900",
+        letterSpacing: "-2px",
+        color: "#C43B26",
+      }}
+    >
+      CRACKERS
+    </div>
+
+
+    {/* GOLD LINE */}
+    <div
+      style={{
+        width: "80px",
+        height: "5px",
+        background: "#D9A431",
+        borderRadius: "10px",
+        margin: "25px 0",
+      }}
+    ></div>
+
+
+    {/* SUB TITLE */}
+    <div
+      style={{
+        fontSize: "30px",
+        lineHeight: "1.15",
+        fontWeight: "400",
+        color: "#4C4039",
+        marginBottom: "25px",
+        letterSpacing: "1px",
+      }}
+    >
+      LIGHT UP YOUR
+      <br />
+
+      <span
+        style={{
+          color: "#C43B26",
+          fontWeight: "700",
+        }}
+      >
+        HAPPIEST MOMENTS
+      </span>
+    </div>
+
+
+    {/* DESCRIPTION */}
+    <div
+      style={{
+        fontSize: "15px",
+        lineHeight: "1.8",
+        color: "#5D554F",
+        marginBottom: "15px",
+      }}
+    >
+      Welcome to{" "}
+      <strong
+        style={{
+          color: "#221008",
+        }}
+      >
+        Phoenix Crackers
+      </strong>
+      , your trusted destination for quality crackers from Sivakasi.
+      We bring together festive favourites, attractive combo packs
+      and exciting choices to make every celebration brighter.
+    </div>
+
+    <div
+      style={{
+        fontSize: "15px",
+        lineHeight: "1.8",
+        color: "#5D554F",
+        marginBottom: "30px",
+      }}
+    >
+      Whether it’s Diwali, a family function, a wedding or a special
+      celebration, choose Phoenix Crackers for moments filled with
+      light, colour and happiness.
+    </div>
+
+
+    {/* FEATURES */}
+    <div
+      style={{
+        display: "grid",
+        gridTemplateColumns: "1fr 1fr",
+        gap: "14px",
+        marginBottom: "28px",
+      }}
+    >
+
+      {/* FEATURE 1 */}
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: "12px",
+          padding: "15px",
+          background: "#fff",
+          border: "1px solid rgba(34,16,8,0.08)",
+          borderRadius: "12px",
+        }}
+      >
+        <div
+          style={{
+            width: "38px",
+            height: "38px",
+            borderRadius: "10px",
+            background: "#221008",
+            color: "#D9A431",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            fontSize: "20px",
+            flexShrink: 0,
+          }}
+        >
+          ✦
+        </div>
+
+        <div>
+          <div
+            style={{
+              fontSize: "14px",
+              fontWeight: "800",
+              color: "#221008",
+            }}
+          >
+            QUALITY FIRST
+          </div>
+
+          <div
+            style={{
+              fontSize: "11px",
+              color: "#80766F",
+              marginTop: "3px",
+            }}
+          >
+            Carefully selected products
+          </div>
+        </div>
+      </div>
+
+
+      {/* FEATURE 2 */}
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: "12px",
+          padding: "15px",
+          background: "#fff",
+          border: "1px solid rgba(34,16,8,0.08)",
+          borderRadius: "12px",
+        }}
+      >
+        <div
+          style={{
+            width: "38px",
+            height: "38px",
+            borderRadius: "10px",
+            background: "#221008",
+            color: "#D9A431",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            fontSize: "18px",
+            flexShrink: 0,
+          }}
+        >
+          ₹
+        </div>
+
+        <div>
+          <div
+            style={{
+              fontSize: "14px",
+              fontWeight: "800",
+              color: "#221008",
+            }}
+          >
+            BEST VALUE
+          </div>
+
+          <div
+            style={{
+              fontSize: "11px",
+              color: "#80766F",
+              marginTop: "3px",
+            }}
+          >
+            Attractive combo choices
+          </div>
+        </div>
+      </div>
+
+
+      {/* FEATURE 3 */}
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: "12px",
+          padding: "15px",
+          background: "#fff",
+          border: "1px solid rgba(34,16,8,0.08)",
+          borderRadius: "12px",
+        }}
+      >
+        <div
+          style={{
+            width: "38px",
+            height: "38px",
+            borderRadius: "10px",
+            background: "#C43B26",
+            color: "#fff",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            fontSize: "18px",
+            flexShrink: 0,
+          }}
+        >
+          ⚡
+        </div>
+
+        <div>
+          <div
+            style={{
+              fontSize: "14px",
+              fontWeight: "800",
+              color: "#221008",
+            }}
+          >
+            QUICK RESPONSE
+          </div>
+
+          <div
+            style={{
+              fontSize: "11px",
+              color: "#80766F",
+              marginTop: "3px",
+            }}
+          >
+            Fast enquiry support
+          </div>
+        </div>
+      </div>
+
+
+      {/* FEATURE 4 */}
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: "12px",
+          padding: "15px",
+          background: "#fff",
+          border: "1px solid rgba(34,16,8,0.08)",
+          borderRadius: "12px",
+        }}
+      >
+        <div
+          style={{
+            width: "38px",
+            height: "38px",
+            borderRadius: "10px",
+            background: "#C43B26",
+            color: "#fff",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            fontSize: "18px",
+            flexShrink: 0,
+          }}
+        >
+          ♥
+        </div>
+
+        <div>
+          <div
+            style={{
+              fontSize: "14px",
+              fontWeight: "800",
+              color: "#221008",
+            }}
+          >
+            FAMILY TRUST
+          </div>
+
+          <div
+            style={{
+              fontSize: "11px",
+              color: "#80766F",
+              marginTop: "3px",
+            }}
+          >
+            Made for happy moments
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+
+    {/* IMPORTANT NOTE */}
+    <div
+      style={{
+        display: "flex",
+        gap: "12px",
+        padding: "14px 16px",
+        marginBottom: "25px",
+        background: "#FFF4F1",
+        borderLeft: "4px solid #C43B26",
+        borderRadius: "8px",
+      }}
+    >
+      <div
+        style={{
+          color: "#C43B26",
+          fontSize: "18px",
+        }}
+      >
+        ⓘ
+      </div>
+
+      <div
+        style={{
+          fontSize: "11px",
+          lineHeight: "1.6",
+          color: "#765E58",
+        }}
+      >
+        <strong
+          style={{
+            color: "#C43B26",
+          }}
+        >
+          Important:
+        </strong>{" "}
+        Products displayed on this website are for viewing and
+        enquiry purposes. We do not undertake online sales.
+        Please contact us directly for product details and enquiries.
+      </div>
+    </div>
+
+
+    {/* CONTACT */}
+    <div
+      style={{
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "space-between",
+        gap: "20px",
+      }}
+    >
+
+      {/* PHONE */}
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: "14px",
+        }}
+      >
+        <div
+          style={{
+            width: "50px",
+            height: "50px",
+            borderRadius: "50%",
+            background: "#221008",
+            color: "#D9A431",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            fontSize: "21px",
+          }}
+        >
+          ☎
+        </div>
+
+        <div>
+          <div
+            style={{
+              fontSize: "11px",
+              letterSpacing: "2px",
+              fontWeight: "700",
+              color: "#C43B26",
+            }}
+          >
+            ENQUIRY & SUPPORT
+          </div>
+
+          <div
+            style={{
+              fontSize: "26px",
+              fontWeight: "800",
+              letterSpacing: "1px",
+              color: "#221008",
+              marginTop: "2px",
+            }}
+          >
+            6383659214
+          </div>
+        </div>
+      </div>
+
+
+      {/* CALL BADGE */}
+      <div
+        style={{
+          padding: "11px 20px",
+          border: "1px solid #D9A431",
+          borderRadius: "30px",
+          background: "#FFFBF2",
+          textAlign: "center",
+        }}
+      >
+        <div
+          style={{
+            fontSize: "10px",
+            letterSpacing: "2px",
+            color: "#C43B26",
+            fontWeight: "700",
+          }}
+        >
+          CALL US
+        </div>
+
+        <div
+          style={{
+            fontSize: "13px",
+            color: "#221008",
+            fontWeight: "800",
+            marginTop: "2px",
+          }}
+        >
+          ANYTIME
+        </div>
+      </div>
+
+    </div>
+
+  </div>
+
+</section>
+
+
+
+
 // ─────────────────────────────────────────────────────────
 // Promo burst — rocket launch → firework → promo-code card
 // ─────────────────────────────────────────────────────────
