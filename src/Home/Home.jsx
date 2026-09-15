@@ -610,7 +610,7 @@ export default function Home() {
   const banners = [
     { id: 1, image_url: "/ban1.webp?raw=true" },
     { id: 2, image_url: "/ban2.webp?raw=true" },
-    { id: 3, image_url: "/ban3.webp" },
+    { id: 3, image_url: "/WhatsApp%20Image%202026-09-12%20at%2017.28.32.jpeg?raw=true" },
     { id: 4, image_url: "/ban4.webp" },
   ];
   const [currentSlide, setCurrentSlide] = useState(0);
