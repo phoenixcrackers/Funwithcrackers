@@ -391,7 +391,7 @@ const FeaturedBrands = ({ brands }) => {
 
 
 
-{/* ===================== COMBO PACKS ===================== */}
+/* ===================== COMBO PACKS ===================== 
 <section className="max-w-7xl mx-auto px-4 sm:px-8 mt-10">
   <div className="text-center mb-8">
     <h3 className="text-2xl sm:text-3xl font-bold text-sky-800">Combo Packs</h3>
@@ -439,7 +439,7 @@ const FeaturedBrands = ({ brands }) => {
       </motion.div>
     ))}
   </div>
-</section>
+</section>*/
 
 
 
