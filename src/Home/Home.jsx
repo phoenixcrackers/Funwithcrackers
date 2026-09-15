@@ -607,7 +607,24 @@ export default function Home() {
   const heroOpacity = useTransform(scrollYProgress, [0, 0.5], [1, 0]);
 
   // ---------- Hero banner ----------
-  const [banners, setBanners] = useState([]);
+ const banners = [
+  {
+    id: 1,
+    image_url: "ban1.webp",
+  },
+  {
+    id: 2,
+    image_url: "ban2.webp",
+  },
+  {
+    id: 3,
+    image_url: "ban3.webp",
+  },
+  {
+    id: 4,
+    image_url: "ban1.webp",
+  },
+];
   const [currentSlide, setCurrentSlide] = useState(0);
 
   // ---------- Fast running products ----------
