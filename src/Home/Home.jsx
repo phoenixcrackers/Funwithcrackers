@@ -390,62 +390,6 @@ const FeaturedBrands = ({ brands }) => {
 
 
 
-
-/* ===================== COMBO PACKS ===================== 
-<section className="max-w-7xl mx-auto px-4 sm:px-8 mt-10">
-  <div className="text-center mb-8">
-    <h3 className="text-2xl sm:text-3xl font-bold text-sky-800">Combo Packs</h3>
-  </div>
-  <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-10">
-    {[
-      { amount: "3000", color: "from-red-600 to-red-800" },
-      { amount: "5000", color: "from-green-600 to-green-800" },
-      { amount: "7000", color: "from-blue-600 to-blue-800" },
-      { amount: "10000", color: "from-purple-600 to-purple-800" },
-    ].map((combo) => (
-      <motion.button
-        key={combo.amount}
-        onClick={scrollToPricelist}
-        whileHover={{ scale: 1.05 }}
-        whileTap={{ scale: 0.95 }}
-        className={`bg-gradient-to-b ${combo.color} text-white rounded-2xl py-6 px-3 text-center border-2 border-white/20 shadow-lg cursor-pointer`}
-      >
-        <p className="text-2xl sm:text-3xl font-extrabold">₹{combo.amount}/-</p>
-        <p className="text-xs sm:text-sm font-semibold tracking-wide mt-1">COMBO PACK</p>
-      </motion.button>
-    ))}
-  </div>
-
-  <div className="text-center mb-8">
-    <h3 className="text-2xl sm:text-3xl font-bold text-sky-800">Special Combo Packs</h3>
-  </div>
-  <div className="grid sm:grid-cols-3 gap-6 mb-10">
-    {[
-      { label: "Kids Special", amount: "7000", emoji: "🧒", tagline: "Quality • Safety • Happiness", bg: "from-amber-50 to-amber-100" },
-      { label: "Sun Light", amount: "3000", emoji: "☀️", tagline: "Light Up Happy Moments", bg: "from-orange-50 to-orange-100" },
-      { label: "Moon Light", amount: "4000", emoji: "🌙", tagline: "Celebrate Every Night", bg: "from-sky-50 to-sky-100" },
-    ].map((combo) => (
-      <motion.div
-        key={combo.label}
-        whileHover={{ y: -6, scale: 1.02 }}
-        onClick={scrollToPricelist}
-        className={`bg-gradient-to-b ${combo.bg} rounded-2xl p-6 text-center border border-sky-200 shadow-md cursor-pointer`}
-      >
-        <p className="inline-block bg-sky-600 text-white text-xs font-bold px-3 py-1 rounded-full mb-3">{combo.label.toUpperCase()}</p>
-        <p className="text-lg font-semibold text-slate-700">Combo</p>
-        <p className="text-3xl font-extrabold text-slate-800 mb-2">₹{combo.amount}/-</p>
-        <p className="text-3xl mb-1">{combo.emoji}</p>
-        <p className="text-sm text-slate-600">{combo.tagline}</p>
-      </motion.div>
-    ))}
-  </div>
-</section>*/
-
-
-
-
-
-
 // ─────────────────────────────────────────────────────────
 // Promo burst — rocket launch → firework → promo-code card
 // ─────────────────────────────────────────────────────────
