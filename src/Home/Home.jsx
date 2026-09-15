@@ -345,69 +345,6 @@ const ImageModal = ({ media, onClose }) => {
 
 const StatCard = () => null; // (achievements section removed, kept as no-op stub in case it's referenced elsewhere)
 
-// ==================== COMBO IMAGE RUNNING STRIP ====================
-const ComboPacks = () => {
-  // Replace these with the exact images you put inside public/
-  // Example: public/combo1.webp => /combo1.webp
-  const comboImages = [
-    "/combo1.webp",
-    "/combo2.webp",
-    "/combo3.webp",
-    "/combo4.webp",
-  ];
-
-  const comboTrack = [...comboImages, ...comboImages];
-
-  return (
-    <section className="px-4 sm:px-6 mt-8 mb-4 max-w-7xl mx-auto">
-      <motion.div
-        initial={{ opacity: 0, y: 30 }}
-        whileInView={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.8 }}
-        viewport={{ once: true }}
-        className="relative rounded-3xl overflow-hidden border border-sky-200 shadow-xl p-4 sm:p-6"
-        style={{
-          background: "linear-gradient(135deg, rgba(255,255,255,0.96), rgba(224,242,254,0.96))",
-          boxShadow: "0 18px 50px rgba(14,165,233,0.16)",
-        }}
-      >
-        <div className="flex items-center justify-between gap-3 mb-5 px-1">
-          <div>
-            <h2 className="text-2xl sm:text-3xl font-extrabold text-slate-800">
-              Combo Packs
-            </h2>
-            <p className="text-sm sm:text-base text-slate-600 mt-1">
-              Special Combo Offers
-            </p>
-          </div>
-          <div className="shrink-0 rounded-full bg-sky-600 text-white px-3 py-1.5 text-xs sm:text-sm font-bold shadow-md">
-            COMBOS
-          </div>
-        </div>
-
-        <div className="overflow-hidden rounded-2xl">
-          <div className="flex w-max combo-marquee">
-            {comboTrack.map((image, index) => (
-              <div
-                key={`${image}-${index}`}
-                className="w-[180px] h-[180px] sm:w-[220px] sm:h-[220px] mx-2 shrink-0 rounded-2xl bg-white border border-sky-100 shadow-md overflow-hidden"
-              >
-                <img
-                  src={image}
-                  alt={`Combo ${((index % comboImages.length) + 1)}`}
-                  className="w-full h-full object-cover"
-                  draggable="false"
-                />
-              </div>
-            ))}
-          </div>
-        </div>
-      </motion.div>
-    </section>
-  );
-};
-// ==================== END COMBO IMAGE RUNNING STRIP ====================
-
 // ==================== ADDED: Featured Brands running strip ====================
 // Renders a horizontal auto-scrolling strip of brand logos (seamless loop via
 // duplicated track). See "brandLogos" array near the top of this file to edit
@@ -1610,10 +1547,6 @@ export default function Home() {
         </div>
       </section>
 
-      {/* ==================== ADDED: Combo Packs running strip ==================== */}
-      <ComboPacks />
-      {/* ==================== END ADDED: Combo Packs running strip ==================== */}
-
       {/* ==================== ADDED: Featured Brands strip render ==================== */}
       <FeaturedBrands brands={brandLogos} />
       {/* ==================== END ADDED ==================== */}
@@ -2263,20 +2196,6 @@ export default function Home() {
         @keyframes marquee { 0% { transform: translateX(100%); } 100% { transform: translateX(-100%); } }
         .loader-spinner { border-top-color: #0284c7; }
 
-
-        /* ==================== ADDED: Combo Packs marquee ==================== */
-        @keyframes combo-scroll {
-          0% { transform: translateX(0); }
-          100% { transform: translateX(-50%); }
-        }
-        .combo-marquee {
-          animation: combo-scroll 24s linear infinite;
-        }
-        .combo-marquee:hover {
-          animation-play-state: paused;
-        }
-        /* ==================== END ADDED: Combo Packs marquee ==================== */
-
         /* ==================== ADDED: Featured Brands scroll animation ==================== */
         @keyframes brand-scroll {
           0% { transform: translateX(0); }
@@ -2293,5 +2212,3 @@ export default function Home() {
     </div>
   );
 }
-
-
