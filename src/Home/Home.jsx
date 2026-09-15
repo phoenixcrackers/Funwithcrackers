@@ -607,7 +607,12 @@ export default function Home() {
   const heroOpacity = useTransform(scrollYProgress, [0, 0.5], [1, 0]);
 
   // ---------- Hero banner ----------
- const [banners, setBanners] = useState([]);
+  const banners = [
+    { id: 1, image_url: "/ban1.webp" },
+    { id: 2, image_url: "/ban2.webp" },
+    { id: 3, image_url: "/ban3.webp" },
+    { id: 4, image_url: "/ban4.webp" },
+  ];
   const [currentSlide, setCurrentSlide] = useState(0);
 
   // ---------- Fast running products ----------
@@ -685,7 +690,7 @@ export default function Home() {
         else if (response && Array.isArray(response.data)) dataArray = response.data;
         else { setter([]); return; }
 
-        if (url.includes("/api/products") || url.includes("/api/banners")) {
+        if (url.includes("/api/products")) {
           setter(dataArray.filter((item) => item.is_active || item.fast_running));
         } else {
           setter(dataArray);
@@ -707,19 +712,14 @@ export default function Home() {
       }
     };
 
-    fetchData(`${API_BASE_URL}/api/banners`, setBanners);
     fetchData(`${API_BASE_URL}/api/products`, setFastRunningProducts);
     fetchPromoCodes();
 
     const intervals = [
-      setInterval(() => fetchData(`${API_BASE_URL}/api/banners`, setBanners), 1200 * 1000),
       setInterval(() => fetchData(`${API_BASE_URL}/api/products`, setFastRunningProducts), 30 * 1000),
       setInterval(fetchPromoCodes, 30 * 1000),
       setInterval(() => {
-        setBanners((prevBanners) => {
-          if (prevBanners.length > 0) setCurrentSlide((prev) => (prev + 1) % prevBanners.length);
-          return prevBanners;
-        });
+        setCurrentSlide((prev) => (prev + 1) % banners.length);
       }, 4000),
     ];
 
