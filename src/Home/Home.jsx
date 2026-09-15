@@ -1454,19 +1454,28 @@ export default function Home() {
       {/* ===================== HERO BANNER ===================== */}
       <motion.div style={{ y: heroY, opacity: heroOpacity }} className="relative max-w-8xl mt-[100px] h-[350px] hundred:h-[500px] onefifty:h-[350px] mobile:h-[150px] overflow-hidden rounded-3xl mx-4 md:mx-8">
         <div className="absolute inset-0 z-10 rounded-3xl"></div>
-        {banners.map((banner, idx) => (
-          <motion.div
-            key={banner.id}
-            className={`absolute inset-0 transition-opacity duration-1000 ease-in-out rounded-3xl overflow-hidden${currentSlide === idx ? " opacity-100 z-5" : " opacity-0 z-0"}`}
-            style={{ transition: "transform 4s ease-in-out" }}
-          >
-            <img
-              src={banner.image_url.startsWith("http") ? banner.image_url : `${API_BASE_URL}${banner.image_url}`}
-              alt={`Banner ${banner.id}`}
-              className="hundred:w-full hundred:h-full object-cover rounded-3xl mobile:w-[100%] mobile:h-[100%]"
-            />
-          </motion.div>
-        ))}
+        {banners.length > 0 && (
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={banners[currentSlide]?.id}
+              initial={{ opacity: 0, x: 80 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -80 }}
+              transition={{ duration: 0.8, ease: "easeInOut" }}
+              className="absolute inset-0 rounded-3xl overflow-hidden"
+            >
+              <img
+                src={
+                  banners[currentSlide]?.image_url?.startsWith("http")
+                    ? banners[currentSlide].image_url
+                    : `${API_BASE_URL}${banners[currentSlide]?.image_url}`
+                }
+                alt={`Banner ${currentSlide + 1}`}
+                className="hundred:w-full hundred:h-full object-cover rounded-3xl mobile:w-[100%] mobile:h-[100%]"
+              />
+            </motion.div>
+          </AnimatePresence>
+        )}
       </motion.div>
 
       {/* ===================== FAST RUNNING PRODUCTS ===================== */}
