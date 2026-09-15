@@ -614,7 +614,7 @@ export default function Home() {
   },
   {
     id: 2,
-    image_url: "ban2.webp",
+    image_url: "/ban2.webp?raw=true",
   },
   {
     id: 3,
