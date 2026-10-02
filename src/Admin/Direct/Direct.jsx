@@ -814,9 +814,11 @@ export default function Direct() {
 
         const allRows = quotations.map(q => {
           const cust = customers.find(c => c.id === q.customer_id) || {};
+          const mobile = (q.mobile_number || cust.mobile_number || "").toString().trim() || "N/A";
           return {
             "Quotation ID": q.quotation_id || "N/A",
             "Customer Name": q.customer_name || cust.name || "N/A",
+            "Customer Number": mobile,
             "Agent Name": cust.agent_name || (q.customer_type === "Agent" ? q.customer_name : "N/A"),
             "Customer Type": q.customer_type || cust.customer_type || "User",
             "Place": (q.address || cust.address || "N/A").replace(/[\r\n\t]+/g, ', ').trim(),
