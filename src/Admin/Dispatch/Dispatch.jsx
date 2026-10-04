@@ -295,7 +295,7 @@ export default function Dispatch() {
 
   const filteredBookings = useMemo(() => {
     return bookings.filter(b => {
-      const matchesSearch = ['customer_name', 'order_id', 'total'].some(key =>
+      const matchesSearch = ['customer_name', 'order_id', 'total', 'amount_paid'].some(key =>
         b[key]?.toString().toLowerCase().includes(searchQuery.toLowerCase())
       );
 
@@ -359,7 +359,7 @@ export default function Dispatch() {
                   <FaSearch className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-xs" />
                   <input
                     type="text"
-                    placeholder="Name, Order ID or Total..."
+                    placeholder="Name, Order ID or Amount..."
                     value={searchQuery}
                     onChange={e => { setSearchQuery(e.target.value); setCurrentPage(1); }}
                     className="w-full pl-9 pr-3.5 py-2.5 rounded-xl border border-slate-200 text-sm bg-slate-50 outline-none focus:border-indigo-400 transition-colors box-border"
@@ -397,16 +397,55 @@ export default function Dispatch() {
                     </span>
                   </div>
 
+                  {/* Financial Amount Details */}
+                  <div className="bg-slate-50 border border-slate-200/90 rounded-xl p-3 mb-3">
+                    <div className="grid grid-cols-2 gap-2">
+                      <div className="bg-white border border-emerald-100 rounded-lg p-2.5 shadow-2xs">
+                        <div className="text-[10px] font-bold text-emerald-600 uppercase tracking-wider">
+                          Bill (After Discount)
+                        </div>
+                        <div className="text-base font-extrabold text-emerald-700 mt-0.5">
+                          ₹{parseFloat(booking.total || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        </div>
+                      </div>
+                      <div className="bg-white border border-amber-100 rounded-lg p-2.5 shadow-2xs">
+                        <div className="text-[10px] font-bold text-amber-600 uppercase tracking-wider">
+                          Amount Paid
+                        </div>
+                        <div className="text-base font-extrabold text-amber-700 mt-0.5">
+                          ₹{parseFloat(booking.amount_paid || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        </div>
+                      </div>
+                    </div>
+
+                    {(booking.payment_method || booking.transaction_id || parseFloat(booking.total || 0) > parseFloat(booking.amount_paid || 0)) && (
+                      <div className="mt-2 pt-2 border-t border-slate-200/60 flex items-center justify-between text-[11px] text-slate-500">
+                        {parseFloat(booking.total || 0) > parseFloat(booking.amount_paid || 0) ? (
+                          <span className="font-semibold text-rose-500">
+                            Balance: ₹{(parseFloat(booking.total || 0) - parseFloat(booking.amount_paid || 0)).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                          </span>
+                        ) : (
+                          <span className="font-bold text-emerald-600">✓ Fully Settled</span>
+                        )}
+                        {booking.payment_method && (
+                          <span className="bg-slate-200/60 px-1.5 py-0.5 rounded text-[10px] font-bold uppercase text-slate-600">
+                            {booking.payment_method}
+                          </span>
+                        )}
+                      </div>
+                    )}
+                  </div>
+
                   <div className="grid grid-cols-2 gap-1.5 mb-3">
                     {[
                       ["🆔 Order ID", booking.order_id || 'N/A'],
                       ["📍 District",  booking.district  || 'N/A'],
                       ["🏛️ State",     booking.state     || 'N/A'],
-                      ["💰 Total",     booking.total ? `₹${Math.round(parseFloat(booking.total))}` : 'N/A'],
+                      ["📅 Date",      booking.created_at ? new Date(booking.created_at).toLocaleDateString('en-GB') : 'N/A'],
                     ].map(([label, value]) => (
                       <div key={label} className="bg-slate-50 rounded-lg px-2 py-1.5">
                         <div className="text-xs font-bold text-slate-400">{label}</div>
-                        <div className="text-xs font-semibold text-slate-700">{value}</div>
+                        <div className="text-xs font-semibold text-slate-700 truncate">{value}</div>
                       </div>
                     ))}
                   </div>
