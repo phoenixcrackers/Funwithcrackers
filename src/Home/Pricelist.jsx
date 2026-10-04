@@ -938,7 +938,15 @@ const Pricelist = () => {
       let itemTotal = priceAfterProductDiscount * qty;
       if (appliedPromo) {
         const promoDiscountRate = Number.parseFloat(appliedPromo.discount) || 0;
-        const isApplicable = !appliedPromo.product_type || product.product_type === appliedPromo.product_type;
+        const exceptions = Array.isArray(appliedPromo.exceptions)
+          ? appliedPromo.exceptions
+          : (typeof appliedPromo.exceptions === "string"
+              ? (appliedPromo.exceptions.startsWith("[")
+                  ? (() => { try { return JSON.parse(appliedPromo.exceptions); } catch (e) { return appliedPromo.exceptions.split(",").map((s) => s.trim()); } })()
+                  : appliedPromo.exceptions.split(",").map((s) => s.trim()))
+              : []);
+        const isExcluded = exceptions.some((exc) => exc && exc.toLowerCase() === (product.product_type || "").toLowerCase());
+        const isApplicable = (!appliedPromo.product_type || product.product_type === appliedPromo.product_type) && !isExcluded;
         if (isApplicable) {
           const promoDiscountAmount = (itemTotal * promoDiscountRate) / 100;
           promoDiscount += promoDiscountAmount;
@@ -996,6 +1004,32 @@ const Pricelist = () => {
         });
         if (!cartProductTypes.some(type => type === found.product_type)) {
           showError(`This promocode is only valid for ${found.product_type.replace(/_/g, " ")} products, and none are in your cart.`);
+          setAppliedPromo(null);
+          setPromocode("");
+          return;
+        }
+      }
+
+      const promoExceptions = Array.isArray(found.exceptions)
+        ? found.exceptions
+        : (typeof found.exceptions === "string"
+            ? (found.exceptions.startsWith("[")
+                ? (() => { try { return JSON.parse(found.exceptions); } catch (e) { return found.exceptions.split(",").map((s) => s.trim()); } })()
+                : found.exceptions.split(",").map((s) => s.trim()))
+            : []);
+
+      if (promoExceptions.length > 0) {
+        const eligibleCartItems = Object.keys(cart).filter(serial => {
+          const product = products.find(p => p.serial_number === serial);
+          if (!product) return false;
+          const pType = product.product_type || "Others";
+          const isExcluded = promoExceptions.some((exc) => exc.toLowerCase() === pType.toLowerCase());
+          const matchesType = !found.product_type || pType === found.product_type;
+          return matchesType && !isExcluded;
+        });
+
+        if (eligibleCartItems.length === 0) {
+          showError(`This promocode cannot be applied because all products in your cart are in the excluded product types.`);
           setAppliedPromo(null);
           setPromocode("");
           return;
@@ -1730,11 +1764,18 @@ const generateSuggestions = useCallback(() => {
                     />
                   )}
                   {appliedPromo && (
-                    <p className="text-green-600 text-xs mt-1">
-                      Applied: {appliedPromo.code} ({appliedPromo.discount}% OFF)
-                      {appliedPromo.min_amount && `, Min: ₹${appliedPromo.min_amount}`}
-                      {appliedPromo.end_date && `, Expires: ${new Date(appliedPromo.end_date).toLocaleDateString()}`}
-                    </p>
+                    <div className="text-green-600 text-xs mt-1 space-y-0.5">
+                      <p>
+                        Applied: {appliedPromo.code} ({appliedPromo.discount}% OFF)
+                        {appliedPromo.min_amount && `, Min: ₹${appliedPromo.min_amount}`}
+                        {appliedPromo.end_date && `, Expires: ${new Date(appliedPromo.end_date).toLocaleDateString()}`}
+                      </p>
+                      {appliedPromo.exceptions && (Array.isArray(appliedPromo.exceptions) ? appliedPromo.exceptions.length > 0 : appliedPromo.exceptions) && (
+                        <p className="text-amber-600 text-[11px]">
+                          Except: {Array.isArray(appliedPromo.exceptions) ? appliedPromo.exceptions.map((e) => e.replace(/_/g, " ")).join(", ") : appliedPromo.exceptions}
+                        </p>
+                      )}
+                    </div>
                   )}
                 </div>
 
@@ -2122,11 +2163,18 @@ const generateSuggestions = useCallback(() => {
             )}
 
             {appliedPromo && (
-              <p className="text-green-600 text-xs mt-1">
-                Applied: {appliedPromo.code} ({appliedPromo.discount}% OFF)
-                {appliedPromo.min_amount && `, Min: ₹${appliedPromo.min_amount}`}
-                {appliedPromo.end_date && `, Expires: ${new Date(appliedPromo.end_date).toLocaleDateString()}`}
-              </p>
+              <div className="text-green-600 text-xs mt-1 space-y-0.5">
+                <p>
+                  Applied: {appliedPromo.code} ({appliedPromo.discount}% OFF)
+                  {appliedPromo.min_amount && `, Min: ₹${appliedPromo.min_amount}`}
+                  {appliedPromo.end_date && `, Expires: ${new Date(appliedPromo.end_date).toLocaleDateString()}`}
+                </p>
+                {appliedPromo.exceptions && (Array.isArray(appliedPromo.exceptions) ? appliedPromo.exceptions.length > 0 : appliedPromo.exceptions) && (
+                  <p className="text-amber-600 text-[11px]">
+                    Except: {Array.isArray(appliedPromo.exceptions) ? appliedPromo.exceptions.map((e) => e.replace(/_/g, " ")).join(", ") : appliedPromo.exceptions}
+                  </p>
+                )}
+              </div>
             )}
           </div>
 
