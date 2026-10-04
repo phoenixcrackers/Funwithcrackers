@@ -762,10 +762,10 @@ export default function Home() {
         const exceptions = Array.isArray(appliedPromo.exceptions)
           ? appliedPromo.exceptions
           : (typeof appliedPromo.exceptions === "string"
-              ? (appliedPromo.exceptions.startsWith("[")
-                  ? (() => { try { return JSON.parse(appliedPromo.exceptions); } catch (e) { return appliedPromo.exceptions.split(",").map((s) => s.trim()); } })()
-                  : appliedPromo.exceptions.split(",").map((s) => s.trim()))
-              : []);
+            ? (appliedPromo.exceptions.startsWith("[")
+              ? (() => { try { return JSON.parse(appliedPromo.exceptions); } catch (e) { return appliedPromo.exceptions.split(",").map((s) => s.trim()); } })()
+              : appliedPromo.exceptions.split(",").map((s) => s.trim()))
+            : []);
         const isExcluded = exceptions.some((exc) => exc && exc.toLowerCase() === (product.product_type || "").toLowerCase());
         const isApplicable = (!appliedPromo.product_type || product.product_type === appliedPromo.product_type) && !isExcluded;
         if (isApplicable) {
@@ -809,10 +809,10 @@ export default function Home() {
       const promoExceptions = Array.isArray(found.exceptions)
         ? found.exceptions
         : (typeof found.exceptions === "string"
-            ? (found.exceptions.startsWith("[")
-                ? (() => { try { return JSON.parse(found.exceptions); } catch (e) { return found.exceptions.split(",").map((s) => s.trim()); } })()
-                : found.exceptions.split(",").map((s) => s.trim()))
-            : []);
+          ? (found.exceptions.startsWith("[")
+            ? (() => { try { return JSON.parse(found.exceptions); } catch (e) { return found.exceptions.split(",").map((s) => s.trim()); } })()
+            : found.exceptions.split(",").map((s) => s.trim()))
+          : []);
 
       if (promoExceptions.length > 0) {
         const eligibleCartItems = Object.keys(cart).filter((serial) => {
@@ -1349,7 +1349,7 @@ export default function Home() {
     const orderedTypes = [
       "One sound crackers", "Ground Chakkar", "Flower Pots", "Twinkling Star", "Rockets", "Bombs",
       "Repeating Shots", "Comets Sky Shots", "Fancy pencil varieties", "Fountain and Fancy Novelties",
-      "Matches", "Guns and Caps", "Sparklers", "Sony comets", "Gift Boxes", "Combo Pack", "New Arrivals",
+      "Matches", "Guns and Caps", "Sparklers", "Sony comets", "Gift Boxes", "Combo Pack", "New Arrivals", "Net Rate Products",
     ];
     const availableTypes = [...new Set(products.filter((p) => p.product_type !== "gift_box_dealers").map((p) => p.product_type || "Others"))];
     const filteredOrderedTypes = orderedTypes.filter((type) => availableTypes.includes(type.replace(/ /g, "_").toLowerCase()));
@@ -1360,7 +1360,7 @@ export default function Home() {
     const orderedTypes = [
       "One sound crackers", "Ground Chakkar", "Flower Pots", "Twinkling Star", "Rockets", "Bombs",
       "Repeating Shots", "Comets Sky Shots", "Fancy pencil varieties", "Fountain and Fancy Novelties",
-      "Matches", "Guns and Caps", "Sparklers", "Sony comets", "Gift Boxes", "Combo Pack", "New Arrivals",
+      "Matches", "Guns and Caps", "Sparklers", "Sony comets", "Gift Boxes", "Combo Pack", "New Arrivals", "Net Rate Products",
     ];
     const result = products
       .filter((p) => p.product_type !== "gift_box_dealers" &&
