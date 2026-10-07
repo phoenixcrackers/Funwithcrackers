@@ -3,11 +3,12 @@ import Modal from "react-modal";
 import Sidebar from "../Sidebar/Sidebar";
 import "../../App.css";
 import { API_BASE_URL } from "../../../Config";
-import { FaEye, FaEdit, FaTrash, FaArrowLeft, FaArrowRight, FaExclamationTriangle } from "react-icons/fa";
+import { FaEye, FaEdit, FaTrash, FaArrowLeft, FaArrowRight, FaExclamationTriangle, FaDownload, FaUpload, FaFileArchive, FaCheckCircle, FaTimesCircle, FaCheck, FaTimes, FaSearch, FaImages } from "react-icons/fa";
 import Logout from "../Logout";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import { getTamilName, ensureTamilFont, renderTamilTextToDataURL, splitTamilText } from "../../utils/tamilTranslation";
+import { downloadSingleImage, generateProductImageZip, extractImagesFromZip, matchImagesToProducts, uploadSingleProductImage } from "../../utils/productImageSync";
 
 Modal.setAppElement("#root");
 
@@ -51,6 +52,215 @@ export default function List() {
     productname: "", serial_number: "", price: "", dprice: "", discount: "", per: "",
     product_type: "", description: "", box_count: 1, images: [], existingImages: [], imagesToDelete: [],
   });
+
+  // ── Download Images state ──────────────────────────────────────────────────
+  const [downloadModalIsOpen, setDownloadModalIsOpen] = useState(false);
+  const [downloadScope, setDownloadScope] = useState("all");
+  const [downloadNaming, setDownloadNaming] = useState("name");
+  const [downloadIncludeCsv, setDownloadIncludeCsv] = useState(true);
+  const [downloadProgress, setDownloadProgress] = useState({
+    active: false, current: 0, total: 0, status: "", error: "",
+  });
+
+  // ── Bulk Upload state ─────────────────────────────────────────────────────
+  const [bulkModalIsOpen, setBulkModalIsOpen] = useState(false);
+  const [bulkStep, setBulkStep] = useState("select"); // 'select' | 'preview' | 'uploading' | 'done'
+  const [bulkMatches, setBulkMatches] = useState([]);
+  const [bulkMode, setBulkMode] = useState("replace"); // 'replace' | 'append'
+  const [bulkSearch, setBulkSearch] = useState("");
+  const [bulkFilterStatus, setBulkFilterStatus] = useState("all"); // 'all' | 'matched' | 'unmatched'
+  const [bulkProcessingFiles, setBulkProcessingFiles] = useState(false);
+  const [bulkProgress, setBulkProgress] = useState({
+    current: 0, total: 0, status: "", successCount: 0, errorCount: 0, log: [],
+  });
+
+  const handleDownloadSingle = async (product) => {
+    try {
+      await downloadSingleImage(product);
+    } catch (err) {
+      setError(err.message || "Failed to download image");
+    }
+  };
+
+  const handleStartZipDownload = async () => {
+    const listToDownload = downloadScope === "filtered" ? filteredProducts : products;
+    const itemsWithImages = listToDownload.filter((p) => Array.isArray(p.images) && p.images.length > 0);
+    if (itemsWithImages.length === 0) {
+      setDownloadProgress((prev) => ({ ...prev, error: "No products with images found to export." }));
+      return;
+    }
+    setDownloadProgress({ active: true, current: 0, total: itemsWithImages.length, status: "Preparing...", error: "" });
+    try {
+      await generateProductImageZip(itemsWithImages, {
+        filenameFormat: downloadNaming,
+        includeCsv: downloadIncludeCsv,
+      }, ({ current, total, status }) => {
+        setDownloadProgress({ active: true, current, total, status, error: "" });
+      });
+      setDownloadProgress({ active: false, current: 0, total: 0, status: "", error: "" });
+      setDownloadModalIsOpen(false);
+    } catch (err) {
+      setDownloadProgress((prev) => ({ ...prev, active: false, error: err.message || "Failed to create ZIP" }));
+    }
+  };
+
+  const closeDownloadModal = () => {
+    if (downloadProgress.active) return;
+    setDownloadModalIsOpen(false);
+    setDownloadProgress({ active: false, current: 0, total: 0, status: "", error: "" });
+  };
+
+  const processBulkFiles = async (rawFiles) => {
+    if (!rawFiles || rawFiles.length === 0) return;
+    setBulkProcessingFiles(true);
+    setError("");
+    try {
+      let imageFiles = [];
+      for (const file of rawFiles) {
+        if (file.name.toLowerCase().endsWith(".zip")) {
+          const unzippedFiles = await extractImagesFromZip(file);
+          imageFiles = [...imageFiles, ...unzippedFiles];
+        } else if (file.type.startsWith("image/") || /\.(jpe?g|png|webp|gif)$/i.test(file.name)) {
+          imageFiles.push(file);
+        }
+      }
+      if (imageFiles.length === 0) {
+        throw new Error("No valid image files or images found inside ZIP.");
+      }
+      const matchResults = matchImagesToProducts(imageFiles, products);
+      setBulkMatches(matchResults);
+      setBulkStep("preview");
+    } catch (err) {
+      setError(err.message || "Failed to process files");
+    } finally {
+      setBulkProcessingFiles(false);
+    }
+  };
+
+  const handleBulkFileChange = (e) => {
+    const files = Array.from(e.target.files || []);
+    processBulkFiles(files);
+    e.target.value = "";
+  };
+
+  const handleBulkDrop = (e) => {
+    e.preventDefault();
+    const files = Array.from(e.dataTransfer.files || []);
+    processBulkFiles(files);
+  };
+
+  const handleReassignProduct = (matchId, productKey) => {
+    setBulkMatches((prev) =>
+      prev.map((item) => {
+        if (item.id !== matchId) return item;
+        const target = productKey
+          ? products.find((p) => `${p.product_type}___${p.id}` === productKey)
+          : null;
+        return {
+          ...item,
+          matchedProduct: target || null,
+          matchReason: target ? "Manual Selection" : "Unmatched",
+          status: target ? "matched" : "unmatched",
+        };
+      })
+    );
+  };
+
+  const handleRemoveBulkItem = (matchId) => {
+    setBulkMatches((prev) => prev.filter((item) => item.id !== matchId));
+  };
+
+  const handleStartBulkUpload = async () => {
+    const readyItems = bulkMatches.filter((item) => item.matchedProduct);
+    if (readyItems.length === 0) {
+      setError("No matched products to upload.");
+      return;
+    }
+
+    const productMap = new Map();
+    readyItems.forEach((item) => {
+      // Must use compound key: product_type + id (because id alone is not unique across different tables!)
+      const pKey = `${item.matchedProduct.product_type}___${item.matchedProduct.id}`;
+      if (!productMap.has(pKey)) {
+        productMap.set(pKey, {
+          product: item.matchedProduct,
+          files: [],
+        });
+      }
+      productMap.get(pKey).files.push(item.file);
+    });
+
+    const tasks = Array.from(productMap.values());
+    setBulkStep("uploading");
+    setBulkProgress({
+      current: 0,
+      total: tasks.length,
+      status: `Starting upload for ${tasks.length} product(s)...`,
+      successCount: 0,
+      errorCount: 0,
+      log: [],
+    });
+
+    let succ = 0;
+    let fail = 0;
+    const logs = [];
+
+    for (let i = 0; i < tasks.length; i++) {
+      const { product, files } = tasks[i];
+      setBulkProgress((prev) => ({
+        ...prev,
+        current: i + 1,
+        status: `Uploading images for "${product.productname}" (${i + 1}/${tasks.length})...`,
+      }));
+
+      try {
+        await uploadSingleProductImage(product, files, bulkMode, API_BASE_URL);
+        succ++;
+        logs.push({
+          id: `${product.product_type}-${product.id}`,
+          name: product.productname,
+          status: "success",
+          message: `Updated with ${files.length} image(s)`,
+        });
+      } catch (uploadErr) {
+        fail++;
+        logs.push({
+          id: `${product.product_type}-${product.id}`,
+          name: product.productname,
+          status: "error",
+          message: uploadErr.message || "Upload failed",
+        });
+      }
+
+      setBulkProgress((prev) => ({
+        ...prev,
+        successCount: succ,
+        errorCount: fail,
+        log: [...logs],
+      }));
+    }
+
+    await fetchProducts();
+    setBulkStep("done");
+  };
+
+
+  const closeBulkModal = () => {
+    setBulkModalIsOpen(false);
+    setBulkStep("select");
+    bulkMatches.forEach((m) => { if (m.previewUrl) URL.revokeObjectURL(m.previewUrl); });
+    setBulkMatches([]);
+    setBulkSearch("");
+    setBulkFilterStatus("all");
+    setBulkProgress({
+      current: 0,
+      total: 0,
+      status: "",
+      successCount: 0,
+      errorCount: 0,
+      log: [],
+    });
+  };
 
   // ── loader states ─────────────────────────────────────────────────────────
   const [pageLoading, setPageLoading] = useState(true);
@@ -509,6 +719,507 @@ export default function List() {
     </div>
   );
 
+  const renderDownloadModal = () => {
+    const totalAllWithImages = products.filter((p) => p.images?.length > 0).length;
+    const totalFilteredWithImages = filteredProducts.filter((p) => p.images?.length > 0).length;
+    const selectedCount = downloadScope === "filtered" ? totalFilteredWithImages : totalAllWithImages;
+
+    return (
+      <div className="bg-white rounded-2xl p-6 sm:p-7 max-w-lg w-full shadow-2xl relative overflow-hidden">
+        <div className="flex items-center justify-between pb-4 border-b border-gray-100">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-purple-100 text-purple-600 flex items-center justify-center text-lg shadow-sm">
+              <FaDownload />
+            </div>
+            <div>
+              <h2 className="text-base font-bold text-gray-900">Download Product Images</h2>
+              <p className="text-xs text-gray-400 mt-0.5">Export images named with product names into a ZIP archive</p>
+            </div>
+          </div>
+          {!downloadProgress.active && (
+            <button onClick={closeDownloadModal} className="text-gray-400 hover:text-gray-600 p-1.5 rounded-lg hover:bg-gray-100 text-lg">×</button>
+          )}
+        </div>
+
+        {downloadProgress.active ? (
+          <div className="py-8 px-2 space-y-4">
+            <div className="flex justify-between items-center text-sm font-semibold text-gray-700">
+              <span className="flex items-center gap-2">
+                <Spinner size="sm" color="text-purple-600" />
+                {downloadProgress.status}
+              </span>
+              <span className="text-purple-600 font-bold">
+                {downloadProgress.total > 0
+                  ? `${Math.round((downloadProgress.current / downloadProgress.total) * 100)}%`
+                  : ''}
+              </span>
+            </div>
+            <div className="w-full bg-gray-100 rounded-full h-3 overflow-hidden">
+              <div
+                className="bg-purple-600 h-full rounded-full transition-all duration-300 ease-out"
+                style={{
+                  width: `${downloadProgress.total > 0 ? (downloadProgress.current / downloadProgress.total) * 100 : 0}%`,
+                }}
+              />
+            </div>
+            <p className="text-xs text-gray-400 text-center">
+              Processed {downloadProgress.current} of {downloadProgress.total} images. Generating ZIP...
+            </p>
+          </div>
+        ) : (
+          <div className="py-4 space-y-5">
+            {downloadProgress.error && (
+              <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-xs text-red-600 font-medium">
+                {downloadProgress.error}
+              </div>
+            )}
+
+            {/* Scope Selection */}
+            <div>
+              <label className={lc}>Products to Export</label>
+              <div className="grid grid-cols-2 gap-2.5 mt-1">
+                <button
+                  type="button"
+                  onClick={() => setDownloadScope("all")}
+                  className={`p-3 rounded-xl border text-left transition-all cursor-pointer ${
+                    downloadScope === "all"
+                      ? "border-purple-500 bg-purple-50/50 ring-2 ring-purple-100"
+                      : "border-gray-200 hover:border-gray-300 bg-white"
+                  }`}
+                >
+                  <p className="text-xs font-bold text-gray-800">All Products</p>
+                  <p className="text-[11px] text-gray-500 mt-0.5">{totalAllWithImages} with images ({products.length} total)</p>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setDownloadScope("filtered")}
+                  className={`p-3 rounded-xl border text-left transition-all cursor-pointer ${
+                    downloadScope === "filtered"
+                      ? "border-purple-500 bg-purple-50/50 ring-2 ring-purple-100"
+                      : "border-gray-200 hover:border-gray-300 bg-white"
+                  }`}
+                >
+                  <p className="text-xs font-bold text-gray-800">Filtered Only</p>
+                  <p className="text-[11px] text-gray-500 mt-0.5">{totalFilteredWithImages} with images ({filteredProducts.length} in filter)</p>
+                </button>
+              </div>
+            </div>
+
+            {/* Naming Convention */}
+            <div>
+              <label className={lc}>File Naming Format</label>
+              <div className="space-y-2 mt-1">
+                {[
+                  { id: "name", label: "Product Name (Recommended)", example: "10 CM Electric Sparklers.jpg" },
+                  { id: "serial_name", label: "Serial Number + Product Name", example: "001 - 10 CM Electric Sparklers.jpg" },
+                  { id: "serial", label: "Serial Number Only", example: "001.jpg" },
+                ].map((opt) => (
+                  <label
+                    key={opt.id}
+                    className={`flex items-start gap-3 p-2.5 rounded-lg border cursor-pointer transition-all ${
+                      downloadNaming === opt.id
+                        ? "border-purple-400 bg-purple-50/30"
+                        : "border-gray-200 hover:bg-gray-50"
+                    }`}
+                  >
+                    <input
+                      type="radio"
+                      name="downloadNaming"
+                      value={opt.id}
+                      checked={downloadNaming === opt.id}
+                      onChange={() => setDownloadNaming(opt.id)}
+                      className="mt-0.5 text-purple-600 focus:ring-purple-400"
+                    />
+                    <div className="text-xs">
+                      <span className="font-semibold text-gray-800">{opt.label}</span>
+                      <p className="text-[11px] text-gray-400 font-mono mt-0.5">{opt.example}</p>
+                    </div>
+                  </label>
+                ))}
+              </div>
+            </div>
+
+            {/* Manifest Checkbox */}
+            <div className="pt-1">
+              <label className="flex items-center gap-2.5 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={downloadIncludeCsv}
+                  onChange={(e) => setDownloadIncludeCsv(e.target.checked)}
+                  className="rounded border-gray-300 text-purple-600 focus:ring-purple-400 h-4 w-4"
+                />
+                <span className="text-xs text-gray-700 font-medium">
+                  Include <code className="text-[11px] bg-gray-100 px-1 py-0.5 rounded text-gray-800 font-mono">manifest.csv</code> mapping product codes & names to images
+                </span>
+              </label>
+            </div>
+
+            <div className="flex justify-end gap-2 pt-3 border-t border-gray-100">
+              <button type="button" onClick={closeDownloadModal} className={btnGhost}>Cancel</button>
+              <button
+                type="button"
+                disabled={selectedCount === 0}
+                onClick={handleStartZipDownload}
+                className={`flex items-center gap-2 h-9 px-4 rounded-lg text-sm font-semibold text-white shadow-sm transition-all ${
+                  selectedCount === 0 ? "bg-gray-300 cursor-not-allowed" : "bg-purple-600 hover:bg-purple-700 cursor-pointer"
+                }`}
+              >
+                <FaDownload className="h-3.5 w-3.5" /> Download ZIP ({selectedCount} Products)
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  const renderBulkUploadModal = () => {
+    const matchedCount = bulkMatches.filter((m) => m.matchedProduct).length;
+    const unmatchedCount = bulkMatches.filter((m) => !m.matchedProduct).length;
+
+    const filteredMatches = bulkMatches.filter((item) => {
+      if (bulkFilterStatus === "matched" && !item.matchedProduct) return false;
+      if (bulkFilterStatus === "unmatched" && item.matchedProduct) return false;
+      if (bulkSearch) {
+        const q = bulkSearch.toLowerCase();
+        const fnameMatch = item.filename.toLowerCase().includes(q);
+        const pNameMatch = item.matchedProduct?.productname?.toLowerCase().includes(q);
+        const pSnMatch = item.matchedProduct?.serial_number?.toLowerCase().includes(q);
+        return fnameMatch || pNameMatch || pSnMatch;
+      }
+      return true;
+    });
+
+    return (
+      <div className="bg-white rounded-2xl p-6 sm:p-7 max-w-4xl w-full shadow-2xl max-h-[90vh] flex flex-col relative overflow-hidden">
+        {/* Header */}
+        <div className="flex items-center justify-between pb-4 border-b border-gray-100 flex-shrink-0">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-blue-100 text-blue-600 flex items-center justify-center text-lg shadow-sm">
+              <FaUpload />
+            </div>
+            <div>
+              <h2 className="text-base font-bold text-gray-900">Bulk Upload Product Images</h2>
+              <p className="text-xs text-gray-400 mt-0.5">Upload edited images (ZIP archive or multiple files) to update products</p>
+            </div>
+          </div>
+          {bulkStep !== "uploading" && (
+            <button onClick={closeBulkModal} className="text-gray-400 hover:text-gray-600 p-1.5 rounded-lg hover:bg-gray-100 text-lg">×</button>
+          )}
+        </div>
+
+        {/* Body content based on bulkStep */}
+        {bulkStep === "select" && (
+          <div className="py-6 flex-1 flex flex-col justify-center">
+            {bulkProcessingFiles ? (
+              <div className="py-12 flex flex-col items-center justify-center gap-3">
+                <Spinner size="lg" color="text-blue-600" />
+                <p className="text-sm font-semibold text-gray-700">Reading files & matching products...</p>
+              </div>
+            ) : (
+              <div
+                onDragOver={(e) => e.preventDefault()}
+                onDrop={handleBulkDrop}
+                className="border-2 border-dashed border-blue-200 hover:border-blue-400 bg-blue-50/30 hover:bg-blue-50/60 rounded-2xl p-8 sm:p-12 text-center transition-all cursor-pointer flex flex-col items-center justify-center"
+                onClick={() => document.getElementById("bulk-file-input")?.click()}
+              >
+                <input
+                  id="bulk-file-input"
+                  type="file"
+                  multiple
+                  accept=".zip,image/jpeg,image/jpg,image/png,image/webp,image/gif"
+                  onChange={handleBulkFileChange}
+                  className="hidden"
+                />
+                <div className="w-16 h-16 rounded-2xl bg-blue-100 text-blue-600 flex items-center justify-center text-2xl mb-4 shadow-sm">
+                  <FaFileArchive />
+                </div>
+                <h3 className="text-base font-bold text-gray-800 mb-1">
+                  Drag and drop a <span className="text-blue-600 font-extrabold">.ZIP</span> archive or multiple image files here
+                </h3>
+                <p className="text-xs text-gray-500 max-w-md mx-auto mb-5">
+                  Upload the ZIP file of images you downloaded and edited, or select multiple JPG/PNG images. Files will be matched automatically by product name or serial number!
+                </p>
+                <div className="flex gap-3">
+                  <button
+                    type="button"
+                    className="h-9 px-5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold shadow-sm transition-all cursor-pointer"
+                  >
+                    Select ZIP or Images
+                  </button>
+                </div>
+              </div>
+            )}
+            {error && <p className="text-xs text-red-500 text-center mt-3">{error}</p>}
+          </div>
+        )}
+
+        {bulkStep === "preview" && (
+          <div className="py-4 flex-1 flex flex-col overflow-hidden space-y-4">
+            {/* Top Toolbar */}
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 bg-gray-50 p-3 rounded-xl border border-gray-100 flex-shrink-0">
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-bold text-gray-700">{bulkMatches.length} Total Files:</span>
+                <span className="px-2 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-100 text-emerald-700">
+                  ✓ {matchedCount} Matched
+                </span>
+                {unmatchedCount > 0 && (
+                  <span className="px-2 py-0.5 rounded-full text-[11px] font-semibold bg-amber-100 text-amber-700">
+                    ⚠ {unmatchedCount} Unmatched
+                  </span>
+                )}
+              </div>
+
+              {/* Mode Toggle */}
+              <div className="flex items-center gap-3 text-xs">
+                <span className="text-gray-500 font-medium">Update Mode:</span>
+                <label className="flex items-center gap-1.5 cursor-pointer">
+                  <input
+                    type="radio"
+                    name="bulkMode"
+                    value="replace"
+                    checked={bulkMode === "replace"}
+                    onChange={() => setBulkMode("replace")}
+                    className="text-blue-600"
+                  />
+                  <span className="font-semibold text-gray-800">Replace existing</span>
+                </label>
+                <label className="flex items-center gap-1.5 cursor-pointer">
+                  <input
+                    type="radio"
+                    name="bulkMode"
+                    value="append"
+                    checked={bulkMode === "append"}
+                    onChange={() => setBulkMode("append")}
+                    className="text-blue-600"
+                  />
+                  <span className="font-semibold text-gray-800">Append</span>
+                </label>
+              </div>
+            </div>
+
+            {/* Filter Bar */}
+            <div className="flex flex-col sm:flex-row gap-2 justify-between items-center flex-shrink-0">
+              <div className="flex gap-1.5 w-full sm:w-auto">
+                {["all", "matched", "unmatched"].map((tab) => (
+                  <button
+                    key={tab}
+                    type="button"
+                    onClick={() => setBulkFilterStatus(tab)}
+                    className={`px-3 py-1 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+                      bulkFilterStatus === tab
+                        ? "bg-blue-600 text-white"
+                        : "bg-gray-100 hover:bg-gray-200 text-gray-600"
+                    }`}
+                  >
+                    {capitalize(tab)} (
+                    {tab === "all" ? bulkMatches.length : tab === "matched" ? matchedCount : unmatchedCount}
+                    )
+                  </button>
+                ))}
+              </div>
+              <div className="relative w-full sm:w-64">
+                <input
+                  type="text"
+                  placeholder="Search file or product name..."
+                  value={bulkSearch}
+                  onChange={(e) => setBulkSearch(e.target.value)}
+                  className="w-full pl-8 pr-3 py-1.5 rounded-lg border border-gray-200 text-xs outline-none focus:border-blue-400"
+                />
+                <FaSearch className="absolute left-2.5 top-2.5 text-gray-400 text-xs" />
+              </div>
+            </div>
+
+            {/* Preview List */}
+            <div className="flex-1 overflow-y-auto border border-gray-200 rounded-xl divide-y divide-gray-100 max-h-96">
+              {filteredMatches.length === 0 ? (
+                <div className="p-8 text-center text-xs text-gray-400">No images match your filter</div>
+              ) : (
+                filteredMatches.map((item) => (
+                  <div key={item.id} className="p-3 flex items-center justify-between gap-3 hover:bg-gray-50/80 transition-colors">
+                    {/* Thumbnail & File name */}
+                    <div className="flex items-center gap-3 min-w-0 flex-1">
+                      <img
+                        src={item.previewUrl}
+                        alt={item.filename}
+                        className="w-12 h-12 rounded-lg object-cover border border-gray-200 bg-gray-50 flex-shrink-0"
+                      />
+                      <div className="min-w-0 flex-1">
+                        <p className="text-xs font-semibold text-gray-800 truncate" title={item.filename}>
+                          {item.filename}
+                        </p>
+                        <div className="flex items-center gap-2 mt-0.5">
+                          {item.matchedProduct ? (
+                            <span className="text-[10px] font-semibold text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded">
+                              Matched ({item.matchReason})
+                            </span>
+                          ) : (
+                            <span className="text-[10px] font-semibold text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded">
+                              Unmatched
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Matched product / Product selector */}
+                    <div className="w-64 sm:w-80 flex-shrink-0">
+                      <select
+                        value={item.matchedProduct ? `${item.matchedProduct.product_type}___${item.matchedProduct.id}` : ""}
+                        onChange={(e) => handleReassignProduct(item.id, e.target.value)}
+                        className="w-full text-xs rounded-lg border border-gray-200 px-2 py-1.5 bg-white text-gray-800 outline-none focus:border-blue-400 cursor-pointer"
+                      >
+                        <option value="">-- Assign to Product --</option>
+                        {products.map((p) => {
+                          const pKey = `${p.product_type}___${p.id}`;
+                          return (
+                            <option key={pKey} value={pKey}>
+                              [{p.serial_number}] {p.productname} ({capitalize(p.product_type)})
+                            </option>
+                          );
+                        })}
+                      </select>
+
+                      {item.matchedProduct && (
+                        <p className="text-[10px] text-gray-400 mt-0.5 truncate">
+                          Currently: {item.matchedProduct.productname} (S/N: {item.matchedProduct.serial_number})
+                        </p>
+                      )}
+                    </div>
+
+                    {/* Remove Action */}
+                    <button
+                      type="button"
+                      title="Remove from upload"
+                      onClick={() => handleRemoveBulkItem(item.id)}
+                      className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors flex-shrink-0 cursor-pointer"
+                    >
+                      <FaTimes className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                ))
+              )}
+            </div>
+
+            {/* Bottom Actions */}
+            <div className="flex justify-between items-center pt-3 border-t border-gray-100 flex-shrink-0">
+              <button
+                type="button"
+                onClick={() => {
+                  setBulkMatches([]);
+                  setBulkStep("select");
+                }}
+                className={btnGhost}
+              >
+                Re-select Files
+              </button>
+              <div className="flex gap-2">
+                <button type="button" onClick={closeBulkModal} className={btnGhost}>Cancel</button>
+                <button
+                  type="button"
+                  disabled={matchedCount === 0}
+                  onClick={handleStartBulkUpload}
+                  className={`flex items-center gap-2 h-9 px-4 rounded-lg text-sm font-semibold text-white shadow-sm transition-all ${
+                    matchedCount === 0 ? "bg-gray-300 cursor-not-allowed" : "bg-blue-600 hover:bg-blue-700 cursor-pointer"
+                  }`}
+                >
+                  <FaUpload className="h-3.5 w-3.5" /> Upload & Update {matchedCount} Product(s)
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {bulkStep === "uploading" && (
+          <div className="py-8 flex-1 flex flex-col justify-center space-y-5">
+            <div className="flex justify-between items-center text-sm font-semibold text-gray-700">
+              <span className="flex items-center gap-2">
+                <Spinner size="sm" color="text-blue-600" />
+                {bulkProgress.status}
+              </span>
+              <span className="text-blue-600 font-bold">
+                {bulkProgress.total > 0
+                  ? `${Math.round((bulkProgress.current / bulkProgress.total) * 100)}%`
+                  : ''}
+              </span>
+            </div>
+            <div className="w-full bg-gray-100 rounded-full h-3 overflow-hidden">
+              <div
+                className="bg-blue-600 h-full rounded-full transition-all duration-300 ease-out"
+                style={{
+                  width: `${bulkProgress.total > 0 ? (bulkProgress.current / bulkProgress.total) * 100 : 0}%`,
+                }}
+              />
+            </div>
+            <p className="text-xs text-gray-400 text-center">
+              Updating products on server... Please keep this window open.
+            </p>
+
+            {/* Live activity log */}
+            <div className="max-h-48 overflow-y-auto rounded-xl border border-gray-100 bg-gray-50 p-3 space-y-1 text-xs">
+              {bulkProgress.log.map((entry, idx) => (
+                <div key={idx} className="flex items-center gap-2">
+                  {entry.status === "success" ? (
+                    <FaCheckCircle className="text-emerald-500 flex-shrink-0" />
+                  ) : (
+                    <FaTimesCircle className="text-red-500 flex-shrink-0" />
+                  )}
+                  <span className="font-semibold text-gray-800">{entry.name}:</span>
+                  <span className={entry.status === "success" ? "text-gray-500" : "text-red-500"}>
+                    {entry.message}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {bulkStep === "done" && (
+          <div className="py-8 flex-1 flex flex-col items-center justify-center text-center space-y-4">
+            <div className="w-16 h-16 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center text-3xl shadow-sm">
+              <FaCheckCircle />
+            </div>
+            <h3 className="text-lg font-bold text-gray-900">Bulk Upload Completed!</h3>
+            <p className="text-xs text-gray-500 max-w-sm">
+              Successfully updated <span className="font-bold text-emerald-600">{bulkProgress.successCount}</span> products with new images.
+              {bulkProgress.errorCount > 0 && (
+                <span className="text-red-500 block mt-1">
+                  {bulkProgress.errorCount} products encountered errors. Check log below.
+                </span>
+              )}
+            </p>
+
+            {bulkProgress.log.length > 0 && (
+              <div className="w-full max-h-40 overflow-y-auto rounded-xl border border-gray-100 bg-gray-50 p-3 text-left space-y-1 text-xs">
+                {bulkProgress.log.map((entry, idx) => (
+                  <div key={idx} className="flex items-center gap-2">
+                    {entry.status === "success" ? (
+                      <FaCheckCircle className="text-emerald-500 flex-shrink-0" />
+                    ) : (
+                      <FaTimesCircle className="text-red-500 flex-shrink-0" />
+                    )}
+                    <span className="font-semibold text-gray-800">{entry.name}:</span>
+                    <span className={entry.status === "success" ? "text-gray-500" : "text-red-500"}>
+                      {entry.message}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            <button
+              type="button"
+              onClick={closeBulkModal}
+              className="h-9 px-6 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold shadow-sm transition-all cursor-pointer"
+            >
+              Done & Refresh Catalogue
+            </button>
+          </div>
+        )}
+      </div>
+    );
+  };
+
   const renderModalForm = (isEdit) => (
     <div className="bg-white rounded-xl p-6 max-w-2xl w-full shadow-2xl max-h-screen overflow-y-auto">
       <h2 className="text-base font-bold text-gray-800 mb-5 text-center">{isEdit ? "Edit Product" : "Add Product"}</h2>
@@ -645,8 +1356,22 @@ export default function List() {
                       onChange={(e) => setSearchQuery(e.target.value)} className={ic + " w-52"} />
                   </div>
                 </div>
-                <div className="flex gap-2">
+                <div className="flex flex-wrap items-center gap-2">
                   <button onClick={() => setAddModalIsOpen(true)} className={btnPrimary}>Add Product</button>
+                  <button
+                    onClick={() => setDownloadModalIsOpen(true)}
+                    className="flex items-center gap-1.5 h-9 px-3 rounded-lg border border-purple-200 bg-purple-50 hover:bg-purple-100 text-purple-700 text-sm font-semibold transition-all cursor-pointer"
+                    title="Download images of all products with product names"
+                  >
+                    <FaDownload className="h-3.5 w-3.5" /> Download Images
+                  </button>
+                  <button
+                    onClick={() => setBulkModalIsOpen(true)}
+                    className="flex items-center gap-1.5 h-9 px-3 rounded-lg border border-blue-200 bg-blue-50 hover:bg-blue-100 text-blue-700 text-sm font-semibold transition-all cursor-pointer"
+                    title="Bulk upload edited product images"
+                  >
+                    <FaUpload className="h-3.5 w-3.5" /> Bulk Upload Images
+                  </button>
                   <button onClick={downloadPDF} className="h-9 px-4 rounded-lg border border-gray-200 bg-white hover:bg-gray-50 text-gray-700 text-sm font-semibold transition-all cursor-pointer">Pricelist 2025</button>
                 </div>
               </div>
@@ -700,7 +1425,7 @@ export default function List() {
                               </label>
                             </div>
                           </div>
-                          <div className="flex gap-2 pt-1 border-t border-gray-100">
+                          <div className="flex gap-1.5 pt-1 border-t border-gray-100">
                             <button onClick={() => { setSelectedProduct(product); setModalIsOpen(true); }}
                               className="flex-1 flex items-center justify-center gap-1 py-1.5 rounded-lg bg-blue-50 hover:bg-blue-100 text-blue-600 text-xs font-semibold transition-colors">
                               <FaEye className="h-3 w-3" /> View
@@ -712,6 +1437,15 @@ export default function List() {
                             }} className="flex-1 flex items-center justify-center gap-1 py-1.5 rounded-lg bg-emerald-50 hover:bg-emerald-100 text-emerald-600 text-xs font-semibold transition-colors">
                               <FaEdit className="h-3 w-3" /> Edit
                             </button>
+                            {product.images?.length > 0 && (
+                              <button
+                                title={`Download image: ${product.productname}`}
+                                onClick={() => handleDownloadSingle(product)}
+                                className="flex items-center justify-center px-2 py-1.5 rounded-lg bg-purple-50 hover:bg-purple-100 text-purple-600 text-xs font-semibold transition-colors"
+                              >
+                                <FaDownload className="h-3 w-3" />
+                              </button>
+                            )}
                             <button onClick={() => openDeleteModal(product)}
                               className="flex-1 flex items-center justify-center gap-1 py-1.5 rounded-lg bg-red-50 hover:bg-red-100 text-red-600 text-xs font-semibold transition-colors">
                               <FaTrash className="h-3 w-3" /> Delete
@@ -830,10 +1564,24 @@ export default function List() {
 
       {/* Rate Change Modal */}
       <Modal isOpen={rateChangeModalIsOpen} onRequestClose={closeModal}
-        className="fixed inset-0 flex items-center justify-center p-4"
-        overlayClassName="fixed inset-0 bg-black/40 backdrop-blur-sm">
+        className="fixed inset-0 flex items-center justify-center p-4 z-50"
+        overlayClassName="fixed inset-0 bg-black/40 backdrop-blur-sm z-50">
         {renderRateChangeModal()}
+      </Modal>
+
+      {/* Download Product Images Modal */}
+      <Modal isOpen={downloadModalIsOpen} onRequestClose={closeDownloadModal}
+        className="fixed inset-0 flex items-center justify-center p-4 z-50"
+        overlayClassName="fixed inset-0 bg-black/40 backdrop-blur-sm z-50">
+        {renderDownloadModal()}
+      </Modal>
+
+      {/* Bulk Upload Product Images Modal */}
+      <Modal isOpen={bulkModalIsOpen} onRequestClose={closeBulkModal}
+        className="fixed inset-0 flex items-center justify-center p-4 z-50"
+        overlayClassName="fixed inset-0 bg-black/40 backdrop-blur-sm z-50">
+        {renderBulkUploadModal()}
       </Modal>
     </div>
   );
-}
+}
