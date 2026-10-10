@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import axios from 'axios';
 import Modal from 'react-modal';
 import { debounce } from 'lodash';
@@ -230,16 +230,21 @@ const QuotationTable = ({
 
   const total = parseFloat(calculateTotal(cart, additionalDiscount));
 
-  const filteredProducts = productQuery.trim()
-    ? products.filter((p) => {
-        const q = productQuery.toLowerCase();
-        return (
-          (p.productname || '').toLowerCase().includes(q) ||
-          (p.product_type || '').toLowerCase().includes(q) ||
-          (p.serial_number || '').toLowerCase().includes(q)
-        );
-      })
-    : products;
+  const filteredProducts = useMemo(() => {
+    if (!productQuery.trim()) return products;
+    const q = productQuery.toLowerCase();
+    return products.filter((p) => {
+      return (
+        (p.productname || '').toLowerCase().includes(q) ||
+        (p.product_type || '').toLowerCase().includes(q) ||
+        (p.serial_number || '').toLowerCase().includes(q)
+      );
+    });
+  }, [products, productQuery]);
+
+  const displayedProducts = useMemo(() => {
+    return filteredProducts.slice(0, 48);
+  }, [filteredProducts]);
 
   const handleProductClick = (product) => {
     addToCart(isModal, null, product);
@@ -263,39 +268,47 @@ const QuotationTable = ({
         {showDropdown && (
           <div className="mt-2 border border-gray-200 rounded-xl max-h-80 overflow-y-auto bg-white shadow-2xl absolute z-30 w-full p-3">
             {filteredProducts.length ? (
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-2">
-                {filteredProducts.map((p) => {
-                  const initDisc = parseFloat(p.discount) || 0;
-                  return (
-                    <button
-                      key={`${p.id}-${p.product_type}`}
-                      type="button"
-                      onClick={() => handleProductClick(p)}
-                      className="text-left p-2.5 rounded-lg border border-gray-100 hover:border-blue-300 hover:bg-blue-50/70 transition-all duration-150 flex flex-col justify-between group bg-white shadow-xs"
-                    >
-                      <div className="w-full">
-                        <div className="flex items-start justify-between gap-1 mb-1">
-                          <span className="text-xs font-bold text-gray-800 line-clamp-1 group-hover:text-blue-700" title={p.productname}>
-                            {p.serial_number ? `[${p.serial_number}] ` : ''}{p.productname}
-                          </span>
-                          {initDisc > 0 && (
-                            <span className="text-[10px] font-bold bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded flex-shrink-0">
-                              {initDisc}%
+              <>
+                {filteredProducts.length > 48 && (
+                  <div className="p-2 mb-2 bg-blue-50/80 border border-blue-100 rounded-lg text-center text-xs text-blue-700 font-semibold flex items-center justify-between">
+                    <span>Showing 48 of {filteredProducts.length} matching products</span>
+                    <span className="text-[11px] text-blue-500 font-normal">Type product name / code to narrow down</span>
+                  </div>
+                )}
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-2">
+                  {displayedProducts.map((p) => {
+                    const initDisc = parseFloat(p.discount) || 0;
+                    return (
+                      <button
+                        key={`${p.id}-${p.product_type}`}
+                        type="button"
+                        onClick={() => handleProductClick(p)}
+                        className="text-left p-2.5 rounded-lg border border-gray-100 hover:border-blue-300 hover:bg-blue-50/70 transition-all duration-150 flex flex-col justify-between group bg-white shadow-xs"
+                      >
+                        <div className="w-full">
+                          <div className="flex items-start justify-between gap-1 mb-1">
+                            <span className="text-xs font-bold text-gray-800 line-clamp-1 group-hover:text-blue-700" title={p.productname}>
+                              {p.serial_number ? `[${p.serial_number}] ` : ''}{p.productname}
                             </span>
-                          )}
+                            {initDisc > 0 && (
+                              <span className="text-[10px] font-bold bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded flex-shrink-0">
+                                {initDisc}%
+                              </span>
+                            )}
+                          </div>
+                          <div className="text-[10px] text-gray-400 capitalize truncate">
+                            {(p.product_type || '').replace(/_/g, ' ')}
+                          </div>
                         </div>
-                        <div className="text-[10px] text-gray-400 capitalize truncate">
-                          {(p.product_type || '').replace(/_/g, ' ')}
+                        <div className="mt-2 flex items-center justify-between pt-1.5 border-t border-gray-50 w-full">
+                          <span className="text-xs font-bold text-blue-600">₹{getEffectivePrice(p)}</span>
+                          <span className="text-[10px] font-semibold text-gray-400">/ {p.per || 'Unit'}</span>
                         </div>
-                      </div>
-                      <div className="mt-2 flex items-center justify-between pt-1.5 border-t border-gray-50 w-full">
-                        <span className="text-xs font-bold text-blue-600">₹{getEffectivePrice(p)}</span>
-                        <span className="text-[10px] font-semibold text-gray-400">/ {p.per || 'Unit'}</span>
-                      </div>
-                    </button>
-                  );
-                })}
-              </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              </>
             ) : (
               <div className="px-3 py-6 text-sm text-gray-400 text-center">No matching products found</div>
             )}
@@ -446,22 +459,27 @@ const FormFields = ({
   handleSubmit, closeModal, modalAdditionalDiscount, setModalAdditionalDiscount,
   modalChangeDiscount, setModalChangeDiscount, openNewProductModal,
   modalLastAddedProduct, setModalLastAddedProduct,
-}) => (
-  <div className="space-y-5">
-    <div>
-      <FieldLabel>Customer</FieldLabel>
-      <Select
-        value={modalSelectedCustomer}
-        onChange={setModalSelectedCustomer}
-        options={customers.map((c) => ({
-          value: c.id.toString(),
-          label: `${c.name} (${c.customer_type === "Customer of Selected Agent" ? "Customer - Agent" : c.customer_type || "User"} - ${c.district || "N/A"})`,
-        }))}
-        placeholder="Search for a customer…"
-        isClearable
-        styles={selectStyles}
-      />
-    </div>
+}) => {
+  const customerOptions = useMemo(() => {
+    return customers.map((c) => ({
+      value: c.id.toString(),
+      label: `${c.name} (${c.customer_type === "Customer of Selected Agent" ? "Customer - Agent" : c.customer_type || "User"} - ${c.district || "N/A"})`,
+    }));
+  }, [customers]);
+
+  return (
+    <div className="space-y-5">
+      <div>
+        <FieldLabel>Customer</FieldLabel>
+        <Select
+          value={modalSelectedCustomer}
+          onChange={setModalSelectedCustomer}
+          options={customerOptions}
+          placeholder="Search for a customer…"
+          isClearable
+          styles={selectStyles}
+        />
+      </div>
     <QuotationTableErrorBoundary>
       <QuotationTable
         cart={modalCart} setCart={setModalCart} setModalCart={setModalCart}
@@ -499,7 +517,8 @@ const FormFields = ({
       </button>
     </div>
   </div>
-);
+  );
+};
 
 const NewProductModal = ({ isOpen, onClose, onSubmit, newProductData, setNewProductData }) => {
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -717,6 +736,13 @@ export default function Direct() {
   }, 300), [quotations]);
 
   const handleSearchChange = (e) => { const query = e.target.value; setSearchQuery(query); handleSearch(query); };
+
+  const customerOptions = useMemo(() => {
+    return customers.map(c => ({
+      value: c.id.toString(),
+      label: `${c.name} (${c.customer_type === "Customer of Selected Agent" ? "Customer - Agent" : c.customer_type || "User"} - ${c.district || "N/A"})`
+    }));
+  }, [customers]);
 
   const exportToExcel = () => {
     try {
@@ -964,11 +990,17 @@ export default function Direct() {
       setSuccessMessage("Quotation created successfully!"); setShowSuccess(true); setTimeout(() => setShowSuccess(false), 3000);
       setQuotations(prev => [{ ...payload, quotation_id: newQuotationId, created_at: new Date().toISOString(), customer_name: customer.name, total: payload.total }, ...prev]);
       setFilteredQuotations(prev => [{ ...payload, quotation_id: newQuotationId, created_at: new Date().toISOString(), customer_name: customer.name, total: payload.total }, ...prev]);
-      const pdfRes = await axios.get(`${API_BASE_URL}/api/direct/quotation/${newQuotationId}`, { responseType: "blob" });
-      const blobUrl = window.URL.createObjectURL(new Blob([pdfRes.data]));
-      const safeName = (customer.name || "unknown").toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "");
-      setPdfUrl(blobUrl); setPdfFileName(`${safeName}-${newQuotationId}-quotation.pdf`); setPdfConfirmOpen(true);
       setCart([]); setSelectedCustomer(null); setSelectedProduct(null); setAdditionalDiscount(0); setChangeDiscount(0); setLastAddedProduct(null); setQuotationId(null); setIsQuotationCreated(false);
+      setCreateLoading(false);
+
+      try {
+        const pdfRes = await axios.get(`${API_BASE_URL}/api/direct/quotation/${newQuotationId}`, { responseType: "blob" });
+        const blobUrl = window.URL.createObjectURL(new Blob([pdfRes.data]));
+        const safeName = (customer.name || "unknown").toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "");
+        setPdfUrl(blobUrl); setPdfFileName(`${safeName}-${newQuotationId}-quotation.pdf`); setPdfConfirmOpen(true);
+      } catch (pdfErr) {
+        console.warn("Could not pre-fetch PDF preview:", pdfErr.message);
+      }
     } catch (err) { console.error("Create quotation error:", err); setError(`Failed to create quotation: ${err.message}`); }
     finally { setCreateLoading(false); }
   };
@@ -1011,11 +1043,17 @@ export default function Direct() {
       setSuccessMessage("Quotation updated successfully!"); setShowSuccess(true); setTimeout(() => setShowSuccess(false), 3000);
       setQuotations(prev => prev.map(q => q.quotation_id === quotationId ? { ...q, ...payload, customer_name: customer.name, total: payload.total } : q));
       setFilteredQuotations(prev => prev.map(q => q.quotation_id === quotationId ? { ...q, ...payload, customer_name: customer.name, total: payload.total } : q));
-      const pdfRes = await axios.get(`${API_BASE_URL}/api/direct/quotation/${updatedId}`, { responseType: "blob" });
-      const blobUrl = window.URL.createObjectURL(new Blob([pdfRes.data]));
-      const safeName = (customer.name || "unknown").toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "");
-      setPdfUrl(blobUrl); setPdfFileName(`${safeName}-${updatedId}-quotation.pdf`); setPdfConfirmOpen(true);
       closeModal();
+      setModalSubmitLoading(false);
+
+      try {
+        const pdfRes = await axios.get(`${API_BASE_URL}/api/direct/quotation/${updatedId}`, { responseType: "blob" });
+        const blobUrl = window.URL.createObjectURL(new Blob([pdfRes.data]));
+        const safeName = (customer.name || "unknown").toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "");
+        setPdfUrl(blobUrl); setPdfFileName(`${safeName}-${updatedId}-quotation.pdf`); setPdfConfirmOpen(true);
+      } catch (pdfErr) {
+        console.warn("Could not pre-fetch updated PDF preview:", pdfErr.message);
+      }
     } catch (err) { console.error("Edit quotation error:", err); setError(`Failed to update quotation: ${err.message}`); }
     finally { setModalSubmitLoading(false); }
   };
@@ -1056,11 +1094,17 @@ export default function Direct() {
       setSuccessMessage("Booking created successfully!"); setShowSuccess(true); setTimeout(() => setShowSuccess(false), 3000);
       setQuotations(prev => prev.map(q => q.quotation_id === quotationId ? { ...q, status: "booked" } : q));
       setFilteredQuotations(prev => prev.map(q => q.quotation_id === quotationId ? { ...q, status: "booked" } : q));
-      const pdfRes = await axios.get(`${API_BASE_URL}/api/direct/invoice/${response.data.order_id}`, { responseType: "blob" });
-      const blobUrl = window.URL.createObjectURL(new Blob([pdfRes.data]));
-      const safeName = (customer.name || "unknown").toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "");
-      setPdfUrl(blobUrl); setPdfFileName(`${safeName}-${response.data.order_id}-invoice.pdf`); setPdfConfirmOpen(true);
       closeModal();
+      setModalSubmitLoading(false);
+
+      try {
+        const pdfRes = await axios.get(`${API_BASE_URL}/api/direct/invoice/${response.data.order_id}`, { responseType: "blob" });
+        const blobUrl = window.URL.createObjectURL(new Blob([pdfRes.data]));
+        const safeName = (customer.name || "unknown").toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "");
+        setPdfUrl(blobUrl); setPdfFileName(`${safeName}-${response.data.order_id}-invoice.pdf`); setPdfConfirmOpen(true);
+      } catch (pdfErr) {
+        console.warn("Could not pre-fetch invoice PDF preview:", pdfErr.message);
+      }
     } catch (err) { console.error("Convert to booking error:", err); setError(`Failed to create booking: ${err.message}`); }
     finally { setModalSubmitLoading(false); }
   };
@@ -1146,7 +1190,7 @@ export default function Direct() {
                   <Select
                     value={selectedCustomer}
                     onChange={setSelectedCustomer}
-                    options={customers.map(c => ({ value: c.id.toString(), label: `${c.name} (${c.customer_type === "Customer of Selected Agent" ? "Customer - Agent" : c.customer_type || "User"} - ${c.district || "N/A"})` }))}
+                    options={customerOptions}
                     placeholder="Search by name, type, or district…"
                     isClearable
                     styles={selectStyles}

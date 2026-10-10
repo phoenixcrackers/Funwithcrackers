@@ -435,13 +435,15 @@ export default function List() {
     formDataToSend.append("product_type", formData.product_type);
     formDataToSend.append("box_count", Math.max(1, Number.parseInt(formData.box_count) || 1));
     if (isEdit) {
-      const remainingExistingImages = formData.existingImages || [];
-      if (remainingExistingImages.length > 0) formDataToSend.append("existingImages", JSON.stringify(remainingExistingImages));
-      if (formData.imagesToDelete.length > 0) formDataToSend.append("imagesToDelete", JSON.stringify(formData.imagesToDelete));
+      const remainingExistingImages = (formData.existingImages || [])
+        .map((img) => (typeof img === "string" ? img : img?.path || img?.url || img?.secure_url || ""))
+        .filter(Boolean);
+      formDataToSend.append("existingImages", JSON.stringify(remainingExistingImages));
       formData.images.forEach((file) => formDataToSend.append("images", file));
     } else {
       formData.images.forEach((file) => formDataToSend.append("images", file));
     }
+
     const url = isEdit
       ? `${API_BASE_URL}/api/products/${selectedProduct.product_type.toLowerCase().replace(/\s+/g, "_")}/${selectedProduct.id}`
       : `${API_BASE_URL}/api/products`;

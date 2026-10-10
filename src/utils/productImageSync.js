@@ -434,11 +434,15 @@ export async function uploadSingleProductImage(product, files, mode = 'replace',
   if (product.status) fullFormData.append('status', product.status);
 
   if (mode === 'append') {
-    fullFormData.append('existingImages', JSON.stringify(product.images || []));
+    const cleanExisting = (product.images || [])
+      .map((img) => (typeof img === 'string' ? img : img?.path || img?.url || img?.secure_url || ''))
+      .filter(Boolean);
+    fullFormData.append('existingImages', JSON.stringify(cleanExisting));
   } else {
     fullFormData.append('existingImages', JSON.stringify([]));
   }
   files.forEach((f) => fullFormData.append('images', f));
+
 
   const fallbackRes = await fetch(`${apiBaseUrl}/api/products/${tableName}/${product.id}`, {
     method: 'PUT',
